@@ -1,0 +1,12 @@
+name "http"
+description "The library for constructing applications."
+copyright "Copyright (c) 2015-2017, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD"
+
+dependency "vibe-d:http" version="~>0.8.0-beta.6"
+
+targetType "library"
+targetPath "../out"
+sourcePaths "."
+importPaths "."

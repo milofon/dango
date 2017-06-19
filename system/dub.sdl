@@ -1,0 +1,17 @@
+name "system"
+description "The library for constructing applications."
+copyright "Copyright (c) 2015-2017, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD"
+
+dependency "vibe-d:core" version="~>0.8.0-beta.6"
+dependency "brightproof" version="~>2.4.0"
+dependency "proped" version="~>0.0.6"
+dependency "poodinis" version="~>6.3.0"
+dependency "consoled" version="~>1.0.4"
+
+targetType "library"
+targetPath "../out"
+sourcePaths "."
+importPaths "."
+
