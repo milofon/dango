@@ -12,6 +12,8 @@ public
 {
     import vibe.http.router : URLRouter;
     import vibe.http.common : HTTPMethod;
+
+    import proped : Properties;
 }
 
 private
@@ -26,7 +28,7 @@ private
  */
 interface Controller
 {
-    void registerRoutes(URLRouter router);
+    void registerRoutes(URLRouter router, Properties config);
 }
 
 

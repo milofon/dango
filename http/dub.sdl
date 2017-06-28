@@ -5,6 +5,7 @@ authors "Maksim Galanin"
 license "BSD"
 
 dependency "vibe-d:http" version="~>0.8.0-beta.6"
+dependency "proped" version="~>0.0.6"
 
 targetType "library"
 targetPath "../out"

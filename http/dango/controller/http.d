@@ -79,26 +79,27 @@ template isHTTPController(C)
 }
 
 
-alias RegisterHandler(T) = void delegate(URLRouter, HTTPMethod, string, T);
+alias RegisterHandler(T) = void delegate(HTTPMethod, string, T);
+
+
+string getHandlerPath(C)(string path)
+{
+    auto udas = getUDAs!(C, HTTPController);
+    static if (udas.length > 0)
+    {
+        string prefix = udas[0].prefix;
+        Path p = Path(prefix);
+        p ~= (Path(path)).nodes;
+        return p.toString();
+    }
+    else
+        return path;
+}
 
 
 void registerController(C, Handler)(URLRouter router, C controller, RegisterHandler!Handler handler)
     if (isHTTPController!C)
 {
-    auto udas = getUDAs!(C, HTTPController);
-    string getPath(string path)
-    {
-        static if (udas.length > 0)
-        {
-            string prefix = udas[0].prefix;
-            Path p = Path(prefix);
-            p ~= (Path(path)).nodes;
-            return p.toString();
-        }
-        else
-            return path;
-    }
-
     foreach (string fName; __traits(allMembers, C))
     {
         enum access = __traits(getProtection, __traits(getMember, C, fName));
@@ -111,10 +112,11 @@ void registerController(C, Handler)(URLRouter router, C controller, RegisterHand
                 {
                     alias Type = typeof(&__traits(getMember, controller, fName));
                     static assert(is(Type == Handler), "Handler '" ~ fName ~ "' does not match the type");
-                    handler(router, attr.method, getPath(attr.path),
+                    handler(attr.method, getHandlerPath!C(attr.path),
                             &__traits(getMember, controller, fName));
                 }
             }
         }
     }
 }
+

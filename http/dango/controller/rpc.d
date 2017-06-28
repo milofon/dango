@@ -122,10 +122,8 @@ struct Result
 
 
 alias Handler = Result delegate(Json);
-alias MiddlewareHandler = Result delegate(RPCHandler, Json, Handler);
 
-
-void registerController(C : Controller)(URLRouter router, C controller, MiddlewareHandler handler)
+HTTPServerRequestDelegate createRPCHandler(C : Controller)(C controller)
 {
     enum udas = getUDAs!(C, RPCController);
     static if (udas.length > 0)
@@ -136,7 +134,13 @@ void registerController(C : Controller)(URLRouter router, C controller, Middlewa
     string getFullMethod(string method)
     {
         static if (udas.length > 0)
-            return udas[0].prefix ~ "." ~ method;
+        {
+            string prefix = udas[0].prefix;
+            if (prefix.length > 0)
+                return prefix ~ "." ~ method;
+            else
+                return method;
+        }
         else
             return method;
     }
@@ -155,7 +159,7 @@ void registerController(C : Controller)(URLRouter router, C controller, Middlewa
                         alias Type = typeof(&__traits(getMember, controller, fName));
                         static assert(is(Type == Handler), "Handler '" ~ fName ~ "' does not match the type");
                         case getFullMethod(attr.method):
-                            return handler(attr, params, &__traits(getMember, controller, fName));
+                            return __traits(getMember, controller, fName)(params);
                     }
                 }
             }
@@ -164,7 +168,8 @@ void registerController(C : Controller)(URLRouter router, C controller, Middlewa
         }
     }
 
-    router.post(path, (HTTPServerRequest req, HTTPServerResponse res) {
+    void handler(HTTPServerRequest req, HTTPServerResponse res) @trusted
+    {
         auto bodyStr = cast(string)req.bodyReader.readAll;
         Json json;
         try
@@ -219,13 +224,15 @@ void registerController(C : Controller)(URLRouter router, C controller, Middlewa
             res.writeVoidBody();
             return;
         }
-    });
+    }
 
-    router.match(HTTPMethod.OPTIONS, path, createOptionCORSHandler());
+    return (HTTPServerRequest req, HTTPServerResponse res) @safe {
+        handler(req, res);
+    };
 }
 
 
-void writeErrorBody(HTTPServerResponse res, RPCError error)
+void writeErrorBody(HTTPServerResponse res, RPCError error) @safe
 {
     Json response = Json.emptyObject();
     response["jsonrpc"] = "2.0";

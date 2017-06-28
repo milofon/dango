@@ -9,12 +9,12 @@ module dango.system.container.named;
 
 private
 {
-   import poodinis; 
+   import poodinis;
 }
 
 /**
  * Контейнер для управления именованных зависимостей
- * 
+ *
  * При помощи данного контейнера можно зарегистрировать именованную зависимось определенного типа.
  * Имена уникальны в рамках одного типа
  */
@@ -57,7 +57,7 @@ class NamedContainer
         if (auto r = name in *candidates)
         {
             auto autowireContext = new AutowireInstantiationContext();
-            autowireContext.autowireInstance = false;
+            autowireContext.autowireInstance = true;
             return cast(RegistrationType)(*r).getInstance(autowireContext);
         }
 
