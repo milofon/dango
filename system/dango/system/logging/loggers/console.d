@@ -5,7 +5,7 @@
  * License: Subject to the terms of the BSD license, as written in the included LICENSE.txt file.
  * Authors: Maksim Galanin
  */
-module dango.system.logging.loggers.consoled;
+module dango.system.logging.loggers.console;
 
 private
 {
@@ -13,7 +13,7 @@ private
     import std.stdio: writeln, write, writef;
 
     import vibe.core.log;
-    import consoled: Color, resetColors, foreground, background;
+    import colored: AnsiColor, StringWithBoth;
     import proped: Properties;
 
     import dango.system.logging.core;
@@ -22,13 +22,13 @@ private
 /**
  * Фабрика создающая расширенный консольный логгер
  */
-class ConsoledLoggerFactory : LoggerFactory
+class ConsoleLoggerFactory : LoggerFactory
 {
     shared(Logger) createLogger(Properties config)
     {
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
 
-        auto result = cast(shared)new ConsoledLogger(level);
+        auto result = cast(shared)new ConsoleLogger(level);
         return result;
     }
 }
@@ -37,28 +37,28 @@ class ConsoledLoggerFactory : LoggerFactory
 /**
  * Расширенный консольный логгер, с возможностью управления цветом
  */
-class ConsoledLogger : Logger
+class ConsoleLogger : Logger
 {
-    alias ColorTheme = Tuple!(Color, Color);
+    alias ColorTheme = Tuple!(AnsiColor, AnsiColor);
 
     enum themes = [
-        LogLevel.trace: ColorTheme(Color.cyan, Color.initial),
-        LogLevel.debugV: ColorTheme(Color.green, Color.initial),
-        LogLevel.debug_: ColorTheme(Color.green, Color.initial),
-        LogLevel.diagnostic: ColorTheme(Color.green, Color.initial),
-        LogLevel.info: ColorTheme(Color.initial, Color.initial),
-        LogLevel.warn: ColorTheme(Color.yellow, Color.initial),
-        LogLevel.error: ColorTheme(Color.red, Color.initial),
-        LogLevel.critical: ColorTheme(Color.white, Color.red),
-        LogLevel.fatal: ColorTheme(Color.white, Color.red),
-        LogLevel.none: ColorTheme(Color.initial, Color.initial),
+        LogLevel.trace: ColorTheme(AnsiColor.cyan, AnsiColor.defaultColor),
+        LogLevel.debugV: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
+        LogLevel.debug_: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
+        LogLevel.diagnostic: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
+        LogLevel.info: ColorTheme(AnsiColor.defaultColor, AnsiColor.defaultColor),
+        LogLevel.warn: ColorTheme(AnsiColor.yellow, AnsiColor.defaultColor),
+        LogLevel.error: ColorTheme(AnsiColor.red, AnsiColor.defaultColor),
+        LogLevel.critical: ColorTheme(AnsiColor.white, AnsiColor.red),
+        LogLevel.fatal: ColorTheme(AnsiColor.white, AnsiColor.red),
+        LogLevel.none: ColorTheme(AnsiColor.defaultColor, AnsiColor.defaultColor),
     ];
 
     this(LogLevel level) {
         minLevel = level;
     }
 
-    override void beginLine(ref LogLine msg) @trusted 
+    override void beginLine(ref LogLine msg) @trusted
     {
         string pref;
         final switch (msg.level) {
@@ -75,16 +75,15 @@ class ConsoledLogger : Logger
         }
         ColorTheme theme = themes[msg.level];
         auto tm = msg.time;
-        static if (is(typeof(tm.fracSecs))) auto msecs = tm.fracSecs.total!"msecs"; // 2.069 has deprecated "fracSec"
+        static if (is(typeof(tm.fracSecs)))
+            auto msecs = tm.fracSecs.total!"msecs";
         else auto msecs = tm.fracSec.msecs;
 
         writef("[%08X:%08X %d.%02d.%02d %02d:%02d:%02d.%03d ",
                 msg.threadID, msg.fiberID,
                 tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, msecs);
-        foreground = theme[0];
-        background = theme[1];
-        write(pref);
-        resetColors();
+
+        write(StringWithBoth!AnsiColor(pref, theme[0], theme[1]));
         write("] ");
     }
 

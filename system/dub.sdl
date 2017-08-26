@@ -6,9 +6,11 @@ license "BSD"
 
 dependency "vibe-d:core" version="~>0.8.0-beta.6"
 dependency "brightproof" version="~>2.4.0"
-dependency "proped" version="~>0.0.6"
 dependency "poodinis" version="~>6.3.0"
-dependency "consoled" version="~>1.0.4"
+dependency "proped" version="~>0.0.7-rc.1"
+
+dependency "colored" version="~>0.0.5"
+subConfiguration "colored" "library"
 
 targetType "library"
 targetPath "../out"

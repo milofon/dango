@@ -120,3 +120,118 @@ void registerController(C, Handler)(URLRouter router, C controller, RegisterHand
     }
 }
 
+
+/**
+ * Функция стоит объект настроект http сервера по параметрам конфигурации
+ * Params:
+ *
+ * config = Конфигурация
+ */
+HTTPServerSettings loadServiceSettings(Properties config)
+{
+    HTTPServerSettings settings = new HTTPServerSettings();
+
+    string host = config.getOrElse("host", "0.0.0.0");
+    settings.bindAddresses = [host];
+
+    auto port = config.get!long("port");
+    if (port.isNull)
+        throw new PropertiesNotFoundException(config, "port");
+    settings.port = cast(ushort)port.get;
+
+    HTTPServerOption options = HTTPServerOption.parseURL | HTTPServerOption.parseQueryString | HTTPServerOption.parseCookies;
+    if ("options" in config)
+        options.setOptionsByName!(HTTPServerOption,
+                "distribute",
+                "errorStackTraces"
+                )(config.sub("options"));
+
+    settings.options = options;
+
+    if ("hostName" in config)
+        settings.hostName = config.get!string("hostName");
+
+    if ("maxRequestTime" in config)
+        settings.maxRequestTime = dur!"seconds"(config.get!long("maxRequestTime"));
+
+    if ("keepAliveTimeout" in config)
+        settings.keepAliveTimeout = dur!"seconds"(config.get!long("keepAliveTimeout"));
+
+    if ("maxRequestSize" in config)
+        settings.maxRequestSize = config.get!long("maxRequestSize");
+
+    if ("maxRequestHeaderSize" in config)
+        settings.maxRequestHeaderSize = config.get!long("maxRequestHeaderSize");
+
+    if ("accessLogFormat" in config)
+        settings.accessLogFormat = config.get!string("accessLogFormat");
+
+    if ("accessLogFile" in config)
+        settings.accessLogFile = config.get!string("accessLogFile");
+
+    settings.accessLogToConsole = config.getOrElse("accessLogToConsole", false);
+
+    if ("ssl" in config)
+    {
+        Properties sslConfig = config.sub("ssl");
+        settings.tlsContext = createTLSContextFrom(sslConfig);
+    }
+
+    return settings;
+}
+
+
+/**
+ * Создание TLS контекста из конфигурации сервиса
+ */
+TLSContext createTLSContextFrom(Properties sslConfig)
+{
+    TLSContext tlsCtx = createTLSContext(TLSContextKind.server);
+
+    auto certChainFile = sslConfig.get!string("certificateChainFile");
+    auto privateKeyFile = sslConfig.get!string("privateKeyFile");
+
+    if (certChainFile.isNull)
+        throw new PropertiesNotFoundException(sslConfig, "certificateChainFile");
+
+    if (privateKeyFile.isNull)
+        throw new PropertiesNotFoundException(sslConfig, "privateKeyFile");
+
+    tlsCtx.useCertificateChainFile(certChainFile.get);
+    tlsCtx.usePrivateKeyFile(privateKeyFile.get);
+
+    return tlsCtx;
+}
+
+
+/**
+ * Установка свойства в битовую маску
+ */
+void setOption(T)(ref T options, bool flag, T value)
+{
+    if (flag)
+        options |= value;
+    else
+        options &= ~value;
+}
+
+
+/**
+ * Установка свойства в битовую маску по имени свойства
+ */
+void setOptionByName(T, string name)(ref T options, Properties config)
+{
+    if (name in config)
+        options.setOption(config.get!bool(name), __traits(getMember, T, name));
+}
+
+
+/**
+ * Установка массива свойств в битовую маску
+ */
+void setOptionsByName(T, NAMES...)(ref T options, Properties config)
+{
+    foreach(string name; NAMES)
+        options.setOptionByName!(T, name)(config);
+}
+

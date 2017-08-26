@@ -15,7 +15,7 @@ private
     import poodinis: ApplicationContext, DependencyContainer;
 
     import dango.system.logging.core;
-    import dango.system.logging.loggers.consoled;
+    import dango.system.logging.loggers.console;
     import dango.system.logging.loggers.file;
     import dango.system.logging.loggers.html;
 
@@ -28,9 +28,9 @@ private
 class LoggingContext : ApplicationContext
 {
     public override void registerDependencies(shared(DependencyContainer) container)
-    {   
+    {
         container.registerByName!(LoggerFactory, FileLoggerFactory)("FILE");
         container.registerByName!(LoggerFactory, HTMLLoggerFactory)("HTML");
-        container.registerByName!(LoggerFactory, ConsoledLoggerFactory)("CONSOLE");
+        container.registerByName!(LoggerFactory, ConsoleLoggerFactory)("CONSOLE");
     }
 }
