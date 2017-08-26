@@ -13,11 +13,44 @@ private
     import std.stdio: writeln, write, writef;
 
     import vibe.core.log;
-    import colored: AnsiColor, StringWithBoth;
     import proped: Properties;
 
     import dango.system.logging.core;
 }
+
+
+enum AnsiColor
+{
+    black = 30,
+    red = 31,
+    green = 32,
+    yellow = 33,
+    blue = 34,
+    magenta = 35,
+    cyan = 36,
+    white = 37,
+    defaultColor = 39
+}
+
+
+struct StringWithBoth(T)
+{
+    string s;
+    T fg;
+    T bg;
+    this(string s, T fg, T bg)
+    {
+        this.s = s;
+        this.fg = fg;
+        this.bg = bg;
+    }
+
+    string toString()
+    {
+        return "\033[%dm\033[%dm%s\033[0m".format(fg, bg + 10, s);
+    }
+}
+
 
 /**
  * Фабрика создающая расширенный консольный логгер
