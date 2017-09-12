@@ -11,6 +11,7 @@ private
 {
     import std.typecons: Tuple, tuple;
     import std.stdio: writeln, write, writef;
+    import std.format : format;
 
     import vibe.core.log;
     import proped: Properties;

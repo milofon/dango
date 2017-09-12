@@ -1,5 +1,5 @@
 /**
- * Модуль содержит методы для работы со совйствами приложения 
+ * Модуль содержит методы для работы со совйствами приложения
  *
  * Copyright: (c) 2015-2017, Milofon Project.
  * License: Subject to the terms of the BSD license, as written in the included LICENSE.txt file.
@@ -14,6 +14,11 @@ private
     import dango.system.container : registerByName;
 
     import proped;
+}
+
+public
+{
+    import poodinis : Registration;
 }
 
 
@@ -60,5 +65,95 @@ Loader createLoaderFromContainer(shared(DependencyContainer) container)
     {
         return loaders.loadProperties(fileName);
     };
+}
+
+
+/**
+ * Функция позволяет назначить фабрику передающую параметры в конструктор
+ * для зарегистрированной в контейнере класса
+ * Params:
+ *
+ * registration = Объект регистрации в контейнере
+ * config       = Конфигурация
+ */
+Registration propertiesInstance(T)(Registration registration, Properties config) {
+
+    Object propertiesInstanceMethod()
+    {
+        return new T(config);
+    }
+
+    registration.instanceFactory = new InstanceFactory(registration.instanceType,
+            CreatesSingleton.yes, null, &propertiesInstanceMethod);
+    return registration;
+}
+
+
+/**
+ * Шаблон для регистрации зависимостей массово
+ * Используется для более простой регистрации зависимостей в контейнер DI
+ *
+ * Params:
+ *
+ * pairs = Массив из пар (наименование, класс)
+ *
+ * Example:
+ * --------------------
+ * auto callback = (Registration reg, string name, Properties cfg) {};
+ * registerControllerDependencies!("api", ControllerApi)(container, config, callback);
+ * --------------------
+ */
+mixin template registerPropertiesDependencies(C, pairs...)
+{
+    template GenerateSwitch()
+    {
+        template GenerateSwitchBody(tpairs...)
+        {
+            static if (tpairs.length > 0)
+            {
+                enum GenerateSwitchBody = `
+                    case ("` ~ tpairs[0]  ~ `"):
+                        auto reg = container.register!(C, ` ~ tpairs[1].stringof ~ `)
+                            .propertiesInstance!(` ~ tpairs[1].stringof ~ `)(cfg);
+                        if (callback !is null)
+                            callback(reg, name, cfg);
+                        break;` ~ GenerateSwitchBody!(tpairs[2..$]);
+            }
+            else
+                enum GenerateSwitchBody = "";
+        }
+        enum GenerateSwitch = "switch(name)\n{" ~ GenerateSwitchBody!(pairs) ~ "\ndefault: break;\n}";
+    }
+
+    void registerPropertiesDependencies(shared(DependencyContainer) container, Properties config,
+            void function(Registration, string, Properties) callback = null)
+    {
+        pragma(msg, __MODULE__);
+        // pragma(msg, GenerateSwitch!());
+        foreach (Properties cfg; config.getArray())
+        {
+            auto pName = cfg.get!string("name");
+            if (pName.isNull)
+                continue;
+            string name = pName.get;
+            mixin(GenerateSwitch!());
+        }
+    }
+}
+
+
+/**
+ * Функция для регистрации существующего контекста
+ * Params:
+ *
+ * container = Контейнер зависимостей
+ * ctx       = Объект контекста
+ */
+void registerExistsContext(Context : ApplicationContext)(shared(DependencyContainer) container, Context ctx)
+{
+    ctx.registerDependencies(container);
+    ctx.registerContextComponents(container);
+    container.register!(ApplicationContext, Context)().existingInstance(ctx);
+    autowire(container, ctx);
 }
 

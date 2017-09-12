@@ -114,6 +114,8 @@ abstract class BaseApplication : Application
 
         configureLogging(container, config, &registerLogger);
 
+        initDependencies(container, config);
+
         return runApplication(config);
     }
 
@@ -214,7 +216,6 @@ private:
         container.registerContext!PropertiesContext;
         container.registerContext!LoggingContext;
         container.register!PropertiesProxy.existingInstance(new PropertiesProxy(config));
-        initDependencies(container, config);
     }
 
 

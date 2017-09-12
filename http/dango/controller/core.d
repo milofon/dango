@@ -12,6 +12,7 @@ public
 {
     import vibe.http.router : URLRouter;
     import vibe.http.common : HTTPMethod;
+    import vibe.http.server : HTTPServerRequestHandler;
 
     import proped : Properties;
 }
@@ -28,8 +29,27 @@ private
  */
 interface Controller
 {
-    void registerRoutes(URLRouter router, Properties config);
+    /**
+     * Регистрация маршрутов контроллера
+     * Params:
+     *
+     * router     = Маршрутизатор
+     * servConfig = Конфигурация сервиса
+     *
+     */
+    void registerRoutes(URLRouter router, Properties servConfig);
+
+
+    /**
+     * Возвращает активность контроллера
+     */
+    bool enabled() @property;
 }
+
+
+
+
+
 
 
 void handleCors(HTTPServerRequest req, HTTPServerResponse res) @safe

@@ -81,7 +81,7 @@ enum Auth;
 
 template isHTTPController(C)
 {
-    enum isHTTPController = is(C == class);
+    enum isHTTPController = is(C == class) && is(C : Controller);
 }
 
 
@@ -103,7 +103,7 @@ string getHandlerPath(C)(string path)
 }
 
 
-void registerController(C, Handler)(URLRouter router, C controller, RegisterHandler!Handler handler)
+void registerControllerHandlers(C, Handler)(URLRouter router, C controller, RegisterHandler!Handler handler)
     if (isHTTPController!C)
 {
     foreach (string fName; __traits(allMembers, C))
