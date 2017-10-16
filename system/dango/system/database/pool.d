@@ -12,7 +12,6 @@ private
     import std.container : SList;
 
     import vibe.core.sync;
-    import vibe.core.log;
     import vibe.core.core : Mutex;
 }
 
