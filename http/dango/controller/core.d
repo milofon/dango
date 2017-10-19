@@ -47,11 +47,6 @@ interface Controller
 }
 
 
-
-
-
-
-
 void handleCors(HTTPServerRequest req, HTTPServerResponse res) @safe
 {
     if (req.method == HTTPMethod.OPTIONS)

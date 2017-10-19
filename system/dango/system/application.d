@@ -272,7 +272,7 @@ protected:
      *
      * exitStatus = Код завершения приложения
      */
-    void finalityService(int exitStatus);
+    void finalizeService(int exitStatus);
 
 private:
 
@@ -294,7 +294,7 @@ private:
         int status = runEventLoop();
         logDiagnostic("Цикл событий зaвершен со статутом %d.", status);
 
-        finalityService(status);
+        finalizeService(status);
 
         return status;
     }
