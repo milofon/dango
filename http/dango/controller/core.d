@@ -30,14 +30,20 @@ private
 interface Controller
 {
     /**
+     * Инициализация контроллера
+     * Params:
+     *
+     * config = Конфигурация контроллера
+     */
+    void initialize(Properties config);
+
+    /**
      * Регистрация маршрутов контроллера
      * Params:
      *
      * router     = Маршрутизатор
-     * servConfig = Конфигурация сервиса
-     *
      */
-    void registerRoutes(URLRouter router, Properties servConfig);
+    void registerRoutes(URLRouter router);
 
 
     /**
