@@ -1,0 +1,85 @@
+-- Тестовый файл для описание метамодели данных приложения
+
+
+-- простой тип данных, аналог доменов
+node "D_ID" {
+    type "LONG" -- Примитивный тип long в D, bigint в Базе
+    nullable false
+}
+
+
+-- составной тип данных, который содержит простой тип и валидаторы
+node "ADDRESS" {
+    type "STRING" {
+        lenght {
+            min 3
+            max 255
+        }
+
+        lenght 255 -- урощенная версия указан только max, а min = 0
+        nullable false -- поведение по умолчанию
+    }
+
+    validator "STREET" { -- валидатор зарегистрирован в системе, поиск по имени
+        streetMinLen 10
+        country "RU"
+    }
+
+    validator "COUNTRY" {
+        country "RU"
+    }
+}
+
+
+node "USER" {
+    field "id" {
+        type "D_ID"
+    }
+
+    field "address" {
+        type "ADDRESS"
+        nullable true
+    }
+
+    primaryKey {
+        field "id"
+        position 0
+    }
+}
+
+
+node "DOCUMENT" {
+    field "id" {
+        type "D_ID"
+    }
+
+    field "sysname" {
+        type "STRING"
+        lenght 30
+    }
+
+    field "user" {
+        type "USER"
+        nullable false
+    }
+
+    primaryKey {
+        field "id"
+        position 0
+    }
+
+    primaryKey {
+        field "sysname"
+        position 1
+    }
+}
+
+
+-- На основе этих метаданных будут генерироваться
+
+-- структуры для сериализации JSON или MsgPack
+-- структура базы данных
+-- схема GraphQL
+-- REST API
+-- JSON RPC
+

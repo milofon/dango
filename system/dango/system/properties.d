@@ -157,3 +157,13 @@ void registerExistsContext(Context : ApplicationContext)(shared(DependencyContai
     autowire(container, ctx);
 }
 
+
+void registerExtContext(Context : ApplicationContext)(shared(DependencyContainer) container, Properties config)
+{
+    auto context = new Context();
+    context.registerDependencies(container, config);
+    context.registerContextComponents(container);
+    container.register!(ApplicationContext, Context)().existingInstance(context);
+    autowire(container, context);
+}
+
