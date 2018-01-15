@@ -20,9 +20,9 @@ private
     import std.traits : getUDAs;
     import std.meta : Alias;
 
-    import vibe.core.path : Path;
+    import vibe.core.path : InetPath;
     import vibe.stream.tls : createTLSContext, TLSContextKind;
-    import vibe.http.server : HTTPServerSettings, TLSContext, HTTPServerOption;
+    import vibe.http.server : HTTPServerSettings, TLSContext, HTTPServerOptionImpl, HTTPServerOption;
 
     import proped : PropertiesNotFoundException;
 
@@ -94,9 +94,21 @@ string getHandlerPath(C)(string path)
     static if (udas.length > 0)
     {
         string prefix = udas[0].prefix;
-        Path p = Path(prefix);
-        p ~= (Path(path)).nodes;
-        return p.toString();
+        if (prefix.length == 0)
+            prefix = "/";
+
+        InetPath parent = InetPath(prefix);
+        InetPath child = InetPath(path);
+
+        if (child.absolute && parent.absolute)
+        {
+            auto childSegments = child.bySegment();
+            childSegments.popFront();
+            child = InetPath(childSegments);
+        }
+
+        parent ~= child;
+        return parent.toString();
     }
     else
         return path;
@@ -145,9 +157,9 @@ HTTPServerSettings loadServiceSettings(Properties config)
         throw new PropertiesNotFoundException(config, "port");
     settings.port = cast(ushort)port.get;
 
-    HTTPServerOption options = HTTPServerOption.parseURL | HTTPServerOption.parseQueryString | HTTPServerOption.parseCookies;
+    HTTPServerOption options = HTTPServerOption.defaults;
     if ("options" in config)
-        options.setOptionsByName!(HTTPServerOption,
+        options.setOptionsByName!(HTTPServerOptionImpl,
                 "distribute",
                 "errorStackTraces"
                 )(config.sub("options"));
