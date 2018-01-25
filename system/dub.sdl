@@ -1,6 +1,6 @@
 name "system"
-description "The library for constructing applications."
-copyright "Copyright (c) 2015-2017, Milofon Project. All rights reserved."
+description "The library for constructing service."
+copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD"
 

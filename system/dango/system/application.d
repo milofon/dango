@@ -238,7 +238,7 @@ private:
  * Приложение запускающее обработчик событий
  * работающее в режиме демона
  */
-abstract class ServiceApplication : BaseApplication
+abstract class DaemonApplication : BaseApplication
 {
     this(string name, string _version)
     {
@@ -264,7 +264,7 @@ protected:
      *
      * config = Конфигурация приложения
      */
-    void initializeService(Properties config);
+    void initializeDaemon(Properties config);
 
     /**
      * Остановка демона сервисов
@@ -272,7 +272,7 @@ protected:
      *
      * exitStatus = Код завершения приложения
      */
-    void finalizeService(int exitStatus);
+    int finalizeDaemon(int exitStatus);
 
 private:
 
@@ -288,15 +288,13 @@ private:
 
         lowerPrivileges();
 
-        initializeService(config);
+        initializeDaemon(config);
 
         logDiagnostic("Запуск цикла обработки событий...");
         int status = runEventLoop();
         logDiagnostic("Цикл событий зaвершен со статутом %d.", status);
 
-        finalizeService(status);
-
-        return status;
+        return finalizeDaemon(status);
     }
 }
 

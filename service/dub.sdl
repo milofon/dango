@@ -1,0 +1,15 @@
+name "service"
+description "The library for constructing service"
+copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD"
+
+dependency "dango:system" version="*"
+dependency "dango:http" version="*"
+dependency "zeromq" version="~>4.2.2"
+dependency "msgpack-d" version="~>1.0.0-beta.6"
+
+targetType "library"
+targetPath "../out"
+sourcePaths "."
+importPaths "."
