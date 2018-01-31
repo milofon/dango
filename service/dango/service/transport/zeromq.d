@@ -23,6 +23,8 @@ private
 }
 
 
+alias Handler = ubyte[] delegate(ubyte[]);
+
 
 struct ZeroMQTransportSettings
 {
@@ -36,46 +38,41 @@ class ZeroMQTransport : Transport
 {
     private
     {
-        // ZeroMQTransportSettings _settings;
-        // ZeroMQWorker _worker;
-        // Dispatcher _dispatcher;
+        ZeroMQTransportSettings _settings;
+        ZeroMQWorker _worker;
     }
 
 
     void listen(RpcProtocol protocol, Properties config)
     {
-        // _dispatcher = dispatcher;
+        _settings.uri = config.getOrEnforce!string("bind",
+                "ZeroMQ transport is not defined bind");
+        _settings.useBroker = config.getOrElse!bool("broker", false);
 
-        // _settings.uri = config.getOrEnforce!string("bind",
-        //         "ZeroMQ transport is not defined bind");
-        // _settings.useBroker = config.getOrElse!bool("broker", false);
+        int major, minor, patch;
+        zmq_version(&major, &minor, &patch);
+        logInfo("Version ZeroMQ: %s.%s.%s", major, minor, patch);
 
-        // int major, minor, patch;
-        // zmq_version(&major, &minor, &patch);
-        // logInfo("Version ZeroMQ: %s.%s.%s", major, minor, patch);
+        ubyte[] handler(ubyte[] data)
+        {
+            return protocol.handle(data);
+        }
 
-        // _worker = new ZeroMQWorker(_settings, &mainHandler);
-        // _worker.start();
+        _worker = new ZeroMQWorker(_settings, &handler);
+        _worker.start();
 
-        // logInfo("Transport ZeroMQ Start");
+        logInfo("Transport ZeroMQ Start");
     }
 
 
     void shutdown()
     {
-        // _worker.stop();
-        // logInfo("Transport ZeroMQ Stop");
+        _worker.stop();
+        logInfo("Transport ZeroMQ Stop");
     }
-
-private:
-
-    // ubyte[] mainHandler(ubyte[] data) nothrow
-    // {
-    //     return _dispatcher.handle(data);
-    // }
 }
 
-/+
+
 alias LiberatorResources = void delegate();
 
 
@@ -134,7 +131,7 @@ private final class ZeroMQWorker : Thread
             throw new TransportException(cast(string)fromStringz(error));
         }
         else
-            logInfo("Start requester on : %s", _settings.uri);
+            logInfo("Listening for requests on %s", _settings.uri);
 
         zmq_pollitem_t poll_fd;
         poll_fd.socket = socket;
@@ -169,24 +166,24 @@ private:
 
     int sendHandshakeBroker(void* socket)
     {
-        ubyte[] great = cast(ubyte[])"NODE_INFO";
-        zmq_send(socket, great.ptr, great.length, ZMQ_SNDMORE);
+//         ubyte[] great = cast(ubyte[])"NODE_INFO";
+//         zmq_send(socket, great.ptr, great.length, ZMQ_SNDMORE);
 
-        struct Greater
-        {
-            bool isBroker;
-            int workersCount;
-        }
+//         struct Greater
+//         {
+//             bool isBroker;
+//             int workersCount;
+//         }
 
-        // Response!Greater res;
-        // res.success = true;
-        // res.data = Greater(false, 1);
-        // Message!K msg = Message!K(0, pack(res));
+//         // Response!Greater res;
+//         // res.success = true;
+//         // res.data = Greater(false, 1);
+//         // Message!K msg = Message!K(0, pack(res));
 
-        // ubyte[] msgData = serializeMessage(msg);
-        // int ret = zmq_send(socket, msgData.ptr, msgData.length, 0);
+//         // ubyte[] msgData = serializeMessage(msg);
+//         // int ret = zmq_send(socket, msgData.ptr, msgData.length, 0);
 
-        // return (ret > 0) ? 0 : 1;
+//         // return (ret > 0) ? 0 : 1;
         return 0;
     }
 
@@ -200,7 +197,7 @@ private:
     }
 
 
-    void handleMessage(void* socket, int lenMsg) nothrow
+    void handleMessage(void* socket, int lenMsg)
     {
         bool idExists = false;
 
@@ -257,4 +254,3 @@ private:
         rc = zmq_msg_send(&response, socket, 0);
     }
 }
-+/
