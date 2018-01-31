@@ -18,21 +18,32 @@ public
     import proped : Properties;
 
     import dango.service.dispatcher;
+    import dango.service.serializer;
+    import dango.service.protocol;
 }
 
 
+/**
+ * Аннотация контроллера
+ */
 struct RPCController
 {
     string prefix;
 }
 
 
+/**
+ * Аннотация метода
+ */
 struct RPCHandler
 {
     string method;
 }
 
 
+/**
+ * Интерфейс контроллера
+ */
 interface Controller
 {
     /**
@@ -41,7 +52,7 @@ interface Controller
      *
      * config = Конфигурация контроллера
      */
-    void initialize(Properties config);
+    void initialize(Serializer serializer, Properties config);
 
 
     /**
@@ -59,18 +70,24 @@ interface Controller
 }
 
 
+/**
+  * Базовый класс для контроллеров
+  * Params:
+  * P = Тип потомка
+  */
 abstract class BaseController(P) : Controller
 {
     private
     {
+        Serializer _serializer;
         bool _enabled;
-        DispatcherType _dtype;
     }
 
 
-    final void initialize(Properties config)
+    final void initialize(Serializer serializer, Properties config)
     {
         _enabled = config.getOrElse!bool("enabled", false);
+        _serializer = serializer;
         doInitialize(config);
     }
 
@@ -83,20 +100,7 @@ abstract class BaseController(P) : Controller
 
     void register(Dispatcher dispatcher)
     {
-        _dtype = dispatcher.type;
-        final switch (_dtype) with (DispatcherType)
-        {
-            case MSGPACK:
-                import dango.service.dispatcher.msgpack;
-                registerControllerHandlers!(P, MsgPackDispatcher)
-                    (cast(P)this, cast(MsgPackDispatcher)dispatcher);
-                break;
-            case JSON:
-                import dango.service.dispatcher.json;
-                registerControllerHandlers!(P, JsonDispatcher)
-                    (cast(P)this, cast(JsonDispatcher)dispatcher);
-                break;
-        }
+        registerControllerHandlers!(P)(cast(P)this, dispatcher);
     }
 
 protected:
@@ -104,28 +108,36 @@ protected:
     void doInitialize(Properties config);
 
 
-    void enforceRPC(V, T)(V value, int code, string message, T data = T.init,
+    void enforceRPC(V)(V value, int code, string message,
             string file = __FILE__, size_t line = __LINE__)
     {
         if (!!value)
             return;
 
-        final switch (_dtype) with (DispatcherType)
-        {
-            case MSGPACK:
-                import dango.service.dispatcher.msgpack;
-                MsgPackDispatcher.enforceRPC!T(code, message, data, file, line);
-                break;
-            case JSON:
-                import dango.service.dispatcher.json;
-                JsonDispatcher.enforceRPC!T(code, message, data, file, line);
-                break;
-        }
+        RPCError!UniNode error;
+        error.code = code;
+        error.message = message;
+        throw new RPCException(error);
+    }
+
+
+    void enforceRPC(V, T)(V value, int code, string message, T data,
+            string file = __FILE__, size_t line = __LINE__)
+    {
+        if (!!value)
+            return;
+
+        RPCError!UniNode error;
+        error.code = code;
+        error.message = message;
+        error.data = _serializer.marshal!T(data);
+
+        throw new RPCException(error);
     }
 }
 
 
-void registerControllerHandlers(C, D)(C controller, D dispatcher)
+void registerControllerHandlers(C)(C controller, Dispatcher dispatcher)
 {
     template IsAccesable(string N)
     {

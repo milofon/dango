@@ -13,7 +13,7 @@ public
 {
     import proped : Properties;
 
-    import dango.service.dispatcher.core;
+    import dango.service.protocol: RpcProtocol;
 }
 
 
@@ -24,7 +24,7 @@ interface Transport
      * Params:
      * config = Конфигурация транспорта
      */
-    void listen(Dispatcher dispatcher, Properties config);
+    void listen(RpcProtocol protocol, Properties config);
 
 
     /**

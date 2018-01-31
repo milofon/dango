@@ -17,6 +17,7 @@ private
 
     import dango.controller.core : createOptionCORSHandler, handleCors;
     import dango.controller.http : loadServiceSettings;
+
     import dango.service.transport.core;
 }
 
@@ -25,20 +26,24 @@ class HTTPTransport : Transport
 {
     private
     {
-        Dispatcher _dispatcher;
         HTTPListener _listener;
     }
 
 
-    void listen(Dispatcher dispatcher, Properties config)
+    void listen(RpcProtocol protocol, Properties config)
     {
-        _dispatcher = dispatcher;
-
         auto router = new URLRouter();
         auto httpSettings = loadServiceSettings(config);
         string entrypoint = config.getOrElse!string("entrypoint", "/");
 
-        router.post(entrypoint, &mainHandler);
+        void handler(HTTPServerRequest req, HTTPServerResponse res)
+        {
+            handleCors(req, res);
+            ubyte[] data = protocol.handle(req.bodyReader.readAll());
+            res.writeBody(data);
+        }
+
+        router.post(entrypoint, &handler);
         router.match(HTTPMethod.OPTIONS, entrypoint, createOptionCORSHandler());
 
         _listener = listenHTTP(httpSettings, router);
@@ -49,14 +54,5 @@ class HTTPTransport : Transport
     {
         _listener.stopListening();
         logInfo("Transport HTTP Stop");
-    }
-
-private:
-
-    void mainHandler(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        handleCors(req, res);
-        ubyte[] data = _dispatcher.handle(req.bodyReader.readAll());
-        res.writeBody(data);
     }
 }

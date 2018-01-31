@@ -23,8 +23,10 @@ private
     import dango.system.container : resolveByName;
 
     import dango.service.exception;
-    import dango.service.dispatcher;
     import dango.service.transport;
+    import dango.service.serializer;
+    import dango.service.protocol;
+    import dango.service.dispatcher;
     import dango.service.controller;
 }
 
@@ -42,8 +44,9 @@ abstract class ServiceApplication : DaemonApplication
 
     override final void initDependencies(shared(DependencyContainer) container, Properties config)
     {
-        container.registerContext!DispatcherContext;
         container.registerContext!TransportContext;
+        container.registerContext!SerializerContext;
+        container.registerContext!ProtocolContext;
 
         initServiceDependencies(container, config);
     }
@@ -68,40 +71,52 @@ abstract class ServiceApplication : DaemonApplication
             {
                 Properties trConf = servConf.getOrEnforce!Properties("transport",
                         "Not defined transport config");
+                Properties serConf = servConf.getOrEnforce!Properties("serializer",
+                        "Not defined serializer config");
+                Properties protoConf = servConf.getOrEnforce!Properties("protocol",
+                        "Not defined protocol config");
 
-                string servName = servConf.getOrEnforce!string("name",
+                string serviceName = servConf.getOrEnforce!string("name",
                         "Not defined service name");
-                string serialiserName = servConf.getOrEnforce!string("serializer",
-                        "Not defined serialiser type");
-                string transportName = trConf.getOrEnforce!string("name",
+                string serializerName = getNameOrEnforce(serConf,
+                        "Not defined serializer name");
+                string protoName = getNameOrEnforce(protoConf,
+                        "Not defined protocol name");
+                string transportName = getNameOrEnforce(trConf,
                         "Not defined transport name");
+
+                Serializer serializer = container.resolveByName!Serializer(serializerName);
+                configEnforce(serializer !is null,
+                        "Serializer '%s' not register".fmt(serializerName));
+
+                Dispatcher dispatcher = new Dispatcher(serializer);
+
+                RpcProtocol protocol = container.resolveByName!RpcProtocol(protoName);
+                configEnforce(protocol !is null,
+                        "Protocol '%s' not register".fmt(protoName));
+                protocol.initialize(dispatcher, serializer, protoConf);
 
                 Transport tr = container.resolveByName!Transport(transportName);
                 configEnforce(tr !is null,
                         "Transport '%s' not register".fmt(transportName));
 
-                Dispatcher dsp = container.resolveByName!Dispatcher(serialiserName);
-                configEnforce(dsp !is null,
-                        "Dispatcher '%s' not register".fmt(serialiserName));
-
                 foreach (Properties ctrConf; servConf.getArray("controller"))
                 {
-                    auto ctrName = ctrConf.isObject ? ctrConf.get!string("name") : ctrConf.get!string;
-                    if (ctrName.isNull)
-                        continue;
+                    string ctrName = getNameOrEnforce(ctrConf,
+                        "Not defined controller name");
 
-                    Controller ctrl = container.resolveByName!Controller(ctrName.get);
+                    Controller ctrl = container.resolveByName!Controller(ctrName);
                     configEnforce(ctrl !is null, "Controller '%s' not register".fmt(ctrName));
 
-                    ctrl.initialize(ctrConf);
+                    ctrl.initialize(serializer, ctrConf);
                     if (ctrl.enabled)
                     {
-                        ctrl.register(dsp);
+                        ctrl.register(dispatcher);
                         logInfo("Register '%s' controller", ctrName);
                     }
                 }
 
-                tr.listen(dsp, trConf);
+                tr.listen(protocol, trConf);
                 _transports ~= tr;
             }
         }
@@ -140,4 +155,18 @@ protected:
      * exitCode = Код возврата
      */
     int finalizeService(int exitCode);
+
+private:
+
+    string getNameOrEnforce(Properties config, string msg)
+    {
+        if (config.isObject)
+            return config.getOrEnforce!string("name", msg);
+        else
+        {
+            auto val = config.get!string;
+            configEnforce(!val.isNull, msg);
+            return val.get;
+        }
+    }
 }

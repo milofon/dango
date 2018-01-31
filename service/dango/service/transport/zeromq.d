@@ -36,46 +36,46 @@ class ZeroMQTransport : Transport
 {
     private
     {
-        ZeroMQTransportSettings _settings;
-        ZeroMQWorker _worker;
-        Dispatcher _dispatcher;
+        // ZeroMQTransportSettings _settings;
+        // ZeroMQWorker _worker;
+        // Dispatcher _dispatcher;
     }
 
 
-    void listen(Dispatcher dispatcher, Properties config)
+    void listen(RpcProtocol protocol, Properties config)
     {
-        _dispatcher = dispatcher;
+        // _dispatcher = dispatcher;
 
-        _settings.uri = config.getOrEnforce!string("bind",
-                "ZeroMQ transport is not defined bind");
-        _settings.useBroker = config.getOrElse!bool("broker", false);
+        // _settings.uri = config.getOrEnforce!string("bind",
+        //         "ZeroMQ transport is not defined bind");
+        // _settings.useBroker = config.getOrElse!bool("broker", false);
 
-        int major, minor, patch;
-        zmq_version(&major, &minor, &patch);
-        logInfo("Version ZeroMQ: %s.%s.%s", major, minor, patch);
+        // int major, minor, patch;
+        // zmq_version(&major, &minor, &patch);
+        // logInfo("Version ZeroMQ: %s.%s.%s", major, minor, patch);
 
-        _worker = new ZeroMQWorker(_settings, &mainHandler);
-        _worker.start();
+        // _worker = new ZeroMQWorker(_settings, &mainHandler);
+        // _worker.start();
 
-        logInfo("Transport ZeroMQ Start");
+        // logInfo("Transport ZeroMQ Start");
     }
 
 
     void shutdown()
     {
-        _worker.stop();
-        logInfo("Transport ZeroMQ Stop");
+        // _worker.stop();
+        // logInfo("Transport ZeroMQ Stop");
     }
 
 private:
 
-    ubyte[] mainHandler(ubyte[] data) nothrow
-    {
-        return _dispatcher.handle(data);
-    }
+    // ubyte[] mainHandler(ubyte[] data) nothrow
+    // {
+    //     return _dispatcher.handle(data);
+    // }
 }
 
-
+/+
 alias LiberatorResources = void delegate();
 
 
@@ -257,3 +257,4 @@ private:
         rc = zmq_msg_send(&response, socket, 0);
     }
 }
++/
