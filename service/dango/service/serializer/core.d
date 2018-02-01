@@ -221,6 +221,24 @@ struct UniNode
         return pv;
     }
 
+
+    ref inout(UniNode) opIndex(size_t idx) inout
+    {
+        checkType!(UniNode[])();
+        return _array[idx];
+    }
+
+
+    ref UniNode opIndex(string key)
+    {
+        checkType!(UniNode[string])();
+        if (auto pv = key in _object)
+            return *pv;
+
+        _object[key] = UniNode();
+        return _object[key];
+    }
+
 private :
 
     enum _size = max((ulong.sizeof + (void*).sizeof), 2);
