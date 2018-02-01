@@ -103,12 +103,8 @@ class Dispatcher
                     try
                         args[idx] = _serializer.unmarshal!(PType)(value);
                     catch (Exception e)
-                    {
-                        import std.stdio: wl = writeln;
-                        wl(e.msg);
                         paramErrors[key] ~= "Got type %s, expected %s".fmt(
                                 value.type, typeid(PType));
-                    }
                 }
 
 
@@ -128,17 +124,12 @@ class Dispatcher
                         UniNode[] aParams = params.get!(UniNode[]);
                         if (isArray!PType && ParameterIdents.length == 1)
                         {
-                            // import std.stdio: wl = writeln;
-                            // wl("set array");
                             fillArg!(i, PType)(key, params);
                             requires[key] = true;
                         }
                         else if (i < aParams.length)
                         {
                             UniNode v = aParams[i];
-                            // import std.stdio: wl = writeln;
-                            // wl("set position params");
-                            // wl(v.type, " -> ", typeid(PType));
                             fillArg!(i, PType)(key, v);
                             requires[key] = true;
                         }
@@ -155,10 +146,9 @@ class Dispatcher
                 if (paramErrors.length > 0)
                 {
                     UniNode[string] errObj;
-                    import std.stdio: wl = writeln;
                     foreach (k, errs; paramErrors)
                     {
-                        wl(k, " -> ", errs);
+                        logInfo("%s -> %s", k, errs);
                         UniNode[] errArr;
                         foreach (v; errs)
                             errArr ~= UniNode(v);
@@ -169,10 +159,6 @@ class Dispatcher
                             ErrorCode.INVALID_PARAMS,
                             UniNode(errObj)));
                 }
-
-                // import std.stdio: wl = writeln;
-                // wl(args.expand);
-                // wl(paramErrors);
 
                 RT ret = hdl(args.expand);
                 return _serializer.marshal!RT(ret);

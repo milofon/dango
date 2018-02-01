@@ -21,30 +21,19 @@ private
 
 
 
-class JsonRPCProtocol : RpcProtocol
+class JsonRPCProtocol : BaseRpcProtocol
 {
-    private
-    {
-        Dispatcher _dispatcher;
-        Serializer _serializer;
-    }
-
-
-    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config)
-    {
-        _dispatcher = dispatcher;
-        _serializer = serializer;
-    }
-
-
     ubyte[] handle(ubyte[] data)
     {
         UniNode uniReq;
         try
             uniReq = _serializer.deserialize(data);
         catch (Exception e)
+        {
+            logInfo("Error deserialize: (%s)", e.msg);
             return createErrorBody(createErrorByCode(
                     ErrorCode.PARSE_ERROR, e.msg));
+        }
 
         string method;
         UniNode* id;
@@ -55,9 +44,12 @@ class JsonRPCProtocol : RpcProtocol
             auto vMethod = "method" in uniReq;
             if (!vMethod || !(vMethod.type == UniNode.Type.text
                         || vMethod.type == UniNode.Type.raw))
+            {
+                logInfo("Not found method");
                 return createErrorBody(createErrorByCode!string(
                         ErrorCode.INVALID_REQUEST,
                         "Parameter method is invalid"));
+            }
 
             method = (*vMethod).get!string.strip;
             id = "id" in uniReq;
@@ -66,25 +58,24 @@ class JsonRPCProtocol : RpcProtocol
                 params = *pv;
         }
         catch (Exception e)
+        {
+            logInfo("Error extract meta info: (%s)", e.msg);
             return createErrorBody(createErrorByCode(
                     ErrorCode.SERVER_ERROR, e.msg));
+        }
 
         if (_dispatcher.existst(method))
         {
-            import std.stdio: wl = writeln;
             try
             {
                 UniNode uniRes = _dispatcher.handler(method, params);
                 return createResultBody(id, uniRes);
             }
             catch (RPCException e)
-            {
-                wl(e.msg, " ", e.error);
                 return createErrorBody(e.error);
-            }
             catch (Exception e)
             {
-                wl(e.msg);
+                logInfo("Error execute handler: (%s)", e.msg);
                 return createErrorBody(createErrorByCode(
                         ErrorCode.SERVER_ERROR, e.msg));
             }

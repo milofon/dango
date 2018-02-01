@@ -44,6 +44,26 @@ interface RpcProtocol
 
 
 /**
+  * Базовый класс с общим функционалом для протокола
+  */
+abstract class BaseRpcProtocol : RpcProtocol
+{
+    protected
+    {
+        Dispatcher _dispatcher;
+        Serializer _serializer;
+    }
+
+
+    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config)
+    {
+        _dispatcher = dispatcher;
+        _serializer = serializer;
+    }
+}
+
+
+/**
  * Сообщение об ошибке
  */
 struct RPCError(T)
