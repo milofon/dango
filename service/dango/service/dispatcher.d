@@ -103,7 +103,12 @@ class Dispatcher
                     try
                         args[idx] = _serializer.unmarshal!(PType)(value);
                     catch (Exception e)
-                        paramErrors[key] ~= "Got type %s, expected %s".fmt(value.type, typeid(PType));
+                    {
+                        import std.stdio: wl = writeln;
+                        wl(e.msg);
+                        paramErrors[key] ~= "Got type %s, expected %s".fmt(
+                                value.type, typeid(PType));
+                    }
                 }
 
 
@@ -150,13 +155,16 @@ class Dispatcher
                 if (paramErrors.length > 0)
                 {
                     UniNode[string] errObj;
+                    import std.stdio: wl = writeln;
                     foreach (k, errs; paramErrors)
                     {
+                        wl(k, " -> ", errs);
                         UniNode[] errArr;
                         foreach (v; errs)
                             errArr ~= UniNode(v);
                         errObj[k] = UniNode(errArr);
                     }
+
                     throw new RPCException(createErrorByCode!UniNode(
                             ErrorCode.INVALID_PARAMS,
                             UniNode(errObj)));

@@ -31,30 +31,8 @@ alias MsgPackHandler = ubyte[] delegate(Value* id, Value params);
 
 class MsgPackDispatcher : Dispatcher
 {
-    private MsgPackHandler[string] _handlers;
-
-
-    DispatcherType type() @property
-    {
-        return DispatcherType.MSGPACK;
-    }
-
-
     ubyte[] handle(ubyte[] data) nothrow
     {
-        // Value val;
-        // try
-        // {
-        //     auto unpacker = StreamingUnpacker(data);
-        //     unpacker.execute();
-        //     val = unpacker.purge();
-        // }
-        // catch (Exception e)
-        // {
-        //     logInfo(e.msg);
-        //     return createErrorBody!ubyte(MsgPackRPCErrors!ubyte.PARSE_ERROR);
-        // }
-
         // if (val.type != Value.Type.map)
         //     return createErrorBody!ubyte(MsgPackRPCErrors!ubyte.INVALID_REQUEST);
 
@@ -93,66 +71,6 @@ class MsgPackDispatcher : Dispatcher
         // else
         //     return createErrorBody!ubyte(MsgPackRPCErrors!ubyte.METHOD_NOT_FOUND);
         return [];
-    }
-
-
-    void registerHandler(string cmd, MsgPackHandler h)
-    {
-        _handlers[cmd] = h;
-        logInfo("Register method (%s)", cmd);
-    }
-
-
-    template generateHandler(alias F)
-    {
-        alias ParameterIdents = ParameterIdentifierTuple!F;
-        alias ParameterTypes = ParameterTypeTuple!F;
-        alias ParameterDefs = ParameterDefaults!F;
-        alias Type = typeof(toDelegate(&F));
-        alias RT = ReturnType!F;
-        alias PT = Tuple!ParameterTypes;
-
-        MsgPackHandler generateHandler(Type hdl)
-        {
-            bool[string] requires; // обязательные поля
-
-            ubyte[] fun(Value* id, Value params)
-            {
-                return [];
-                // if (!(params.type == Value.Type.map
-                //         || params.type == Value.Type.array))
-                //     return createErrorBody(MsgPackRPCErrors.INVALID_PARAMS);
-
-                // // инициализируем обязательные поля
-                // PT args;
-                // foreach (i, def; ParameterDefs)
-                // {
-                //     string key = ParameterIdents[i];
-                //     static if (is(def == void))
-                //         requires[key] = false;
-                //     else
-                //         args[i] = def;
-                // }
-
-                // foreach(i, key; ParameterIdents)
-                // {
-                //     alias PType = ParameterTypes[i];
-
-                // }
-
-                // RT ret = hdl(args.expand);
-                // return createResultBody!RT(id, ret);
-            }
-            return &fun;
-        }
-    }
-
-
-    static void enforceRPC(T)(int code, string message, T data = T.init,
-            string file = __FILE__, size_t line = __LINE__)
-    {
-        auto error = RPCError!Value(code, message, pack(data));
-        throw new RPCException!Value(error, file, line);
     }
 }
 

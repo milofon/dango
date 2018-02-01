@@ -53,10 +53,12 @@ class JsonRPCProtocol : RpcProtocol
         try
         {
             auto vMethod = "method" in uniReq;
-            if (!vMethod || vMethod.type != UniNode.Type.text)
+            if (!vMethod || !(vMethod.type == UniNode.Type.text
+                        || vMethod.type == UniNode.Type.raw))
                 return createErrorBody(createErrorByCode!string(
                         ErrorCode.INVALID_REQUEST,
                         "Parameter method is invalid"));
+
             method = (*vMethod).get!string.strip;
             id = "id" in uniReq;
             params = UniNode.emptyObject();
@@ -69,16 +71,23 @@ class JsonRPCProtocol : RpcProtocol
 
         if (_dispatcher.existst(method))
         {
+            import std.stdio: wl = writeln;
             try
             {
                 UniNode uniRes = _dispatcher.handler(method, params);
                 return createResultBody(id, uniRes);
             }
             catch (RPCException e)
+            {
+                wl(e.msg, " ", e.error);
                 return createErrorBody(e.error);
+            }
             catch (Exception e)
+            {
+                wl(e.msg);
                 return createErrorBody(createErrorByCode(
                         ErrorCode.SERVER_ERROR, e.msg));
+            }
         }
         else
             return createErrorBody(createEmptyErrorByCode(

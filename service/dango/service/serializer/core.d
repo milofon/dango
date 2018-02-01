@@ -190,13 +190,20 @@ struct UniNode
 
     inout(T) get(T)() @property inout @trusted
     {
-        checkType!T();
+        static if (is(T == string) || is(T == ubyte[]))
+            checkType!(T, ubyte[])();
+        else static if(isNumeric!T && (isSigned!T || isUnsigned!T))
+            checkType!(long, ulong)();
+        else
+            checkType!T();
+
         static if (is(T == bool)) return _boolean;
         else static if (is(T == double)) return _floating;
         else static if (is(T == float)) return cast(T)_floating;
         else static if (isSigned!T) return cast(T)_signed;
         else static if (isUnsigned!T) return cast(T)_unsigned;
-        else static if (is(T == string)) return cast(T)_text;
+        else static if (is(T == string))
+            return _type == Type.text ? cast(T)_text : cast(T)_raw;
         else static if (is(T == ubyte[])) return cast(inout(T))_raw;
         else static if (is(T == UniNode[])) return _array;
         else static if (is(T == UniNode[string])) return _object;

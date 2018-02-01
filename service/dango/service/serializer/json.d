@@ -43,7 +43,6 @@ private:
 
 UniNode toUniNode(Json input)
 {
-    // import std.stdio: wl = writeln, w = write;
     UniNode convert(Json node)
     {
         switch(node.type) with (Json)
