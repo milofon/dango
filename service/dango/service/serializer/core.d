@@ -192,7 +192,7 @@ struct UniNode
     {
         static if (is(T == string) || is(T == ubyte[]))
             checkType!(T, ubyte[])();
-        else static if(isNumeric!T && (isSigned!T || isUnsigned!T))
+        else static if(isNumeric!T && (isSigned!T || isUnsigned!T) && !isFloatingPoint!T)
             checkType!(long, ulong)();
         else
             checkType!T();
@@ -238,6 +238,15 @@ struct UniNode
         _object[key] = UniNode();
         return _object[key];
     }
+
+
+    void appendArrayElement(UniNode element)
+    {
+        enforceUniNode(_type == Type.array, "'appendArrayElement' only allowed for array types, not "
+                ~.to!string(_type)~".");
+        _array ~= element;
+    }
+
 
 private :
 
@@ -410,7 +419,10 @@ struct UniNodeSerializer
     void beginWriteArrayEntry(ElementTypeTraits)(size_t index) {}
 
 
-    void endWriteArrayEntry(ElementTypeTraits)(size_t index) {}
+    void endWriteArrayEntry(ElementTypeTraits)(size_t index)
+    {
+        _stack[$-1].appendArrayElement(_current);
+    }
 
 
     void writeValue(TypeTraits, T)(T value) if (!is(T == UniNode))
