@@ -1,5 +1,5 @@
 /**
- * Реализация упрощенного RPC протокола
+ * Реализация упрощенного Rpc протокола
  *
  * Copyright: (c) 2015-2017, Milofon Project.
  * License: Subject to the terms of the BSD license, as written in the included LICENSE.txt file.
@@ -71,7 +71,7 @@ class SimpleRpcProtocol : BaseRpcProtocol
                 UniNode uniRes = _dispatcher.handler(method, params);
                 return createResultBody(id, uniRes);
             }
-            catch (RPCException e)
+            catch (RpcException e)
                 return createErrorBody(e.error);
             catch (Exception e)
             {
@@ -87,9 +87,9 @@ class SimpleRpcProtocol : BaseRpcProtocol
 
 private:
 
-    ubyte[] createErrorBody(T)(RPCError!T error)
+    ubyte[] createErrorBody(T)(RpcError!T error)
     {
-        RPCError!UniNode uniError;
+        RpcError!UniNode uniError;
         uniError.code = error.code;
         uniError.message = error.message;
         if (!error.data.isNull)
@@ -98,7 +98,7 @@ private:
     }
 
 
-    ubyte[] createErrorBody(RPCError!UniNode error)
+    ubyte[] createErrorBody(RpcError!UniNode error)
     {
         UniNode[string] response;
         response["id"] = UniNode();

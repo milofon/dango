@@ -52,7 +52,7 @@ class Dispatcher
         if (auto h = cmd in _handlers)
             return (*h)(params);
         else
-            throw new RPCException(createEmptyErrorByCode!UniNode(
+            throw new RpcException(createEmptyErrorByCode!UniNode(
                     ErrorCode.METHOD_NOT_FOUND));
     }
 
@@ -81,7 +81,7 @@ class Dispatcher
             {
                 if (!(params.type == UniNode.Type.object
                         || params.type == UniNode.Type.array))
-                    throw new RPCException(createEmptyErrorByCode!UniNode(
+                    throw new RpcException(createEmptyErrorByCode!UniNode(
                                 ErrorCode.INVALID_PARAMS));
 
                 string[][string] paramErrors;
@@ -155,7 +155,7 @@ class Dispatcher
                         errObj[k] = UniNode(errArr);
                     }
 
-                    throw new RPCException(createErrorByCode!UniNode(
+                    throw new RpcException(createErrorByCode!UniNode(
                             ErrorCode.INVALID_PARAMS,
                             UniNode(errObj)));
                 }

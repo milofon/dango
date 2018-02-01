@@ -26,7 +26,7 @@ public
 /**
  * Аннотация контроллера
  */
-struct RPCController
+struct RpcController
 {
     string prefix;
 }
@@ -35,7 +35,7 @@ struct RPCController
 /**
  * Аннотация метода
  */
-struct RPCHandler
+struct RpcHandler
 {
     string method;
 }
@@ -108,31 +108,31 @@ protected:
     void doInitialize(Properties config);
 
 
-    void enforceRPC(V)(V value, int code, string message,
+    void enforceRpc(V)(V value, int code, string message,
             string file = __FILE__, size_t line = __LINE__)
     {
         if (!!value)
             return;
 
-        RPCError!UniNode error;
+        RpcError!UniNode error;
         error.code = code;
         error.message = message;
-        throw new RPCException(error);
+        throw new RpcException(error);
     }
 
 
-    void enforceRPC(V, T)(V value, int code, string message, T data,
+    void enforceRpcData(V, T)(V value, int code, string message, T data,
             string file = __FILE__, size_t line = __LINE__)
     {
         if (!!value)
             return;
 
-        RPCError!UniNode error;
+        RpcError!UniNode error;
         error.code = code;
         error.message = message;
         error.data = _serializer.marshal!T(data);
 
-        throw new RPCException(error);
+        throw new RpcException(error);
     }
 }
 
@@ -147,7 +147,7 @@ void registerControllerHandlers(C)(C controller, Dispatcher dispatcher)
 
     string getFullMethod(string method)
     {
-        enum udas = getUDAs!(C, RPCController);
+        enum udas = getUDAs!(C, RpcController);
         static if (udas.length > 0)
         {
             string prefix = udas[0].prefix;
@@ -169,7 +169,7 @@ void registerControllerHandlers(C)(C controller, Dispatcher dispatcher)
             {
                 foreach (attr; __traits(getAttributes, member))
                 {
-                    static if (is(typeof(attr) == RPCHandler))
+                    static if (is(typeof(attr) == RpcHandler))
                     {
                         auto HDL = dispatcher.generateHandler!(
                                 __traits(getMember, controller, fName))(

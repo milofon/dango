@@ -21,7 +21,7 @@ public
 
 
 /**
- * Интерфейс RPC протокола
+ * Интерфейс Rpc протокола
  */
 interface RpcProtocol
 {
@@ -66,7 +66,7 @@ abstract class BaseRpcProtocol : RpcProtocol
 /**
  * Сообщение об ошибке
  */
-struct RPCError(T)
+struct RpcError(T)
 {
     int code;
     string message;
@@ -79,9 +79,9 @@ struct RPCError(T)
  * Params:
  * code = Код ошибки
  */
-RPCError!T createEmptyErrorByCode(T = ubyte)(int code)
+RpcError!T createEmptyErrorByCode(T = ubyte)(int code)
 {
-    RPCError!T result;
+    RpcError!T result;
     result.code = code;
     switch (code)
     {
@@ -114,7 +114,7 @@ RPCError!T createEmptyErrorByCode(T = ubyte)(int code)
  * code = Код ошибки
  * data = Доп. данные
  */
-RPCError!T createErrorByCode(T)(int code, T data)
+RpcError!T createErrorByCode(T)(int code, T data)
 {
     auto ret = createEmptyErrorByCode!T(code);
     ret.data = Nullable!T(data);
@@ -137,21 +137,21 @@ enum ErrorCode
 
 
 /**
- * Ошибка RPC
+ * Ошибка Rpc
  */
-class RPCException : Exception
+class RpcException : Exception
 {
-    private RPCError!UniNode _error;
+    private RpcError!UniNode _error;
 
 
-    this(RPCError!UniNode error, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
+    this(RpcError!UniNode error, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
     {
         _error = error;
         super(error.message, file, line, next);
     }
 
 
-    RPCError!UniNode error() @property nothrow
+    RpcError!UniNode error() @property nothrow
     {
         return _error;
     }

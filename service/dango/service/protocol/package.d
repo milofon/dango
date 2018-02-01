@@ -9,8 +9,8 @@ module dango.service.protocol;
 
 public
 {
-    import dango.service.protocol.core : RpcProtocol, RPCException,
-           createEmptyErrorByCode, createErrorByCode, ErrorCode, RPCError;
+    import dango.service.protocol.core : RpcProtocol, RpcException,
+           createEmptyErrorByCode, createErrorByCode, ErrorCode, RpcError;
 }
 
 private
@@ -19,7 +19,7 @@ private
            newInstance;
     import dango.system.container : registerByName;
 
-    import dango.service.protocol.jsonrpc : JsonRPCProtocol;
+    import dango.service.protocol.jsonrpc : JsonRpcProtocol;
     import dango.service.protocol.simple : SimpleRpcProtocol;
 }
 
@@ -28,7 +28,7 @@ class ProtocolContext : ApplicationContext
 {
     override void registerDependencies(shared(DependencyContainer) container)
     {
-        container.registerByName!(RpcProtocol, JsonRPCProtocol)("jsonrpc").newInstance;
+        container.registerByName!(RpcProtocol, JsonRpcProtocol)("jsonrpc").newInstance;
         container.registerByName!(RpcProtocol, SimpleRpcProtocol)("simple").newInstance;
     }
 }
