@@ -4,9 +4,9 @@
 		"botan": "1.12.9",
 		"botan-math": "1.0.3",
 		"brightproof": "2.4.0",
-		"d-unit": "0.8.1",
-		"diet-ng": "1.4.3",
-		"dyaml": "0.6.4",
+		"d-unit": "0.8.2",
+		"diet-ng": "1.4.4",
+		"dyaml": "0.6.5",
 		"eventcore": "0.8.27",
 		"libasync": "0.8.3",
 		"libevent": "2.0.2+2.0.16",
@@ -24,6 +24,7 @@
 		"unit-threaded": "0.6.36",
 		"vibe-core": "1.4.0-alpha.1",
 		"vibe-d": "0.8.3-alpha.2",
-		"zeromq": "4.2.2"
+		"zeromq": "4.2.2",
+		"zmqd": "1.1.1"
 	}
 }
