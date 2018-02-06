@@ -150,6 +150,14 @@ struct UniNode
     }
 
 
+    unittest
+    {
+        auto test = UniNode();
+        assert(test.type == Type.nil);
+
+        test.get!byte;
+    }
+
     static UniNode emptyObject() @property
     {
         return UniNode(cast(UniNode[string])null);
@@ -184,7 +192,7 @@ struct UniNode
         else static if( is(T == UniNode[]) ) return Type.array;
         else static if( is(T == UniNode[string]) ) return Type.object;
         else static assert(false, "Unsupported UniNode type '"~T.stringof
-                ~"'. Only bool, long, double, string, ubyte[], UniNode[] and UniNode[string] are allowed.");
+                ~"'. Only bool, long, ulong, double, string, ubyte[], UniNode[] and UniNode[string] are allowed.");
     }
 
 
@@ -286,17 +294,6 @@ private :
         return getDataAs!double();
     }
 
-    @property ref inout(UniNode[]) _array() inout
-    {
-        return getDataAs!(UniNode[])();
-    }
-
-
-    @property ref inout(UniNode[string]) _object() inout
-    {
-        return getDataAs!(UniNode[string])();
-    }
-
 
     @property ref inout(ubyte[]) _raw() inout
     {
@@ -307,6 +304,18 @@ private :
     @property ref inout(string) _text() inout
     {
         return getDataAs!(string)();
+    }
+
+
+    @property ref inout(UniNode[]) _array() inout
+    {
+        return getDataAs!(UniNode[])();
+    }
+
+
+    @property ref inout(UniNode[string]) _object() inout
+    {
+        return getDataAs!(UniNode[string])();
     }
 
 
@@ -510,4 +519,3 @@ class UniNodeException : Exception
 
 
 alias enforceUniNode = enforceEx!UniNodeException;
-
