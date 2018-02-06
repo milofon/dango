@@ -74,8 +74,6 @@ class ZeroMQTransport : Transport
 }
 
 
-alias LiberatorResources = void delegate();
-
 
 private final class ZeroMQWorker : Thread
 {
@@ -83,7 +81,6 @@ private final class ZeroMQWorker : Thread
     {
         ZeroMQTransportSettings _settings;
         bool _running;
-        LiberatorResources _liberator;
         Handler _handler;
     }
 
