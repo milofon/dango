@@ -111,21 +111,28 @@ private final class ZeroMQWorker : Thread
         ];
 
         auto id = Frame();
+        auto empty = Frame();
         auto payload = Frame();
 
         while (_running)
         {
-            poll(items, 500.msecs);
+            poll(items, 100.msecs);
             if (items[0].returnedEvents & PollFlags.pollIn)
             {
                 if (_settings.useBroker)
+                {
                     worker.receive(id);
+                    worker.receive(empty);
+                }
 
                 worker.receive(payload);
                 ubyte[] resData = _handler(payload.data);
 
                 if (_settings.useBroker)
+                {
                     worker.send(id.data, true);
+                    worker.send("", true);
+                }
 
                 worker.send(resData, false);
             }
