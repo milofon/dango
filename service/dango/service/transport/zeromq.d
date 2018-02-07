@@ -96,6 +96,7 @@ private final class ZeroMQWorker : Thread
     void run()
     {
         _running = true;
+        ubyte[] buffer;
 
         auto worker = Socket(SocketType.rep);
 
@@ -118,7 +119,16 @@ private final class ZeroMQWorker : Thread
             if (items[0].returnedEvents & PollFlags.pollIn)
             {
                 worker.receive(payload);
-                ubyte[] resData = _handler(payload.data);
+
+                buffer.length = 0;
+                buffer ~= payload.data;
+
+                while (payload.more)
+                {
+                    worker.receive(payload);
+                    buffer ~= payload.data;
+                }
+                ubyte[] resData = _handler(buffer);
                 worker.send(resData);
             }
         }
