@@ -101,11 +101,16 @@ private final class ZeroMQWorker : Thread
         auto worker = Socket(SocketType.rep);
 
         if (_settings.useBroker)
+        {
             worker.connect(_settings.uri);
+            logInfo("Connect to broker %s", _settings.uri);
+        }
         else
+        {
             worker.bind(_settings.uri);
+            logInfo("Listening for requests on %s", _settings.uri);
+        }
 
-        logInfo("Listening for requests on %s", _settings.uri);
 
         PollItem[] items = [
             PollItem(worker, PollFlags.pollIn),
