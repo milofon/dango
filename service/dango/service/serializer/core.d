@@ -13,7 +13,8 @@ private
 {
     import std.algorithm.comparison : max;
     import std.traits : isSigned, isUnsigned, isBoolean,
-           isNumeric, isFloatingPoint;
+           isNumeric, isFloatingPoint, isArray, ForeachType,
+           isStaticArray;
     import std.format : fmt = format;
     import std.array : appender;
     import std.exception : enforceEx;
@@ -71,6 +72,33 @@ abstract class Serializer
 
 
 /**
+ * Проверка на целочисленное знаковое число
+ */
+template isSignedNumeric(T)
+{
+    enum isSignedNumeric = isNumeric!T && isSigned!T && !isFloatingPoint!T;
+}
+
+
+/**
+ * Проверка на целочисленное без знвковое число
+ */
+template isUnsignedNumeric(T)
+{
+    enum isUnsignedNumeric = isNumeric!T && isUnsigned!T && !isFloatingPoint!T;
+}
+
+
+/**
+ * Проверка на соотвествие бинарным данным
+ */
+template isRawData(T)
+{
+    enum isRawData = isArray!T && is(ForeachType!T == ubyte);
+}
+
+
+/**
  * Универсальная структура для хранения данных
  */
 struct UniNode
@@ -95,6 +123,13 @@ struct UniNode
     }
 
 
+    unittest
+    {
+        auto node = UniNode();
+        assert (node.type == Type.nil);
+    }
+
+
     this(bool v)
     {
         _type = Type.boolean;
@@ -102,31 +137,100 @@ struct UniNode
     }
 
 
-    this(T)(T v) if(isSigned!T && !isFloatingPoint!T)
+    unittest
+    {
+        auto node = UniNode(false);
+        assert (node.type == Type.boolean);
+        assert (node.get!bool == false);
+    }
+
+
+    this(T)(T v) if(isSignedNumeric!T)
     {
         _type = Type.signed;
         _signed = cast(long)v;
     }
 
 
-    this(T)(T v) if (isUnsigned!T && !isFloatingPoint!T)
+    unittest
+    {
+        import std.meta : AliasSeq;
+        foreach (TT; AliasSeq!(byte, short, int, long))
+        {
+            TT v = -11;
+            auto node = UniNode(v);
+            assert (node.type == Type.signed);
+            assert (is (typeof(node.get!TT) == TT));
+            assert (node.get!TT == -11);
+        }
+    }
+
+
+    this(T)(T v) if (isUnsignedNumeric!T)
     {
         _type = Type.unsigned;
         _unsigned = cast(ulong)v;
     }
 
 
-    this(T)(T v) if (isFloatingPoint!T)
+    unittest
+    {
+        import std.meta : AliasSeq;
+        foreach (TT; AliasSeq!(ubyte, ushort, uint, ulong))
+        {
+            TT v = 11;
+            auto node = UniNode(v);
+            assert (node.type == Type.unsigned);
+            assert (is (typeof(node.get!TT) == TT));
+            assert (node.get!TT == 11);
+        }
+    }
+
+
+    this(T)(T v) if (isNumeric!T && isFloatingPoint!T)
     {
         _type = Type.floating;
         _floating = cast(double)v;
     }
 
 
-    this(ubyte[] v)
+    unittest
+    {
+        import std.meta : AliasSeq;
+        foreach (TT; AliasSeq!(float, double))
+        {
+            TT v = 11.11;
+            auto node = UniNode(v);
+            assert (node.type == Type.floating);
+            assert (is (typeof(node.get!TT) == TT));
+            assert (node.get!TT == cast(TT)11.11);
+        }
+    }
+
+
+    this(T)(T v) if (isRawData!T)
     {
         _type = Type.raw;
-        _raw = v;
+        static if (isStaticArray!T)
+            _raw = v.dup;
+        else
+            _raw = v;
+    }
+
+
+    unittest
+    {
+        ubyte[] dynArr = [1, 2, 3];
+        auto node = UniNode(dynArr);
+        assert (node.type == Type.raw);
+        assert (is(typeof(node.get!(ubyte[])) == ubyte[]));
+        assert (node.get!(ubyte[]) == [1, 2, 3]);
+
+        ubyte[3] stArr = [1, 2, 3];
+        node = UniNode(stArr);
+        assert (node.type == Type.raw);
+        assert (is(typeof(node.get!(ubyte[3])) == ubyte[3]));
+        assert (node.get!(ubyte[3]) == [1, 2, 3]);
     }
 
 
@@ -135,6 +239,17 @@ struct UniNode
         _type = Type.text;
         _text = v;
     }
+
+
+    unittest
+    {
+        string str = "hello";
+        auto node = UniNode(str);
+        assert(node.type == Type.text);
+        assert (is(typeof(node.get!(string)) == string));
+        assert (node.get!(string) == "hello");
+    }
+
 
     this(UniNode[] v)
     {
@@ -149,14 +264,6 @@ struct UniNode
         _object = v;
     }
 
-
-    unittest
-    {
-        auto test = UniNode();
-        assert(test.type == Type.nil);
-
-        test.get!byte;
-    }
 
     static UniNode emptyObject() @property
     {
@@ -183,11 +290,10 @@ struct UniNode
     {
         static if( is(T == typeof(null)) ) return Type.nil;
         else static if( is(T == bool) ) return Type.boolean;
-        else static if( is(T == double) ) return Type.floating;
-        else static if( is(T == float) ) return Type.floating;
-        else static if( isNumeric!T && isSigned!T ) return Type.signed;
-        else static if( isNumeric!T && isUnsigned!T ) return Type.unsigned;
-        else static if( is(T : ubyte[]) ) return Type.raw;
+        else static if( isFloatingPoint!T ) return Type.floating;
+        else static if( isSignedNumeric!T ) return Type.signed;
+        else static if( isUnsignedNumeric!T ) return Type.unsigned;
+        else static if( isRawData!T ) return Type.raw;
         else static if( is(T == string) ) return Type.text;
         else static if( is(T == UniNode[]) ) return Type.array;
         else static if( is(T == UniNode[string]) ) return Type.object;
@@ -198,7 +304,7 @@ struct UniNode
 
     inout(T) get(T)() @property inout @trusted
     {
-        static if (is(T == string) || is(T == ubyte[]))
+        static if (is(T == string) || isRawData!T)
             checkType!(T, ubyte[])();
         else static if(isNumeric!T && (isSigned!T || isUnsigned!T) && !isFloatingPoint!T)
             checkType!(long, ulong)();
@@ -212,7 +318,13 @@ struct UniNode
         else static if (isUnsigned!T) return cast(T)_unsigned;
         else static if (is(T == string))
             return _type == Type.text ? cast(T)_text : cast(T)_raw;
-        else static if (is(T == ubyte[])) return cast(inout(T))_raw;
+        else static if (isRawData!T)
+        {
+            static if (isStaticArray!T)
+                return cast(inout(T))_raw[0..T.length];
+            else
+                return cast(inout(T))_raw;
+        }
         else static if (is(T == UniNode[])) return _array;
         else static if (is(T == UniNode[string])) return _object;
     }
@@ -256,7 +368,77 @@ struct UniNode
     }
 
 
+    string toString()
+    {
+        auto buff = appender!string;
+
+        void fun(ref UniNode node)
+        {
+            switch (node.type)
+            {
+                case Type.nil:
+                    buff.put("nil");
+                    break;
+                case Type.boolean:
+                    buff.put("bool("~node.get!bool.to!string~")");
+                    break;
+                case Type.unsigned:
+                    buff.put("unsigned("~node.get!ulong.to!string~")");
+                    break;
+                case Type.signed:
+                    buff.put("signed("~node.get!long.to!string~")");
+                    break;
+                case Type.floating:
+                    buff.put("floating("~node.get!double.to!string~")");
+                    break;
+                case Type.text:
+                    buff.put("text("~node.get!string.to!string~")");
+                    break;
+                case Type.raw:
+                    buff.put("raw("~node.get!(ubyte[]).to!string~")");
+                    break;
+                case Type.object:
+                {
+                    buff.put("{");
+                    size_t len = node._object.length;
+                    size_t count;
+                    foreach (k, v; node._object)
+                    {
+                        count++;
+                        buff.put(k ~ ":");
+                        fun(v);
+                        if (count < len)
+                            buff.put(", ");
+                    }
+                    buff.put("}");
+                    break;
+                }
+                case Type.array:
+                {
+                    buff.put("[");
+                    size_t len = node._array.length;
+                    foreach (i, v; node._array)
+                    {
+                        fun(v);
+                        if (i < len)
+                            buff.put(", ");
+                    }
+                    buff.put("]");
+                    break;
+                }
+                default:
+                    buff.put("undefined");
+                    break;
+            }
+        }
+
+        fun(this);
+        return buff.data;
+    }
+
+
 private :
+
 
     enum _size = max((ulong.sizeof + (void*).sizeof), 2);
     void[_size] _data = (void[_size]).init;
@@ -360,9 +542,9 @@ private :
 struct UniNodeSerializer
 {
     enum isSupportedValueType(T) = is(T == typeof(null))
-                || is(T == double) || is(T == float)
+                || isFloatingPoint!T
                 || isBoolean!T
-                || is (T == ubyte[])
+                || isRawData!T
                 || (isNumeric!T && (isSigned!T || isUnsigned!T))
                 || is(T == string)
                 || is(T == UniNode);
@@ -506,6 +688,20 @@ struct UniNodeSerializer
     {
         return _current.type == UniNode.Type.nil;
     }
+}
+
+
+unittest
+{
+    struct FD
+    {
+        int a;
+        ubyte[3] vector;
+    }
+
+    FD fd = FD(1, [1, 2, 3]);
+    auto data = vSerialize!UniNodeSerializer(fd);
+    assert(data.type == UniNode.Type.object);
 }
 
 
