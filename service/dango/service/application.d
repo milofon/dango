@@ -33,7 +33,7 @@ private
 
 abstract class ServiceApplication : DaemonApplication
 {
-    private Transport[] _transports;
+    private ServerTransport[] _transports;
 
 
     this(string name, string release)
@@ -86,17 +86,18 @@ abstract class ServiceApplication : DaemonApplication
                         "Not defined transport name");
 
                 Serializer serializer = container.resolveByName!Serializer(serializerName);
+                serializer.initialize(serConf);
                 configEnforce(serializer !is null,
                         "Serializer '%s' not register".fmt(serializerName));
 
-                Dispatcher dispatcher = new Dispatcher(serializer);
+                Dispatcher dispatcher = new Dispatcher();
 
-                RpcProtocol protocol = container.resolveByName!RpcProtocol(protoName);
+                RpcServerProtocol protocol = container.resolveByName!RpcServerProtocol(protoName);
                 configEnforce(protocol !is null,
                         "Protocol '%s' not register".fmt(protoName));
                 protocol.initialize(dispatcher, serializer, protoConf);
 
-                Transport tr = container.resolveByName!Transport(transportName);
+                ServerTransport tr = container.resolveByName!ServerTransport(transportName);
                 configEnforce(tr !is null,
                         "Transport '%s' not register".fmt(transportName));
 
@@ -125,7 +126,7 @@ abstract class ServiceApplication : DaemonApplication
 
     override int finalizeDaemon(int exitCode)
     {
-        foreach (Transport tr; _transports)
+        foreach (ServerTransport tr; _transports)
             tr.shutdown();
         return finalizeService(exitCode);
     }

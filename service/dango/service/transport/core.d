@@ -13,22 +13,39 @@ public
 {
     import proped : Properties;
 
-    import dango.service.protocol: RpcProtocol;
+    import dango.service.protocol: RpcServerProtocol;
 }
 
 
-interface Transport
+/**
+ * Интерфейс серверного транспортного уровня
+ */
+interface ServerTransport
 {
     /**
      * Запуск транспортного уровня
      * Params:
      * config = Конфигурация транспорта
      */
-    void listen(RpcProtocol protocol, Properties config);
-
+    void listen(RpcServerProtocol protocol, Properties config);
 
     /**
      * Завершение работы
      */
     void shutdown();
+}
+
+
+/**
+ * Интерфейс клиентского транспортного уровня
+ */
+interface ClientTransport
+{
+    /**
+     * Выполнение запроса
+     * Params:
+     * bytes = Входящие данные
+     * Return: Данные ответа
+     */
+    ubyte[] request(ubyte[] bytes);
 }

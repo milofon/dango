@@ -35,7 +35,7 @@ struct ZeroMQTransportSettings
 
 
 
-class ZeroMQTransport : Transport
+class ZeroMQServerTransport : ServerTransport
 {
     private
     {
@@ -44,7 +44,7 @@ class ZeroMQTransport : Transport
     }
 
 
-    void listen(RpcProtocol protocol, Properties config)
+    void listen(RpcServerProtocol protocol, Properties config)
     {
         _settings.uri = config.getOrEnforce!string("bind",
                 "ZeroMQ transport is not defined bind");
@@ -143,5 +143,31 @@ private final class ZeroMQWorker : Thread
     void stop()
     {
         _running = false;
+    }
+}
+
+
+
+class ZeroMQClientTransport : ClientTransport
+{
+    private
+    {
+        Socket _socket;
+    }
+
+
+    this(string uri)
+    {
+        _socket = Socket(SocketType.req);
+        _socket.connect(uri);
+    }
+
+
+    ubyte[] request(ubyte[] bytes)
+    {
+        auto payload = Frame();
+        _socket.send(bytes);
+        _socket.receive(payload);
+        return payload.data;
     }
 }

@@ -11,8 +11,11 @@ module dango.service.transport.http;
 
 private
 {
+    import std.exception : enforce;
     import vibe.stream.operations : readAll;
+    import vibe.inet.url : URL;
     import vibe.http.router;
+    import vibe.http.client;
     import vibe.core.log;
 
     import dango.controller.core : createOptionCORSHandler, handleCors;
@@ -22,7 +25,7 @@ private
 }
 
 
-class HTTPTransport : Transport
+class HTTPServerTransport : ServerTransport
 {
     private
     {
@@ -30,7 +33,7 @@ class HTTPTransport : Transport
     }
 
 
-    void listen(RpcProtocol protocol, Properties config)
+    void listen(RpcServerProtocol protocol, Properties config)
     {
         auto router = new URLRouter();
         auto httpSettings = loadServiceSettings(config);
@@ -54,5 +57,48 @@ class HTTPTransport : Transport
     {
         _listener.stopListening();
         logInfo("Transport HTTP Stop");
+    }
+}
+
+
+class HTTPClientTransport : ClientTransport
+{
+    private
+    {
+        URL _entrypoint;
+        HTTPClientSettings _settings;
+    }
+
+
+    this(URL entrypoint, HTTPClientSettings settings)
+    {
+        validateEntrypoint(entrypoint);
+        _entrypoint = entrypoint;
+        _settings = settings;
+    }
+
+
+    ubyte[] request(ubyte[] bytes)
+    {
+        HTTPClientResponse res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+            req.method = HTTPMethod.POST;
+            req.writeBody(bytes);
+        }, _settings);
+        return res.bodyReader.readAll();
+    }
+
+
+private:
+
+
+    void validateEntrypoint(URL url)
+    {
+        version(UnixSocket) {
+            enforce(url.schema == "http" || url.schema == "https" || url.schema == "http+unix"
+                    || url.schema == "https+unix", "URL schema must be http(s) or http(s)+unix.");
+        } else {
+            enforce(url.schema == "http" || url.schema == "https", "URL schema must be http(s).");
+        }
+        enforce(url.host.length > 0, "URL must contain a host name.");
     }
 }

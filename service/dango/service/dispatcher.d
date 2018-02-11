@@ -18,7 +18,8 @@ private
 
     import vibe.core.log;
 
-    import dango.service.serializer : UniNode, Serializer;
+    import dango.service.serializer : UniNode,
+           marshalObject, unmarshalObject;
     import dango.service.protocol;
 }
 
@@ -31,13 +32,6 @@ class Dispatcher
     private
     {
         Handler[string] _handlers;
-        Serializer _serializer;
-    }
-
-
-    this(Serializer serializer)
-    {
-        _serializer = serializer;
     }
 
 
@@ -101,7 +95,7 @@ class Dispatcher
                 void fillArg(size_t idx, PType)(string key, UniNode value)
                 {
                     try
-                        args[idx] = _serializer.unmarshal!(PType)(value);
+                        args[idx] = unmarshalObject!(PType)(value);
                     catch (Exception e)
                         paramErrors[key] ~= "Got type %s, expected %s".fmt(
                                 value.type, typeid(PType));
@@ -161,7 +155,7 @@ class Dispatcher
                 }
 
                 RT ret = hdl(args.expand);
-                return _serializer.marshal!RT(ret);
+                return marshalObject!RT(ret);
             }
 
             return &fun;

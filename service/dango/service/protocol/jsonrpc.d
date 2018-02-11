@@ -21,8 +21,22 @@ private
 
 
 
-class JsonRpcProtocol : BaseRpcProtocol
+class JsonRpcServerProtocol : RpcServerProtocol
 {
+    private
+    {
+        Dispatcher _dispatcher;
+        Serializer _serializer;
+    }
+
+
+    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config)
+    {
+        _dispatcher = dispatcher;
+        _serializer = serializer;
+    }
+
+
     ubyte[] handle(ubyte[] data)
     {
         UniNode uniReq;
@@ -93,7 +107,7 @@ private:
         uniError.code = error.code;
         uniError.message = error.message;
         if (!error.data.isNull)
-            uniError.data = _serializer.marshal!T(error.data);
+            uniError.data = marshalObject!T(error.data);
         return createErrorBody(uniError);
     }
 

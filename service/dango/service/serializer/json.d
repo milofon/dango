@@ -22,6 +22,9 @@ private
 
 class JsonSerializer : Serializer
 {
+    override void initialize(Properties config) {}
+
+
     override UniNode deserialize(ubyte[] bytes)
     {
         auto strData = cast(string)bytes;

@@ -9,6 +9,13 @@
 
 module dango.service.serializer.core;
 
+
+public
+{
+    import proped : Properties;
+}
+
+
 private
 {
     import std.algorithm.comparison : max;
@@ -32,25 +39,25 @@ private
 abstract class Serializer
 {
     /**
-     * Преобразует объекты языка в UniNode
+     * Сериализация объекта языка в массив байт
      * Params:
      * object = Объект для преобразования
-     * Return: UniNode
+     * Return: массив байт
      */
-    UniNode marshal(T)(T object)
+    ubyte[] serializeObject(T)(T object)
     {
-        return vSerialize!(UniNodeSerializer, T)(object);
+        return serialize(marshalObject!T(object));
     }
 
     /**
-     * Преобразует UniNode в объекты языка
+     * Десериализация массива байт в объект языка
      * Params:
-     * object = UniNode
+     * bytes = Массив байт
      * Return: T
      */
-    T unmarshal(T)(UniNode node)
+    T deserializeObject(T)(ubyte[] bytes)
     {
-        return vDeserialize!(UniNodeSerializer, T, UniNode)(node);
+        return unmarshalObject!T(deserialize(bytes));
     }
 
     /**
@@ -68,6 +75,38 @@ abstract class Serializer
      * Return: массив байт
      */
     ubyte[] serialize(UniNode node);
+
+    /**
+     * Инициализация сериализатора при помощи
+     * объекта настроек
+     * Params:
+     * config = Объект настроек
+     */
+    void initialize(Properties config);
+}
+
+
+/**
+ * Преобразует объекты языка в UniNode
+ * Params:
+ * object = Объект для преобразования
+ * Return: UniNode
+ */
+UniNode marshalObject(T)(T object)
+{
+    return vSerialize!(UniNodeSerializer, T)(object);
+}
+
+
+/**
+ * Преобразует UniNode в объекты языка
+ * Params:
+ * object = UniNode
+ * Return: T
+ */
+T unmarshalObject(T)(UniNode node)
+{
+    return vDeserialize!(UniNodeSerializer, T, UniNode)(node);
 }
 
 

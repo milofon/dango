@@ -17,12 +17,27 @@ private
 
     import dango.service.protocol.core;
     import dango.service.serializer.core;
+    import dango.service.transport.core;
 }
 
 
 
-class SimpleRpcProtocol : BaseRpcProtocol
+class SimpleRpcServerProtocol : RpcServerProtocol
 {
+    private
+    {
+        Dispatcher _dispatcher;
+        Serializer _serializer;
+    }
+
+
+    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config)
+    {
+        _dispatcher = dispatcher;
+        _serializer = serializer;
+    }
+
+
     ubyte[] handle(ubyte[] data)
     {
         UniNode uniReq;
@@ -93,7 +108,7 @@ private:
         uniError.code = error.code;
         uniError.message = error.message;
         if (!error.data.isNull)
-            uniError.data = _serializer.marshal!T(error.data);
+            uniError.data = marshalObject!T(error.data);
         return createErrorBody(uniError);
     }
 
@@ -121,5 +136,64 @@ private:
         response["id"] = *id;
         response["result"] = result;
         return _serializer.serialize(UniNode(response));
+    }
+}
+
+
+class SimpleRpcClientProtocol : RpcClientProtocol
+{
+    private
+    {
+        Serializer _serializer;
+        ClientTransport _transport;
+    }
+
+    this(Serializer serializer, ClientTransport transport)
+    {
+        _serializer = serializer;
+        _transport = transport;
+    }
+
+
+    UniNode request(string cmd, UniNode params)
+    {
+        UniNode[string] request;
+        request["id"] = UniNode(1);
+        request["method"] = UniNode(cmd);
+        request["params"] = params;
+
+        ubyte[] resData;
+        try
+        {
+            auto reqData = _serializer.serialize(UniNode(request));
+            resData = _transport.request(reqData);
+        }
+        catch (Exception e)
+            throw new RpcException(ErrorCode.SERVER_ERROR, e.msg);
+
+        if (resData.length <= 0)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Empty response");
+
+        auto response = _serializer.deserialize(resData);
+        if (auto error = "error" in response)
+        {
+            int errorCode;
+            string errorMsg;
+
+            if (auto codePtr = "code" in *error)
+                errorCode = (*codePtr).get!int;
+
+            if (auto msgPtr = "message" in *error)
+                errorMsg = (*msgPtr).get!string;
+
+            if (auto dataPtr = "data" in *error)
+                throw new RpcException(errorCode, errorMsg, *dataPtr);
+            else
+                throw new RpcException(errorCode, errorMsg);
+        }
+        else if (auto result = "result" in response)
+            return *result;
+
+        throw new RpcException(ErrorCode.INTERNAL_ERROR, "Not found result");
     }
 }

@@ -13,6 +13,7 @@ private
 {
     import std.algorithm.searching : startsWith;
 
+    import proped : Properties;
     import msgpack;
 
     import dango.service.serializer.core;
@@ -21,6 +22,27 @@ private
 
 class MsgPackSerializer : Serializer
 {
+    private bool _withFieldName;
+
+
+    this()
+    {
+        _withFieldName = false;
+    }
+
+
+    this(bool withFieldName)
+    {
+        _withFieldName = withFieldName;
+    }
+
+
+    override void initialize(Properties config)
+    {
+        _withFieldName = config.getOrElse!bool("withFieldName", false);
+    }
+
+
     override UniNode deserialize(ubyte[] bytes)
     {
         auto unpacker = StreamingUnpacker(bytes);
@@ -32,7 +54,7 @@ class MsgPackSerializer : Serializer
     override ubyte[] serialize(UniNode node)
     {
         Value val = fromUniNode(node);
-        auto packer = Packer(false);
+        auto packer = Packer(_withFieldName);
         val.toMsgpack(packer);
         return packer.stream.data;
     }

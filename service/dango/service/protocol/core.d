@@ -21,13 +21,14 @@ public
 
 
 /**
- * Интерфейс Rpc протокола
+ * Интерфейс серверного Rpc протокола
  */
-interface RpcProtocol
+interface RpcServerProtocol
 {
     /**
      * Инициализация протокола
      * Params:
+     * dispatcher = Диспетчер вызовов
      * serializer = Сериализатор
      * config = Конфигурация протокола
      */
@@ -44,22 +45,26 @@ interface RpcProtocol
 
 
 /**
-  * Базовый класс с общим функционалом для протокола
-  */
-abstract class BaseRpcProtocol : RpcProtocol
+ * Интерфейс клиентского Rpc протокола
+ */
+interface RpcClientProtocol
 {
-    protected
-    {
-        Dispatcher _dispatcher;
-        Serializer _serializer;
-    }
+    /**
+     * Инициализация клиентского протокола
+     * Params:
+     * serializer = Сериализатор
+     * config = Конфигурация протокола
+     */
+    // void initialize(Serializer serializer, Properties config);
 
-
-    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config)
-    {
-        _dispatcher = dispatcher;
-        _serializer = serializer;
-    }
+    /**
+     * Отправляет запрос удаленной команды
+     * Params:
+     * cmd = Команда
+     * params = Параметры
+     * Return: Результат выполнения удаленной команды (result)
+     */
+    UniNode request(string cmd, UniNode params);
 }
 
 
@@ -142,6 +147,22 @@ enum ErrorCode
 class RpcException : Exception
 {
     private RpcError!UniNode _error;
+
+    this(int code, string message, string file = __FILE__,
+            size_t line = __LINE__, Throwable next = null)
+    {
+        _error.code = code;
+        _error.message = message;
+        super(message, file, line, next);
+    }
+
+
+    this(int code, string message, UniNode data, string file = __FILE__,
+            size_t line = __LINE__, Throwable next = null)
+    {
+        _error.data = data;
+        this(code, message, file, line, next);
+    }
 
 
     this(RpcError!UniNode error, string file = __FILE__, size_t line = __LINE__, Throwable next = null)

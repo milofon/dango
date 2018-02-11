@@ -17,6 +17,7 @@ public
 
     import proped : Properties;
 
+    import dango.system.traits;
     import dango.service.dispatcher;
     import dango.service.serializer;
     import dango.service.protocol;
@@ -130,21 +131,16 @@ protected:
         RpcError!UniNode error;
         error.code = code;
         error.message = message;
-        error.data = _serializer.marshal!T(data);
+        error.data = marshalObject!T(data);
 
         throw new RpcException(error);
     }
 }
 
 
+
 void registerControllerHandlers(C)(C controller, Dispatcher dispatcher)
 {
-    template IsAccesable(string N)
-    {
-        enum access = __traits(getProtection, __traits(getMember, C, N));
-        enum IsAccesable = access == "public";
-    }
-
     string getFullMethod(string method)
     {
         enum udas = getUDAs!(C, RpcController);
@@ -162,7 +158,7 @@ void registerControllerHandlers(C)(C controller, Dispatcher dispatcher)
 
     foreach (string fName; __traits(allMembers, C))
     {
-        static if(IsAccesable!fName)
+        static if(IsPublicMember!(C, fName))
         {
             alias member = Alias!(__traits(getMember, C, fName));
             static if (isCallable!member)

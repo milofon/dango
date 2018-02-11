@@ -9,7 +9,8 @@ module dango.service.serializer;
 
 public
 {
-    import dango.service.serializer.core : Serializer, UniNode;
+    import dango.service.serializer.core : Serializer, UniNode,
+           marshalObject, unmarshalObject;
 }
 
 private

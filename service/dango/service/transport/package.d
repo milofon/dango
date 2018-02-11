@@ -9,7 +9,7 @@ module dango.service.transport;
 
 public
 {
-    import dango.service.transport.core : Transport;
+    import dango.service.transport.core : ServerTransport, ClientTransport;
 }
 
 private
@@ -17,8 +17,8 @@ private
     import poodinis : ApplicationContext, DependencyContainer, newInstance;
     import dango.system.container : registerByName;
 
-    import dango.service.transport.http : HTTPTransport;
-    import dango.service.transport.zeromq : ZeroMQTransport;
+    import dango.service.transport.http : HTTPServerTransport;
+    import dango.service.transport.zeromq : ZeroMQServerTransport;
 }
 
 
@@ -26,7 +26,7 @@ class TransportContext : ApplicationContext
 {
     override void registerDependencies(shared(DependencyContainer) container)
     {
-        container.registerByName!(Transport, HTTPTransport)("http").newInstance();
-        container.registerByName!(Transport, ZeroMQTransport)("zmq").newInstance();
+        container.registerByName!(ServerTransport, HTTPServerTransport)("http").newInstance();
+        container.registerByName!(ServerTransport, ZeroMQServerTransport)("zmq").newInstance();
     }
 }
