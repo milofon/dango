@@ -17,6 +17,7 @@ private
 
     import dango.service.protocol.core;
     import dango.service.serializer.core;
+    import dango.service.transport.core;
 }
 
 
