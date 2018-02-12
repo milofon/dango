@@ -162,7 +162,7 @@ class JsonRpcClientProtocol : RpcClientProtocol
     {
         UniNode[string] request;
         request["jsonrpc"] = UniNode("2.0");
-        request["id"] = UniNode(1);
+        request["id"] = UniNode(2.0);
         request["method"] = UniNode(cmd);
         request["params"] = params;
 

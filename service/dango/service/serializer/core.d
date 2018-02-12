@@ -683,7 +683,7 @@ struct UniNodeSerializer
 
     void readArray(TypeTraits)(scope void delegate(size_t) size_callback, scope void delegate() entry_callback)
     {
-        enforceUniNode(_current.type == UniNode.Type.array, "Expected JSON array");
+        enforceUniNode(_current.type == UniNode.Type.array, "Expected UniNode array");
         auto old = _current;
         UniNode[] arr = old.get!(UniNode[]);
         size_callback(arr.length);
