@@ -56,7 +56,7 @@ class InterfaceClient(I) : I
 /**
  * Генерация клиента
  */
-I createRpcClient(I)(RpcClientProtocol protocol)
+InterfaceClient!I createRpcClient(I)(RpcClientProtocol protocol)
 {
     return new InterfaceClient!(I)(protocol);
 }
