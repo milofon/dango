@@ -139,3 +139,64 @@ private:
         return _serializer.serialize(UniNode(response));
     }
 }
+
+
+
+class JsonRpcClientProtocol : RpcClientProtocol
+{
+    private
+    {
+        Serializer _serializer;
+        ClientTransport _transport;
+    }
+
+    this(Serializer serializer, ClientTransport transport)
+    {
+        _serializer = serializer;
+        _transport = transport;
+    }
+
+
+    UniNode request(string cmd, UniNode params)
+    {
+        UniNode[string] request;
+        request["jsonrpc"] = UniNode("2.0");
+        request["id"] = UniNode(1);
+        request["method"] = UniNode(cmd);
+        request["params"] = params;
+
+        ubyte[] resData;
+        try
+        {
+            auto reqData = _serializer.serialize(UniNode(request));
+            resData = _transport.request(reqData);
+        }
+        catch (Exception e)
+            throw new RpcException(ErrorCode.SERVER_ERROR, e.msg);
+
+        if (resData.length <= 0)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Empty response");
+
+        auto response = _serializer.deserialize(resData);
+        if (auto error = "error" in response)
+        {
+            int errorCode;
+            string errorMsg;
+
+            if (auto codePtr = "code" in *error)
+                errorCode = (*codePtr).get!int;
+
+            if (auto msgPtr = "message" in *error)
+                errorMsg = (*msgPtr).get!string;
+
+            if (auto dataPtr = "data" in *error)
+                throw new RpcException(errorCode, errorMsg, *dataPtr);
+            else
+                throw new RpcException(errorCode, errorMsg);
+        }
+        else if (auto result = "result" in response)
+            return *result;
+
+        throw new RpcException(ErrorCode.INTERNAL_ERROR, "Not found result");
+    }
+}

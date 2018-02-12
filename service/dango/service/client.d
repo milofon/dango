@@ -46,9 +46,9 @@ class InterfaceClient(I) : I
     }
 
 
-    pragma(msg, generateModuleImports!I());
+    // pragma(msg, generateModuleImports!I());
     mixin(generateModuleImports!I());
-    pragma(msg, generateMethodHandlers!I);
+    // pragma(msg, generateMethodHandlers!I);
     mixin (generateMethodHandlers!I);
 }
 
