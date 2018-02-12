@@ -12,6 +12,8 @@ module dango.service.transport.http;
 private
 {
     import std.exception : enforce;
+    import std.format : fmt = format;
+
     import vibe.stream.operations : readAll;
     import vibe.inet.url : URL;
     import vibe.http.router;
@@ -66,7 +68,9 @@ class HTTPClientTransport : ClientTransport
     private
     {
         URL _entrypoint;
+        bool _useTLS;
         HTTPClientSettings _settings;
+        HTTPClient _client;
     }
 
 
@@ -75,15 +79,38 @@ class HTTPClientTransport : ClientTransport
         validateEntrypoint(entrypoint);
         _entrypoint = entrypoint;
         _settings = settings;
+        _useTLS = isUseTLS();
+
+        auto port = _entrypoint.port;
+        if( port == 0 )
+            port = _useTLS ? 443 : 80;
+
+        _client = new HTTPClient();
+        _client.connect(getFilteredHost(_entrypoint), port, _useTLS, settings);
     }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        HTTPClientResponse res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+        auto res = _client.request((scope HTTPClientRequest req) {
+            if (_entrypoint.localURI.length) {
+                assert(_entrypoint.path.absolute, "Request URL path must be absolute.");
+                req.requestURL = _entrypoint.localURI;
+            }
+            if (_settings.proxyURL.schema !is null)
+                req.requestURL = _entrypoint.toString();
+            if (_entrypoint.port && _entrypoint.port != _entrypoint.defaultPort)
+                req.headers["Host"] = fmt("%s:%d", _entrypoint.host, _entrypoint.port);
+            else
+                req.headers["Host"] = _entrypoint.host;
+
             req.method = HTTPMethod.POST;
             req.writeBody(bytes);
-        }, _settings);
+        });
+
+        // if( res.m_client )
+        //     res.lockedConnection = _client;
+
         return res.bodyReader.readAll();
     }
 
@@ -100,5 +127,34 @@ private:
             enforce(url.schema == "http" || url.schema == "https", "URL schema must be http(s).");
         }
         enforce(url.host.length > 0, "URL must contain a host name.");
+    }
+
+
+    bool isUseTLS()
+    {
+        if (_settings.proxyURL.schema !is null)
+            return _settings.proxyURL.schema == "https";
+        else
+        {
+            version(UnixSocket)
+                return _entrypoint.schema == "https";
+            else
+                return _entrypoint.schema == "https"
+                    || _entrypoint.schema == "https+unix";
+        }
+    }
+
+
+    auto getFilteredHost(URL url)
+    {
+        version(UnixSocket)
+        {
+            import vibe.textfilter.urlencode : urlDecode;
+            if (url.schema == "https+unix" || url.schema == "http+unix")
+                return urlDecode(url.host);
+            else
+                return url.host;
+        } else
+            return url.host;
     }
 }
