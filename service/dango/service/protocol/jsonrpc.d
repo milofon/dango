@@ -54,9 +54,14 @@ class JsonRpcServerProtocol : RpcServerProtocol
         UniNode* id;
         UniNode params;
 
+        if (uniReq.type != UniNode.Type.object)
+            return createErrorBody(createEmptyErrorByCode(
+                    ErrorCode.PARSE_ERROR));
+
+        UniNode[string] uniReqMap = uniReq.via.map;
         try
         {
-            auto vMethod = "method" in uniReq;
+            auto vMethod = "method" in uniReqMap;
             if (!vMethod || !(vMethod.type == UniNode.Type.text
                         || vMethod.type == UniNode.Type.raw))
             {
@@ -67,9 +72,9 @@ class JsonRpcServerProtocol : RpcServerProtocol
             }
 
             method = (*vMethod).get!string.strip;
-            id = "id" in uniReq;
+            id = "id" in uniReqMap;
             params = UniNode.emptyObject();
-            if (auto pv = "params" in uniReq)
+            if (auto pv = "params" in uniReqMap)
                 params = *pv;
         }
         catch (Exception e)
@@ -179,23 +184,28 @@ class JsonRpcClientProtocol : RpcClientProtocol
             throw new RpcException(ErrorCode.INTERNAL_ERROR, "Empty response");
 
         auto response = _serializer.deserialize(resData);
-        if (auto error = "error" in response)
+        if (response.type != UniNode.Type.object)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Error response");
+
+        auto responseMap = response.via.map;
+        if (auto error = "error" in responseMap)
         {
             int errorCode;
             string errorMsg;
+            auto errorMap = (*error).via.map;
 
-            if (auto codePtr = "code" in *error)
+            if (auto codePtr = "code" in errorMap)
                 errorCode = (*codePtr).get!int;
 
-            if (auto msgPtr = "message" in *error)
+            if (auto msgPtr = "message" in errorMap)
                 errorMsg = (*msgPtr).get!string;
 
-            if (auto dataPtr = "data" in *error)
+            if (auto dataPtr = "data" in errorMap)
                 throw new RpcException(errorCode, errorMsg, *dataPtr);
             else
                 throw new RpcException(errorCode, errorMsg);
         }
-        else if (auto result = "result" in response)
+        else if (auto result = "result" in responseMap)
             return *result;
 
         throw new RpcException(ErrorCode.INTERNAL_ERROR, "Not found result");

@@ -107,7 +107,8 @@ class Dispatcher
                     alias PType = ParameterTypes[i];
                     if (params.type == UniNode.Type.object)
                     {
-                        if (auto v = key in params)
+                        auto pObj = params.via.map;
+                        if (auto v = key in pObj)
                         {
                             fillArg!(i, PType)(key, *v);
                             requires[key] = true;

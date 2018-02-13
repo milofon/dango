@@ -156,9 +156,31 @@ struct UniNode
     }
 
 
+    union Via
+    {
+        bool boolean;
+        ulong uinteger;
+        long integer;
+        real floating;
+        ubyte[] raw;
+        UniNode[] array;
+        UniNode[string] map;
+    }
+
+
+    Via via;
+    Type type;
+
+
+    this(Type type)
+    {
+        this.type = type;
+    }
+
+
     this(typeof(null))
     {
-        _type = Type.nil;
+        this(Type.nil);
     }
 
 
@@ -169,10 +191,10 @@ struct UniNode
     }
 
 
-    this(bool v)
+    this(bool value)
     {
-        _type = Type.boolean;
-        _boolean = v;
+        this(Type.boolean);
+        via.boolean = value;
     }
 
 
@@ -184,10 +206,10 @@ struct UniNode
     }
 
 
-    this(T)(T v) if(isSignedNumeric!T)
+    this(T)(T value) if (isSignedNumeric!T)
     {
-        _type = Type.signed;
-        _signed = cast(long)v;
+        this(Type.signed);
+        via.uinteger = value;
     }
 
 
@@ -205,10 +227,10 @@ struct UniNode
     }
 
 
-    this(T)(T v) if (isUnsignedNumeric!T)
+    this(T)(T value) if (isUnsignedNumeric!T)
     {
-        _type = Type.unsigned;
-        _unsigned = cast(ulong)v;
+        this(Type.unsigned);
+        via.uinteger = value;
     }
 
 
@@ -226,10 +248,10 @@ struct UniNode
     }
 
 
-    this(T)(T v) if (isNumeric!T && isFloatingPoint!T)
+    this(T)(T value) if (isFloatingPoint!T)
     {
-        _type = Type.floating;
-        _floating = cast(double)v;
+        this(Type.floating);
+        via.floating = value;
     }
 
 
@@ -247,13 +269,13 @@ struct UniNode
     }
 
 
-    this(T)(T v) if (isRawData!T)
+    this(T)(T value) if (isRawData!T)
     {
-        _type = Type.raw;
+        this(Type.raw);
         static if (isStaticArray!T)
-            _raw = v.dup;
+            via.raw = value.dup;
         else
-            _raw = v;
+            via.raw = value;
     }
 
 
@@ -273,10 +295,10 @@ struct UniNode
     }
 
 
-    this(string v)
+    this(string value)
     {
-        _type = Type.text;
-        _text = v;
+        this(Type.text);
+        via.raw = cast(ubyte[])value;
     }
 
 
@@ -290,17 +312,17 @@ struct UniNode
     }
 
 
-    this(UniNode[] v)
+    this(UniNode[] value)
     {
-        _type = Type.array;
-        _array = v;
+        this(Type.array);
+        via.array = value;
     }
 
 
-    this(UniNode[string] v)
+    this(UniNode[string] value)
     {
-        _type = Type.object;
-        _object = v;
+        this(Type.object);
+        via.map = value;
     }
 
 
@@ -316,15 +338,6 @@ struct UniNode
     }
 
 
-    Type type() const @safe @property
-    {
-        return _type;
-    }
-
-
-    /**
-     * Returns the type id corresponding to the given D type.
-     */
     static Type typeId(T)() @property
     {
         static if( is(T == typeof(null)) ) return Type.nil;
@@ -350,60 +363,47 @@ struct UniNode
         else
             checkType!T();
 
-        static if (is(T == bool)) return _boolean;
-        else static if (is(T == double)) return _floating;
-        else static if (is(T == float)) return cast(T)_floating;
-        else static if (isSigned!T) return cast(T)_signed;
-        else static if (isUnsigned!T) return cast(T)_unsigned;
-        else static if (is(T == string))
-            return _type == Type.text ? cast(T)_text : cast(T)_raw;
+        static if (is(T == bool)) return via.boolean;
+        else static if (is(T == double)) return via.floating;
+        else static if (is(T == float)) return cast(T)via.floating;
+        else static if (isSigned!T) return cast(T)via.integer;
+        else static if (isUnsigned!T) return cast(T)via.uinteger;
+        else static if (is(T == string)) return cast(T)via.raw;
         else static if (isRawData!T)
         {
             static if (isStaticArray!T)
-                return cast(inout(T))_raw[0..T.length];
+                return cast(inout(T))via.raw[0..T.length];
             else
-                return cast(inout(T))_raw;
+                return cast(inout(T))via.raw;
         }
-        else static if (is(T == UniNode[])) return _array;
-        else static if (is(T == UniNode[string])) return _object;
-    }
-
-
-    inout(UniNode)* opBinaryRight(string op)(string other) inout if(op == "in")
-    {
-        checkType!(UniNode[string])();
-        auto pv = other in _object;
-        if (!pv)
-            return null;
-        if (pv.type == Type.nil)
-            return null;
-        return pv;
+        else static if (is(T == UniNode[])) return via.array;
+        else static if (is(T == UniNode[string])) return via.map;
     }
 
 
     ref inout(UniNode) opIndex(size_t idx) inout
     {
         checkType!(UniNode[])();
-        return _array[idx];
+        return via.array[idx];
     }
 
 
     ref UniNode opIndex(string key)
     {
         checkType!(UniNode[string])();
-        if (auto pv = key in _object)
+        if (auto pv = key in via.map)
             return *pv;
 
-        _object[key] = UniNode();
-        return _object[key];
+        via.map[key] = UniNode();
+        return via.map[key];
     }
 
 
     void appendArrayElement(UniNode element)
     {
-        enforceUniNode(_type == Type.array, "'appendArrayElement' only allowed for array types, not "
-                ~.to!string(_type)~".");
-        _array ~= element;
+        enforceUniNode(type == Type.array, "'appendArrayElement' only allowed for array types, not "
+                ~.to!string(type)~".");
+        via.array ~= element;
     }
 
 
@@ -439,9 +439,9 @@ struct UniNode
                 case Type.object:
                 {
                     buff.put("{");
-                    size_t len = node._object.length;
+                    size_t len = node.via.map.length;
                     size_t count;
-                    foreach (k, v; node._object)
+                    foreach (k, v; node.via.map)
                     {
                         count++;
                         buff.put(k ~ ":");
@@ -455,8 +455,8 @@ struct UniNode
                 case Type.array:
                 {
                     buff.put("[");
-                    size_t len = node._array.length;
-                    foreach (i, v; node._array)
+                    size_t len = node.via.array.length;
+                    foreach (i, v; node.via.array)
                     {
                         fun(v);
                         if (i < len)
@@ -478,74 +478,12 @@ struct UniNode
 
 private :
 
-
-    enum _size = max((ulong.sizeof + (void*).sizeof), 2);
-    void[_size] _data = (void[_size]).init;
-
-    static assert(_data.offsetof == 0, "m_data must be the first struct member.");
-
-
-    ref inout(T) getDataAs(T)() inout @trusted
-    {
-        static assert(T.sizeof <= _data.sizeof);
-        return (cast(inout(T)[1])_data[0 .. T.sizeof])[0];
-    }
-
-
-    @property ref inout(bool) _boolean() inout
-    {
-        return getDataAs!bool();
-    }
-
-
-    @property ref inout(long) _signed() inout
-    {
-        return getDataAs!long();
-    }
-
-
-    @property ref inout(ulong) _unsigned() inout
-    {
-        return getDataAs!ulong();
-    }
-
-
-    @property ref inout(double) _floating() inout
-    {
-        return getDataAs!double();
-    }
-
-
-    @property ref inout(ubyte[]) _raw() inout
-    {
-        return getDataAs!(ubyte[])();
-    }
-
-
-    @property ref inout(string) _text() inout
-    {
-        return getDataAs!(string)();
-    }
-
-
-    @property ref inout(UniNode[]) _array() inout
-    {
-        return getDataAs!(UniNode[])();
-    }
-
-
-    @property ref inout(UniNode[string]) _object() inout
-    {
-        return getDataAs!(UniNode[string])();
-    }
-
-
     void checkType(TYPES...)(string op = null) const
     {
         bool matched = false;
         foreach (T; TYPES)
         {
-            if (_type == typeId!T)
+            if (type == typeId!T)
                 matched = true;
         }
 
@@ -565,15 +503,12 @@ private :
             }
         }
 
-        string name = "UniNode of type " ~ _type.to!string;
+        string name = "UniNode of type " ~ type.to!string;
         if (!op.length)
             throw new UniNodeException("Got %s, expected %s.".fmt(name, expected));
         else
             throw new UniNodeException("Got %s, expected %s for %s.".fmt(name, expected, op));
     }
-
-
-    Type _type = Type.nil;
 }
 
 
@@ -739,7 +674,7 @@ unittest
     }
 
     FD fd = FD(1, [1, 2, 3]);
-    auto data = vSerialize!UniNodeSerializer(fd);
+    auto data = marshalObject(fd);
     assert(data.type == UniNode.Type.object);
 }
 

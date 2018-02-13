@@ -20,6 +20,8 @@ private
     import vibe.http.client;
     import vibe.core.log;
 
+    import requests : postContent;
+
     import dango.controller.core : createOptionCORSHandler, handleCors;
     import dango.controller.http : loadServiceSettings;
 
@@ -71,6 +73,7 @@ class HTTPClientTransport : ClientTransport
         bool _useTLS;
         HTTPClientSettings _settings;
         HTTPClient _client;
+        ushort _port;
     }
 
 
@@ -81,37 +84,40 @@ class HTTPClientTransport : ClientTransport
         _settings = settings;
         _useTLS = isUseTLS();
 
-        auto port = _entrypoint.port;
-        if( port == 0 )
-            port = _useTLS ? 443 : 80;
+        _port = _entrypoint.port;
+        if( _port == 0 )
+            _port = _useTLS ? 443 : 80;
 
         _client = new HTTPClient();
-        _client.connect(getFilteredHost(_entrypoint), port, _useTLS, settings);
+        _client.connect(getFilteredHost(_entrypoint), _port, _useTLS, _settings);
     }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        auto res = _client.request((scope HTTPClientRequest req) {
-            if (_entrypoint.localURI.length) {
-                assert(_entrypoint.path.absolute, "Request URL path must be absolute.");
-                req.requestURL = _entrypoint.localURI;
-            }
-            if (_settings.proxyURL.schema !is null)
-                req.requestURL = _entrypoint.toString();
-            if (_entrypoint.port && _entrypoint.port != _entrypoint.defaultPort)
-                req.headers["Host"] = fmt("%s:%d", _entrypoint.host, _entrypoint.port);
-            else
-                req.headers["Host"] = _entrypoint.host;
+        return postContent(_entrypoint.toString, bytes, "application/binary").data;
 
-            req.method = HTTPMethod.POST;
-            req.writeBody(bytes);
-        });
+        // auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+        //         req.method = HTTPMethod.POST;
+        //         req.writeBody(bytes);
+        //     }, _settings);
+        // auto res = _client.request((scope HTTPClientRequest req) {
+        //     if (_entrypoint.localURI.length) {
+        //         assert(_entrypoint.path.absolute, "Request URL path must be absolute.");
+        //         req.requestURL = _entrypoint.localURI;
+        //     }
+        //     if (_settings.proxyURL.schema !is null)
+        //         req.requestURL = _entrypoint.toString();
+        //     if (_entrypoint.port && _entrypoint.port != _entrypoint.defaultPort)
+        //         req.headers["Host"] = fmt("%s:%d", _entrypoint.host, _entrypoint.port);
+        //     else
+        //         req.headers["Host"] = _entrypoint.host;
 
-        // if( res.m_client )
-        //     res.lockedConnection = _client;
+        //     req.method = HTTPMethod.POST;
+        //     req.writeBody(bytes);
+        // });
 
-        return res.bodyReader.readAll();
+        // return res.bodyReader.readAll();
     }
 
 

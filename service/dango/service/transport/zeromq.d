@@ -165,9 +165,23 @@ class ZeroMQClientTransport : ClientTransport
 
     ubyte[] request(ubyte[] bytes)
     {
-        auto payload = Frame();
-        _socket.send(bytes);
-        _socket.receive(payload);
-        return payload.data;
+        synchronized(this)
+        {
+            auto payload = Frame();
+            _socket.send(bytes);
+            // _socket.receive(payload);
+
+            import std.datetime;
+            import core.time;
+
+            auto start = Clock.currTime;
+            auto current = start;
+
+            while (!_socket.tryReceive(payload)[1] && (current - start) < 2.seconds)
+            {
+                current = Clock.currTime;
+            }
+            return payload.data;
+        }
     }
 }
