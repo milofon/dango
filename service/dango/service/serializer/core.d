@@ -357,7 +357,7 @@ struct UniNode
     inout(T) get(T)() @property inout @trusted
     {
         static if (is(T == string) || isRawData!T)
-            checkType!(T, ubyte[])();
+            checkType!(T, ubyte[], typeof(null))();
         else static if(isNumeric!T && (isSigned!T || isUnsigned!T) && !isFloatingPoint!T)
             checkType!(long, ulong)();
         else
@@ -368,9 +368,17 @@ struct UniNode
         else static if (is(T == float)) return cast(T)via.floating;
         else static if (isSigned!T) return cast(T)via.integer;
         else static if (isUnsigned!T) return cast(T)via.uinteger;
-        else static if (is(T == string)) return cast(T)via.raw;
+        else static if (is(T == string))
+        {
+            if (type == Type.nil)
+                return "";
+            else
+                return cast(T)via.raw;
+        }
         else static if (isRawData!T)
         {
+            if (type == Type.nil)
+                return cast(inout(T))[];
             static if (isStaticArray!T)
                 return cast(inout(T))via.raw[0..T.length];
             else
