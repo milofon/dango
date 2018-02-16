@@ -378,7 +378,10 @@ struct UniNode
         else static if (isRawData!T)
         {
             if (type == Type.nil)
-                return cast(inout(T))[];
+            {
+                T ret;
+                return cast(inout(T))ret;
+            }
             static if (isStaticArray!T)
                 return cast(inout(T))via.raw[0..T.length];
             else
