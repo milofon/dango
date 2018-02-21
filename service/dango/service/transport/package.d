@@ -17,8 +17,8 @@ private
     import poodinis : ApplicationContext, DependencyContainer, newInstance;
     import dango.system.container : registerByName;
 
-    import dango.service.transport.http : HTTPServerTransport;
-    import dango.service.transport.zeromq : ZeroMQServerTransport;
+    import dango.service.transport.http : HTTPServerTransport, HTTPClientTransport;
+    import dango.service.transport.zeromq : ZeroMQServerTransport, ZeroMQClientTransport;
 }
 
 
@@ -28,5 +28,8 @@ class TransportContext : ApplicationContext
     {
         container.registerByName!(ServerTransport, HTTPServerTransport)("http").newInstance();
         container.registerByName!(ServerTransport, ZeroMQServerTransport)("zmq").newInstance();
+
+        container.registerByName!(ClientTransport, HTTPClientTransport)("http").newInstance();
+        container.registerByName!(ClientTransport, ZeroMQClientTransport)("zmq").newInstance();
     }
 }

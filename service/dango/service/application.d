@@ -21,8 +21,8 @@ private
 
     import dango.system.application;
     import dango.system.container : resolveByName;
+    import dango.system.exception;
 
-    import dango.service.exception;
     import dango.service.transport;
     import dango.service.serializer;
     import dango.service.protocol;
@@ -156,18 +156,4 @@ protected:
      * exitCode = Код возврата
      */
     int finalizeService(int exitCode);
-
-private:
-
-    string getNameOrEnforce(Properties config, string msg)
-    {
-        if (config.isObject)
-            return config.getOrEnforce!string("name", msg);
-        else
-        {
-            auto val = config.get!string;
-            configEnforce(!val.isNull, msg);
-            return val.get;
-        }
-    }
 }

@@ -156,7 +156,17 @@ class JsonRpcClientProtocol : RpcClientProtocol
         ClientTransport _transport;
     }
 
+
+    this() {}
+
+
     this(Serializer serializer, ClientTransport transport)
+    {
+        initialize(serializer, transport);
+    }
+
+
+    void initialize(Serializer serializer, ClientTransport transport)
     {
         _serializer = serializer;
         _transport = transport;

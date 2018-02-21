@@ -20,8 +20,7 @@ private
     import vibe.http.client;
     import vibe.core.log;
 
-    import requests : postContent;
-
+    import dango.system.exception;
     import dango.controller.core : createOptionCORSHandler, handleCors;
     import dango.controller.http : loadServiceSettings;
 
@@ -65,102 +64,102 @@ class HTTPServerTransport : ServerTransport
 }
 
 
-class HTTPClientTransport : ClientTransport
+
+class HTTPClientConnection : ClientConnection
 {
     private
     {
         URL _entrypoint;
-        bool _useTLS;
         HTTPClientSettings _settings;
-        HTTPClient _client;
-        ushort _port;
     }
 
 
     this(URL entrypoint, HTTPClientSettings settings)
     {
-        validateEntrypoint(entrypoint);
         _entrypoint = entrypoint;
         _settings = settings;
-        _useTLS = isUseTLS();
+    }
 
-        _port = _entrypoint.port;
-        if( _port == 0 )
-            _port = _useTLS ? 443 : 80;
 
-        _client = new HTTPClient();
-        _client.connect(getFilteredHost(_entrypoint), _port, _useTLS, _settings);
+    bool connected() @property
+    {
+        return true;
+    }
+
+
+    void connect() {}
+
+
+    void disconnect() {}
+
+
+    ubyte[] request(ubyte[] bytes)
+    {
+        auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+                req.method = HTTPMethod.POST;
+                req.writeBody(bytes);
+            }, _settings);
+        return res.bodyReader.readAll();
+    }
+}
+
+
+
+class HTTPClientConnectionPool : AsyncClientConnectionPool!HTTPClientConnection
+{
+    private
+    {
+        URL _entrypoint;
+        HTTPClientSettings _settings;
+    }
+
+
+    this(URL entrypoint, HTTPClientSettings settings, uint size)
+    {
+        _entrypoint = entrypoint;
+        _settings = settings;
+        super(size);
+    }
+
+
+    HTTPClientConnection createNewConnection()
+    {
+        return new HTTPClientConnection(_entrypoint, _settings);
+    }
+}
+
+
+
+class HTTPClientTransport : ClientTransport
+{
+    private
+    {
+        HTTPClientConnectionPool _pool;
+    }
+
+
+    this() {}
+
+
+    this(URL entrypoint, HTTPClientSettings settings)
+    {
+        _pool = new HTTPClientConnectionPool(entrypoint, settings, 10);
+    }
+
+
+    void initialize(Properties config)
+    {
+        auto settings = new HTTPClientSettings();
+        string entrypoint = config.getOrEnforce!string("entrypoint",
+                "Not defined entrypoint for client transport");
+        _pool = new HTTPClientConnectionPool(URL(entrypoint), settings, 10);
     }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        return postContent(_entrypoint.toString, bytes, "application/binary").data;
-
-        // auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
-        //         req.method = HTTPMethod.POST;
-        //         req.writeBody(bytes);
-        //     }, _settings);
-        // auto res = _client.request((scope HTTPClientRequest req) {
-        //     if (_entrypoint.localURI.length) {
-        //         assert(_entrypoint.path.absolute, "Request URL path must be absolute.");
-        //         req.requestURL = _entrypoint.localURI;
-        //     }
-        //     if (_settings.proxyURL.schema !is null)
-        //         req.requestURL = _entrypoint.toString();
-        //     if (_entrypoint.port && _entrypoint.port != _entrypoint.defaultPort)
-        //         req.headers["Host"] = fmt("%s:%d", _entrypoint.host, _entrypoint.port);
-        //     else
-        //         req.headers["Host"] = _entrypoint.host;
-
-        //     req.method = HTTPMethod.POST;
-        //     req.writeBody(bytes);
-        // });
-
-        // return res.bodyReader.readAll();
-    }
-
-
-private:
-
-
-    void validateEntrypoint(URL url)
-    {
-        version(UnixSocket) {
-            enforce(url.schema == "http" || url.schema == "https" || url.schema == "http+unix"
-                    || url.schema == "https+unix", "URL schema must be http(s) or http(s)+unix.");
-        } else {
-            enforce(url.schema == "http" || url.schema == "https", "URL schema must be http(s).");
-        }
-        enforce(url.host.length > 0, "URL must contain a host name.");
-    }
-
-
-    bool isUseTLS()
-    {
-        if (_settings.proxyURL.schema !is null)
-            return _settings.proxyURL.schema == "https";
-        else
-        {
-            version(UnixSocket)
-                return _entrypoint.schema == "https";
-            else
-                return _entrypoint.schema == "https"
-                    || _entrypoint.schema == "https+unix";
-        }
-    }
-
-
-    auto getFilteredHost(URL url)
-    {
-        version(UnixSocket)
-        {
-            import vibe.textfilter.urlencode : urlDecode;
-            if (url.schema == "https+unix" || url.schema == "http+unix")
-                return urlDecode(url.host);
-            else
-                return url.host;
-        } else
-            return url.host;
+        auto conn = _pool.getConnection();
+        scope(exit) _pool.freeConnection(conn);
+        return conn.request(bytes);
     }
 }

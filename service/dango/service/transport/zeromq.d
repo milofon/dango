@@ -19,7 +19,7 @@ private
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.service.exception;
+    import dango.system.exception;
     import dango.service.transport.core;
 }
 
@@ -160,6 +160,12 @@ class ZeroMQClientTransport : ClientTransport
     {
         _socket = Socket(SocketType.req);
         _socket.connect(uri);
+    }
+
+
+    void initialize(Properties config)
+    {
+
     }
 
 

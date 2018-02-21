@@ -19,8 +19,8 @@ private
            newInstance;
     import dango.system.container : registerByName;
 
-    import dango.service.protocol.jsonrpc : JsonRpcServerProtocol;
-    import dango.service.protocol.simple : SimpleRpcServerProtocol;
+    import dango.service.protocol.jsonrpc : JsonRpcServerProtocol, JsonRpcClientProtocol;
+    import dango.service.protocol.simple : SimpleRpcServerProtocol, SimpleRpcClientProtocol;
 }
 
 
@@ -30,5 +30,8 @@ class ProtocolContext : ApplicationContext
     {
         container.registerByName!(RpcServerProtocol, JsonRpcServerProtocol)("jsonrpc").newInstance;
         container.registerByName!(RpcServerProtocol, SimpleRpcServerProtocol)("simple").newInstance;
+
+        container.registerByName!(RpcClientProtocol, JsonRpcClientProtocol)("jsonrpc").newInstance;
+        container.registerByName!(RpcClientProtocol, SimpleRpcClientProtocol)("simple").newInstance;
     }
 }

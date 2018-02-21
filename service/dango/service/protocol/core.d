@@ -17,6 +17,7 @@ public
 
     import dango.service.serializer : Serializer, UniNode;
     import dango.service.dispatcher : Dispatcher;
+    import dango.service.transport : ClientTransport;
 }
 
 
@@ -55,7 +56,7 @@ interface RpcClientProtocol
      * serializer = Сериализатор
      * config = Конфигурация протокола
      */
-    // void initialize(Serializer serializer, Properties config);
+    void initialize(Serializer serializer, ClientTransport transport);
 
     /**
      * Отправляет запрос удаленной команды

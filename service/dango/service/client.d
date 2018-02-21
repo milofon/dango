@@ -21,11 +21,18 @@ private
     import std.meta;
     import std.conv : to;
 
+    import poodinis : DependencyContainer;
+    import proped : Properties;
+
     import vibe.internal.meta.codegen;
 
     import dango.system.traits;
+    import dango.system.exception;
+    import dango.system.container;
+
     import dango.service.protocol;
     import dango.service.serializer;
+    import dango.service.transport;
 }
 
 
@@ -59,6 +66,44 @@ class InterfaceClient(I) : I
 InterfaceClient!I createRpcClient(I)(RpcClientProtocol protocol)
 {
     return new InterfaceClient!(I)(protocol);
+}
+
+
+/**
+ * Генерация клиента на основе конфигурации
+ */
+InterfaceClient!I createRpcClient(I)(shared(DependencyContainer) container, Properties config)
+{
+    Properties trConf = config.getOrEnforce!Properties("transport",
+            "Not defined client transport config");
+    Properties serConf = config.getOrEnforce!Properties("serializer",
+            "Not defined client serializer config");
+    Properties protoConf = config.getOrEnforce!Properties("protocol",
+            "Not defined client protocol config");
+
+    string serializerName = getNameOrEnforce(serConf,
+            "Not defined client serializer name");
+    string protoName = getNameOrEnforce(protoConf,
+            "Not defined client protocol name");
+    string transportName = getNameOrEnforce(trConf,
+            "Not defined clien transport name");
+
+    Serializer serializer = container.resolveByName!Serializer(serializerName);
+    serializer.initialize(serConf);
+    configEnforce(serializer !is null,
+            "Serializer '%s' not register".fmt(serializerName));
+
+    ClientTransport trans = container.resolveByName!ClientTransport(transportName);
+    trans.initialize(trConf);
+    configEnforce(trans !is null,
+            "Transport '%s' not register".fmt(transportName));
+
+    RpcClientProtocol protocol = container.resolveByName!RpcClientProtocol(protoName);
+    protocol.initialize(serializer, trans);
+    configEnforce(protocol !is null,
+            "Protocol '%s' not register".fmt(protoName));
+
+    return createRpcClient!I(protocol);
 }
 
 

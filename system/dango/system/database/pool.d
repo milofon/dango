@@ -118,4 +118,3 @@ abstract class BaseConnectionPool(C) : ConnectionPool!C
         _mutex.unlock();
     }
 }
-
