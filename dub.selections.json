@@ -18,7 +18,6 @@
 		"openssl": "1.1.6+1.0.1g",
 		"poodinis": "6.3.0",
 		"proped": "0.0.7-rc.1",
-		"requests": "0.7.2",
 		"sdlang-d": "0.10.2",
 		"stdx-allocator": "2.77.0",
 		"taggedalgebraic": "0.10.9",
