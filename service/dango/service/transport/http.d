@@ -95,11 +95,13 @@ class HTTPClientConnection : ClientConnection
 
     ubyte[] request(ubyte[] bytes)
     {
-        auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
-                req.method = HTTPMethod.POST;
-                req.writeBody(bytes);
-            }, _settings);
-        return res.bodyReader.readAll();
+        import requests : postContent;
+        return postContent(_entrypoint.toString, bytes, "application/binary").data;
+        // auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+        //         req.method = HTTPMethod.POST;
+        //         req.writeBody(bytes);
+        //     }, _settings);
+        // return res.bodyReader.readAll();
     }
 }
 
