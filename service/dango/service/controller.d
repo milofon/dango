@@ -76,7 +76,7 @@ interface Controller
   * Params:
   * P = Тип потомка
   */
-abstract class BaseController(P) : Controller
+abstract class BaseController(P) : P, Controller
 {
     private
     {
@@ -106,7 +106,7 @@ abstract class BaseController(P) : Controller
 
 protected:
 
-    void doInitialize(Properties config);
+    void doInitialize(Properties config) {}
 
 
     void enforceRpc(V)(V value, int code, string message,
