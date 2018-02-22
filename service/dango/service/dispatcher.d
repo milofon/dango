@@ -101,7 +101,6 @@ class Dispatcher
                                 value.type, typeid(PType));
                 }
 
-
                 foreach(i, key; ParameterIdents)
                 {
                     alias PType = ParameterTypes[i];
@@ -112,6 +111,14 @@ class Dispatcher
                         {
                             fillArg!(i, PType)(key, *v);
                             requires[key] = true;
+                        }
+                        else
+                        {
+                            if (ParameterIdents.length == 1 && isAggregateType!PType)
+                            {
+                                fillArg!(i, PType)(key, params);
+                                requires[key] = true;
+                            }
                         }
                     }
                     else if (params.type == UniNode.Type.array)
@@ -130,7 +137,6 @@ class Dispatcher
                         }
                     }
                 }
-
 
                 foreach (k, v; requires)
                 {
