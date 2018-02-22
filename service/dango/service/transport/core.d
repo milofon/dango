@@ -172,5 +172,57 @@ abstract class AsyncClientConnectionPool(C) : ClientConnectionPool!C
  */
 abstract class WaitClientConnectionPool(C) : ClientConnectionPool!C
 {
+    private
+    {
+        SList!C _pool;
+        Mutex _mutex;
+        TaskCondition _condition;
+        uint _size;
+    }
 
+
+    this(uint size)
+    {
+        _mutex = new Mutex();
+        _condition = new TaskCondition(_mutex);
+        _size = size;
+        initializePool();
+    }
+
+
+    C getConnection() @safe
+    {
+        _mutex.lock();
+        while (_pool.empty)
+            _condition.wait();
+
+        auto conn = () @trusted {
+            auto conn = _pool.front();
+            if (!conn.connected)
+                conn.connect();
+            return conn;
+        } ();
+
+        _pool.removeFront();
+        _mutex.unlock();
+        return conn;
+    }
+
+
+    void freeConnection(C conn) @safe
+    {
+        _mutex.lock();
+        _pool.insertFront(conn);
+        _condition.notify();
+        _mutex.unlock();
+    }
+
+
+    private void initializePool()
+    {
+        _mutex.lock();
+        foreach (i; 0.._size)
+            _pool.insertFront(createNewConnection());
+        _mutex.unlock();
+    }
 }

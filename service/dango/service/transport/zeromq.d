@@ -12,14 +12,19 @@ module dango.service.transport.zeromq;
 private
 {
     import core.thread;
+
+    import std.datetime : Clock;
     import std.string : toStringz, fromStringz;
 
     import vibe.core.log;
+    import vibe.core.core : yield;
 
     import deimos.zmq.zmq;
     import zmqd;
 
     import dango.system.exception;
+    import dango.service.exception;
+
     import dango.service.transport.core;
 }
 
@@ -148,46 +153,141 @@ private final class ZeroMQWorker : Thread
 
 
 
-class ZeroMQClientTransport : ClientTransport
+class ZeroMQClientConnection : ClientConnection
 {
     private
     {
         Socket _socket;
+        PollItem[] _items;
+        string _uri;
+        ubyte[] _buffer;
+        bool _connected;
+        Duration _timeout;
     }
 
 
-    this(string uri)
+    this(string uri, uint timeout)
+    {
+        _timeout = timeout.msecs;
+        _uri = uri;
+    }
+
+
+    bool connected() @property
+    {
+        return _socket.initialized && _connected;
+    }
+
+
+    void connect()
     {
         _socket = Socket(SocketType.req);
-        _socket.connect(uri);
+        _items = [PollItem(_socket, PollFlags.pollIn)];
+        _socket.connect(_uri);
+        _connected = true;
     }
 
 
-    void initialize(Properties config)
+    void disconnect()
     {
-
+        _socket.linger = Duration.zero;
+        _socket.close();
+        _connected = false;
     }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        synchronized(this)
+        _socket.send(bytes);
+
+        auto payload = Frame();
+        auto start = Clock.currTime;
+        auto current = start;
+
+        while ((current - start) < _timeout)
         {
-            auto payload = Frame();
-            _socket.send(bytes);
-            // _socket.receive(payload);
-
-            import std.datetime;
-            import core.time;
-
-            auto start = Clock.currTime;
-            auto current = start;
-
-            while (!_socket.tryReceive(payload)[1] && (current - start) < 2.seconds)
+            poll(_items, 100.msecs);
+            if (_items[0].returnedEvents & PollFlags.pollIn)
             {
-                current = Clock.currTime;
+                _socket.receive(payload);
+
+                _buffer.length = 0;
+                _buffer ~= payload.data;
+
+                while (payload.more)
+                {
+                    _socket.receive(payload);
+                    _buffer ~= payload.data;
+                }
+                return _buffer.dup;
             }
-            return payload.data;
+            current = Clock.currTime;
+            yield();
         }
+
+        disconnect();
+        throw new TransportException("Request timeout error");
+    }
+}
+
+
+
+class ZeroMQClientConnectionPool : WaitClientConnectionPool!ZeroMQClientConnection
+{
+    private
+    {
+        string _uri;
+        uint _timeout;
+    }
+
+
+    this(string uri, uint timeout, uint size)
+    {
+        _uri = uri;
+        _timeout = timeout;
+        super(size);
+    }
+
+
+    ZeroMQClientConnection createNewConnection()
+    {
+        return new ZeroMQClientConnection(_uri, _timeout);
+    }
+}
+
+
+
+class ZeroMQClientTransport : ClientTransport
+{
+    private
+    {
+        ZeroMQClientConnectionPool _pool;
+    }
+
+
+    this() {}
+
+
+    this(string uri, uint timeout, uint size)
+    {
+        _pool = new ZeroMQClientConnectionPool(uri, timeout, size);
+    }
+
+
+    void initialize(Properties config)
+    {
+        string uri = config.getOrEnforce!string("uri",
+                "Not defined uri for client transport");
+        long timeout = config.getOrElse!long("timeout", 500);
+        long poolSize = config.getOrElse!long("poolSize", 10);
+        _pool = new ZeroMQClientConnectionPool(uri, cast(uint)timeout, cast(uint)poolSize);
+    }
+
+
+    ubyte[] request(ubyte[] bytes)
+    {
+        auto conn = _pool.getConnection();
+        scope(exit) _pool.freeConnection(conn);
+        return conn.request(bytes);
     }
 }
