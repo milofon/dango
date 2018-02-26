@@ -4,7 +4,7 @@ copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD"
 
-dependency "vibe-core" version=">=1.4.0-alpha.1 <2.0.0-0"
+dependency "vibe-core" version="~>1.4.0-rc.1"
 dependency "brightproof" version="~>2.4.0"
 dependency "poodinis" version="~>6.3.0"
 dependency "proped" version="~>0.0.7-rc.1"

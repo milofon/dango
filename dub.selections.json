@@ -23,8 +23,8 @@
 		"taggedalgebraic": "0.10.9",
 		"tinyendian": "0.1.2",
 		"unit-threaded": "0.6.36",
-		"vibe-core": "1.4.0-alpha.1",
-		"vibe-d": "0.8.3-alpha.4",
+		"vibe-core": "1.4.0-rc.1",
+		"vibe-d": "0.8.3-beta.1",
 		"zeromq": "4.2.2",
 		"zmqd": "1.1.1"
 	}
