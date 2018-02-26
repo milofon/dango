@@ -49,6 +49,19 @@ class HTTPServerTransport : ServerTransport
             res.writeBody(data);
         }
 
+        void handleError(HTTPServerRequest req, HTTPServerResponse res, HTTPServerErrorInfo err)
+        {
+            handleCors(req, res);
+            if (err.debugMessage.length)
+				res.writeBody("%s - %s\n\n%s\n\nInternal error information:\n%s"
+                        .fmt(err.code, httpStatusText(err.code), err.message, err.debugMessage));
+            else
+                res.writeBody("%s - %s\n\n%s"
+                        .fmt(err.code, httpStatusText(err.code), err.message));
+        }
+
+        httpSettings.errorPageHandler = &handleError;
+
         router.post(entrypoint, &handler);
         router.match(HTTPMethod.OPTIONS, entrypoint, createOptionCORSHandler());
 
