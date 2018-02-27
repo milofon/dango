@@ -55,6 +55,16 @@ interface Application
      * Returns: Объект свойств
      */
     Properties loadProperties(string filePath);
+
+    /**
+     * Свойство возвращает наименование приложения
+     */
+    string name() @property pure nothrow;
+
+    /**
+     * Свойство возвращает версию приложения
+     */
+    SemVer release() @property pure nothrow;
 }
 
 
@@ -215,6 +225,7 @@ private:
     {
         container.registerContext!PropertiesContext;
         container.registerContext!LoggingContext;
+        container.register!(Application, typeof(this)).existingInstance(this);
         container.register!PropertiesProxy.existingInstance(new PropertiesProxy(config));
     }
 
