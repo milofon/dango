@@ -22,8 +22,8 @@ private
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.system.exception;
     import dango.service.exception;
+    import dango.system.properties : getOrEnforce;
 
     import dango.service.transport.core;
 }

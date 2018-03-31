@@ -39,28 +39,3 @@ class ConfigException : Exception
 
 
 alias configEnforce = enforceEx!(ConfigException);
-
-
-T getOrEnforce(T)(Properties config, string key, lazy string msg)
-{
-    static if (is(T == Properties))
-        auto ret = config.sub(key);
-    else
-        auto ret = config.get!T(key);
-
-    configEnforce(!ret.isNull, msg);
-    return ret.get;
-}
-
-
-string getNameOrEnforce(Properties config, string msg)
-{
-    if (config.isObject)
-        return config.getOrEnforce!string("name", msg);
-    else
-    {
-        auto val = config.get!string;
-        configEnforce(!val.isNull, msg);
-        return val.get;
-    }
-}

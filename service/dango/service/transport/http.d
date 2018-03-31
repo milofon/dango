@@ -20,7 +20,7 @@ private
     import vibe.http.client;
     import vibe.core.log;
 
-    import dango.system.exception;
+    import dango.system.properties : getOrEnforce;
     import dango.controller.core : createOptionCORSHandler, handleCors;
     import dango.controller.http : loadServiceSettings;
 

@@ -7,20 +7,57 @@
  */
 module dango.system.properties;
 
-private
-{
-    import poodinis;
-
-    import dango.system.container : registerByName;
-
-    import proped;
-}
-
 public
 {
     import poodinis : Registration;
 }
 
+private
+{
+    import poodinis;
+    import proped;
+
+    import dango.system.container : registerByName;
+    import dango.system.exception : configEnforce;
+}
+
+
+/**
+ * Получение настроек или генерация исключения
+ * Params:
+ * config = Объект содержащий необходимы ключ конфигурации
+ * key = Ключ конфигруации
+ * msg = Сообщение об ошибке
+ */
+T getOrEnforce(T)(Properties config, string key, lazy string msg)
+{
+    static if (is(T == Properties))
+        auto ret = config.sub(key);
+    else
+        auto ret = config.get!T(key);
+
+    configEnforce(!ret.isNull, msg);
+    return ret.get;
+}
+
+
+/**
+ * Извление имени из объекта конфигурации
+ * Params:
+ * config = Объект содержащий необходимы ключ конфигурации
+ * msg = Сообщение об ошибке
+ */
+string getNameOrEnforce(Properties config, string msg)
+{
+    if (config.isObject)
+        return config.getOrEnforce!string("name", msg);
+    else
+    {
+        auto val = config.get!string;
+        configEnforce(!val.isNull, msg);
+        return val.get;
+    }
+}
 
 /**
  * Контекст для регистрации системных компоненетов

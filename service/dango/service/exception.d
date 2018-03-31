@@ -9,6 +9,12 @@
 
 module dango.service.exception;
 
+public
+{
+    import dango.system.exception;
+}
+
+
 private
 {
     import std.exception : enforceEx;
