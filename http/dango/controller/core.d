@@ -53,6 +53,7 @@ interface Controller
 }
 
 
+
 void handleCors(HTTPServerRequest req, HTTPServerResponse res) @safe
 {
     if (req.method == HTTPMethod.OPTIONS)
@@ -64,6 +65,7 @@ void handleCors(HTTPServerRequest req, HTTPServerResponse res) @safe
         res.headers["Access-Control-Allow-Credentials"] = "true";
     }
 }
+
 
 
 HTTPServerRequestDelegate createOptionCORSHandler() @safe
@@ -91,4 +93,3 @@ HTTPServerRequestDelegate createOptionCORSHandler() @safe
 
     return &handler;
 }
-

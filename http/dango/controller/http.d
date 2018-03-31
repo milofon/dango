@@ -107,7 +107,9 @@ string getHandlerPath(C)(string path)
             child = InetPath(childSegments);
         }
 
-        parent ~= child;
+        if (!child.empty)
+            parent ~= child;
+
         return parent.toString();
     }
     else
