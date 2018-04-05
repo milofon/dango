@@ -28,6 +28,7 @@ private
 
     import dango.system.traits;
     import dango.system.exception;
+    import dango.system.properties;
     import dango.system.container;
 
     import dango.service.protocol;
