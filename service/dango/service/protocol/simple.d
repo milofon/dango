@@ -16,7 +16,7 @@ private
     import vibe.core.log;
 
     import dango.service.protocol.core;
-    import dango.service.serializer.core;
+    import dango.service.serialization.core;
     import dango.service.transport.core;
 }
 

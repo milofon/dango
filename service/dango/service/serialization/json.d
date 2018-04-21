@@ -7,7 +7,7 @@
  * Date: 2018-01-28
  */
 
-module dango.service.serializer.json;
+module dango.service.serialization.json;
 
 private
 {
@@ -16,7 +16,7 @@ private
 
     import vibe.data.json;
 
-    import dango.service.serializer.core;
+    import dango.service.serialization.core;
 }
 
 

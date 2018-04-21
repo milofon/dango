@@ -7,7 +7,7 @@
  * Date: 2018-01-28
  */
 
-module dango.service.serializer.msgpack;
+module dango.service.serialization.msgpack;
 
 private
 {
@@ -16,7 +16,7 @@ private
     import proped : Properties;
     import msgpack;
 
-    import dango.service.serializer.core;
+    import dango.service.serialization.core;
 }
 
 

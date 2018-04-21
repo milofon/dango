@@ -19,7 +19,7 @@ public
 
     import dango.system.traits;
     import dango.service.dispatcher;
-    import dango.service.serializer;
+    import dango.service.serialization;
     import dango.service.protocol;
 }
 

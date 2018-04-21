@@ -7,7 +7,7 @@
  * Date: 2018-01-28
  */
 
-module dango.service.serializer.core;
+module dango.service.serialization.core;
 
 
 public

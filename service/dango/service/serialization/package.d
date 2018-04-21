@@ -5,11 +5,13 @@
  * Date: 2018-01-28
  */
 
-module dango.service.serializer;
+module dango.service.serialization;
 
 public
 {
-    import dango.service.serializer.core : Serializer, UniNode,
+    import vibe.data.serialization : optional;
+
+    import dango.service.serialization.core : Serializer, UniNode,
            marshalObject, unmarshalObject;
 }
 
@@ -18,8 +20,8 @@ private
     import poodinis : DependencyContainer, ApplicationContext;
     import dango.system.container : registerByName;
 
-    import dango.service.serializer.json : JsonSerializer;
-    import dango.service.serializer.msgpack : MsgPackSerializer;
+    import dango.service.serialization.json : JsonSerializer;
+    import dango.service.serialization.msgpack : MsgPackSerializer;
 }
 
 

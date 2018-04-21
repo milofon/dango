@@ -18,7 +18,7 @@ private
 
     import vibe.core.log;
 
-    import dango.service.serializer : UniNode,
+    import dango.service.serialization : UniNode,
            marshalObject, unmarshalObject;
     import dango.service.protocol;
 }

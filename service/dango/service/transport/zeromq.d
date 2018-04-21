@@ -12,6 +12,7 @@ module dango.service.transport.zeromq;
 private
 {
     import core.thread;
+    import core.memory : GC;
 
     import std.datetime : Clock;
     import std.string : toStringz, fromStringz;
@@ -158,6 +159,8 @@ class ZeroMQClientConnection : ClientConnection
     private
     {
         Socket _socket;
+        Context _ctx;
+
         PollItem[] _items;
         string _uri;
         ubyte[] _buffer;
@@ -181,7 +184,8 @@ class ZeroMQClientConnection : ClientConnection
 
     void connect()
     {
-        _socket = Socket(SocketType.req);
+        _ctx = Context();
+        _socket = Socket(_ctx, SocketType.req);
         _items = [PollItem(_socket, PollFlags.pollIn)];
         _socket.connect(_uri);
         _connected = true;
@@ -203,6 +207,9 @@ class ZeroMQClientConnection : ClientConnection
         auto payload = Frame();
         auto start = Clock.currTime;
         auto current = start;
+
+        // GC.disable();
+        // scope(exit) GC.enable();
 
         while ((current - start) < _timeout)
         {
@@ -232,28 +239,28 @@ class ZeroMQClientConnection : ClientConnection
 
 
 
-class ZeroMQClientConnectionPool : WaitClientConnectionPool!ZeroMQClientConnection
-{
-    private
-    {
-        string _uri;
-        uint _timeout;
-    }
+// class ZeroMQClientConnectionPool : WaitClientConnectionPool!ZeroMQClientConnection
+// {
+//     private
+//     {
+//         string _uri;
+//         uint _timeout;
+//     }
 
 
-    this(string uri, uint timeout, uint size)
-    {
-        _uri = uri;
-        _timeout = timeout;
-        super(size);
-    }
+//     this(string uri, uint timeout, uint size)
+//     {
+//         _uri = uri;
+//         _timeout = timeout;
+//         super(size);
+//     }
 
 
-    ZeroMQClientConnection createNewConnection()
-    {
-        return new ZeroMQClientConnection(_uri, _timeout);
-    }
-}
+//     ZeroMQClientConnection createNewConnection()
+//     {
+//         return new ZeroMQClientConnection(_uri, _timeout);
+//     }
+// }
 
 
 
@@ -261,7 +268,8 @@ class ZeroMQClientTransport : ClientTransport
 {
     private
     {
-        ZeroMQClientConnectionPool _pool;
+        ZeroMQClientConnection _conn;
+        // ZeroMQClientConnectionPool _pool;
     }
 
 
@@ -270,7 +278,8 @@ class ZeroMQClientTransport : ClientTransport
 
     this(string uri, uint timeout, uint size)
     {
-        _pool = new ZeroMQClientConnectionPool(uri, timeout, size);
+        _conn = new ZeroMQClientConnection(uri, timeout);
+        // _pool = new ZeroMQClientConnectionPool(uri, timeout, size);
     }
 
 
@@ -280,14 +289,17 @@ class ZeroMQClientTransport : ClientTransport
                 "Not defined uri for client transport");
         long timeout = config.getOrElse!long("timeout", 500);
         long poolSize = config.getOrElse!long("poolSize", 10);
-        _pool = new ZeroMQClientConnectionPool(uri, cast(uint)timeout, cast(uint)poolSize);
+        _conn = new ZeroMQClientConnection(uri, cast(uint)timeout);
+        // _pool = new ZeroMQClientConnectionPool(uri, cast(uint)timeout, cast(uint)poolSize);
     }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        auto conn = _pool.getConnection();
-        scope(exit) _pool.freeConnection(conn);
-        return conn.request(bytes);
+        if (!_conn.connected())
+            _conn.connect();
+        // auto conn = _pool.getConnection();
+        // scope(exit) _pool.freeConnection(conn);
+        return _conn.request(bytes);
     }
 }

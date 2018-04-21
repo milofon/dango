@@ -15,7 +15,7 @@ public
 
     import proped : Properties;
 
-    import dango.service.serializer : Serializer, UniNode;
+    import dango.service.serialization : Serializer, UniNode;
     import dango.service.dispatcher : Dispatcher;
     import dango.service.transport : ClientTransport;
 }

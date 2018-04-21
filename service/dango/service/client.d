@@ -32,7 +32,7 @@ private
     import dango.system.container;
 
     import dango.service.protocol;
-    import dango.service.serializer;
+    import dango.service.serialization;
     import dango.service.transport;
 }
 

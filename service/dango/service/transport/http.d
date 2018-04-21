@@ -18,7 +18,10 @@ private
     import vibe.inet.url : URL;
     import vibe.http.router;
     import vibe.http.client;
+
     import vibe.core.log;
+    import vibe.core.core;
+    import vibe.core.concurrency;
 
     import dango.system.properties : getOrEnforce;
     import dango.controller.core : createOptionCORSHandler, handleCors;
@@ -80,10 +83,17 @@ class HTTPServerTransport : ServerTransport
 
 class HTTPClientConnection : ClientConnection
 {
+    enum EventType
+    {
+        CONNECT
+    }
+
+
     private
     {
         URL _entrypoint;
         HTTPClientSettings _settings;
+        Task _task;
     }
 
 
@@ -100,21 +110,40 @@ class HTTPClientConnection : ClientConnection
     }
 
 
-    void connect() {}
+    void connect()
+    {
+        if (!connected())
+        {
+            _task.send(EventType.CONNECT);
+        }
+    }
 
 
-    void disconnect() {}
+    void disconnect()
+    {
+
+    }
 
 
     ubyte[] request(ubyte[] bytes)
     {
-        import requests : postContent;
-        return postContent(_entrypoint.toString, bytes, "application/binary").data;
+        // import requests : postContent;
+        // return postContent(_entrypoint.toString, bytes, "application/binary").data;
         // auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
         //         req.method = HTTPMethod.POST;
         //         req.writeBody(bytes);
         //     }, _settings);
         // return res.bodyReader.readAll();
+        return bytes;
+    }
+
+
+private:
+
+
+    void loop()
+    {
+
     }
 }
 

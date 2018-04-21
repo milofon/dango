@@ -25,7 +25,7 @@ private
     import dango.system.exception : configEnforce;
 
     import dango.service.transport;
-    import dango.service.serializer;
+    import dango.service.serialization;
     import dango.service.protocol;
     import dango.service.dispatcher;
     import dango.service.controller;
