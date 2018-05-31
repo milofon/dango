@@ -13,22 +13,26 @@ public
     import proped : Properties, Loader;
     import proped.loader : createPropertiesLoader;
 
-    import poodinis : DependencyContainer, existingInstance;
-
-    import vibe.core.log : registerLogger, logInfo, logDiagnostic;
-    import vibe.core.core : runEventLoop, lowerPrivileges, runTask, Task;
+    import vibe.core.log;
 
     import dango.system.commandline : CommandLineProcessor;
-    import dango.system.properties : PropertiesProxy;
 }
 
 private
 {
     import std.array : empty;
 
-    import dango.system.properties : createLoaderFromContainer, PropertiesContext;
+    import poodinis : DependencyContainer, registerContext, existingInstance,
+            ValueInjector;
+    import vibe.core.core : runEventLoop, lowerPrivileges;
+
+    import dango.system.properties : PropertiesContext, PropertiesValueInjector;
     import dango.system.logging : configureLogging, LoggingContext;
 }
+
+
+
+alias ApplicationContainer = shared(DependencyContainer);
 
 
 /**
@@ -77,7 +81,7 @@ abstract class BaseApplication : Application
     {
         string _applicationName;
         SemVer _applicationVersion;
-        shared(DependencyContainer) _container;
+        ApplicationContainer _container;
         string[] _configFiles;
         Loader _propLoader;
     }
@@ -101,7 +105,7 @@ abstract class BaseApplication : Application
     final int run(string[] args)
     {
         // иницмализируем зависимости
-        _container = new shared(DependencyContainer)();
+        _container = new ApplicationContainer();
         _propLoader = createPropertiesLoader();
 
         // загружаем параметры командной строки
@@ -121,10 +125,8 @@ abstract class BaseApplication : Application
         config ~= cProcessor.getEnvironmentProperties();
 
         doInitDependencies(_container, config);
-
-        configureLogging(container, config, &registerLogger);
-
-        initDependencies(container, config);
+        configureLogging(_container, config, &registerLogger);
+        initDependencies(_container, config);
 
         return runApplication(config);
     }
@@ -132,7 +134,7 @@ abstract class BaseApplication : Application
     /**
      * Свойство возвращает локальный контейнер
      */
-    shared(DependencyContainer) container() @property pure nothrow
+    ApplicationContainer container() @property pure nothrow
     {
         return _container;
     }
@@ -194,9 +196,7 @@ protected:
      * initDependencies(container);
      * ---
      */
-    void initDependencies(shared(DependencyContainer) container, Properties config)
-    {
-    }
+    void initDependencies(ApplicationContainer container, Properties config) {}
 
     /**
      * Получение аргументов из командной строки
@@ -219,14 +219,21 @@ protected:
         return _applicationName;
     }
 
+
 private:
 
-    void doInitDependencies(shared(DependencyContainer) container, Properties config)
+
+    void doInitDependencies(ApplicationContainer container, Properties config)
     {
+        container.register!(Application, typeof(this)).existingInstance(this);
+
+        auto propInjector = new PropertiesValueInjector();
+        propInjector.initialize(config);
+        container.register!(ValueInjector!Properties, PropertiesValueInjector)
+            .existingInstance(propInjector);
+
         container.registerContext!PropertiesContext;
         container.registerContext!LoggingContext;
-        container.register!(Application, typeof(this)).existingInstance(this);
-        container.register!PropertiesProxy.existingInstance(new PropertiesProxy(config));
     }
 
 
@@ -262,7 +269,9 @@ abstract class DaemonApplication : BaseApplication
         super(name, _version);
     }
 
+
 protected:
+
 
     override final int runApplication(Properties config)
     {
@@ -285,7 +294,9 @@ protected:
      */
     int finalizeDaemon(int exitStatus);
 
+
 private:
+
 
     /**
      * Запуск основного цикла обработки событий

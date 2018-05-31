@@ -7,30 +7,5 @@ module dango.system.logging;
 
 public
 {
-    import dango.system.logging.core : configureLogging;
-}
-
-private
-{
-    import poodinis: ApplicationContext, DependencyContainer;
-
-    import dango.system.logging.core;
-    import dango.system.logging.loggers.console;
-    import dango.system.logging.loggers.file;
-    import dango.system.logging.loggers.html;
-
-    import dango.system.container: registerByName;
-}
-
-/**
- * Контекст для регистрации компонентов отвечающих к логированию
- */
-class LoggingContext : ApplicationContext
-{
-    public override void registerDependencies(shared(DependencyContainer) container)
-    {
-        container.registerByName!(LoggerFactory, FileLoggerFactory)("FILE");
-        container.registerByName!(LoggerFactory, HTMLLoggerFactory)("HTML");
-        container.registerByName!(LoggerFactory, ConsoleLoggerFactory)("CONSOLE");
-    }
+    import dango.system.logging.core : configureLogging, LoggingContext;
 }

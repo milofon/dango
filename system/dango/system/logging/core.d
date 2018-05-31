@@ -13,11 +13,28 @@ private
     import std.functional: toDelegate;
     import std.format: format, formattedWrite;
 
+    import poodinis : DependencyContainer, ApplicationContext;
     import vibe.core.log;
-    import poodinis: DependencyContainer;
     import proped: Properties;
 
-    import dango.system.container: resolveByName;
+    import dango.system.container : resolveNamed, registerNamed;
+    import dango.system.logging.loggers.console;
+    import dango.system.logging.loggers.file;
+    import dango.system.logging.loggers.html;
+}
+
+
+/**
+ * Контекст для регистрации компонентов отвечающих к логированию
+ */
+class LoggingContext : ApplicationContext
+{
+    override void registerDependencies(shared(DependencyContainer) container)
+    {
+        container.registerNamed!(LoggerFactory, HTMLLoggerFactory, "HTML");
+        container.registerNamed!(LoggerFactory, FileLoggerFactory, "FILE");
+        container.registerNamed!(LoggerFactory, ConsoleLoggerFactory, "CONSOLE");
+    }
 }
 
 
@@ -28,6 +45,7 @@ interface LoggerFactory
 {
     shared(Logger) createLogger(Properties config);
 }
+
 
 
 package LogLevel matchLogLevel(string level)
@@ -50,6 +68,7 @@ package LogLevel matchLogLevel(string level)
             return info;
     }
 }
+
 
 
 package FileLogger.Format matchLogFormat(string logFormat)
@@ -112,7 +131,7 @@ void configureLogging(shared(DependencyContainer) container, Properties config, 
         if (appender.isNull)
             throw new Exception("В конфигурации логера не указан тип ('%s')".format(loggerConf));
 
-        LoggerFactory factory = container.resolveByName!(LoggerFactory)(appender.get.toUpper);
+        auto factory = container.resolveNamed!LoggerFactory(appender.get.toUpper);
         if (factory is null)
             throw new Exception("Не зарегистрирован логгер с именем " ~ appender);
 

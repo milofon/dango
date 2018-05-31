@@ -7,17 +7,12 @@
  */
 module dango.system.properties;
 
-public
-{
-    import poodinis : Registration;
-}
-
 private
 {
-    import poodinis;
     import proped;
+    import poodinis : DependencyContainer, ApplicationContext,
+        Component, ValueInjector, Value;
 
-    import dango.system.container : registerByName;
     import dango.system.exception : configEnforce;
 }
 
@@ -59,31 +54,39 @@ string getNameOrEnforce(Properties config, string msg)
     }
 }
 
+
 /**
  * Контекст для регистрации системных компоненетов
  */
 class PropertiesContext : ApplicationContext
 {
-    public override void registerDependencies(shared(DependencyContainer) container)
-	{
-        container.registerByName!(PropertiesLoader, SDLPropertiesLoader)("SDL");
-        container.registerByName!(PropertiesLoader, YAMLPropertiesLoader)("YAML");
-        container.registerByName!(PropertiesLoader, JSONPropertiesLoader)("JSON");
-	}
+    override void registerDependencies(shared(DependencyContainer) container)
+    {
+        container.register!(PropertiesLoader, SDLPropertiesLoader);
+        container.register!(PropertiesLoader, YAMLPropertiesLoader);
+        container.register!(PropertiesLoader, JSONPropertiesLoader);
+    }
 }
 
 
 /**
- * Класс обертка на объектом настроек для распространения в DI контейнере
+ * Инжектор настроек приложения
  */
-class PropertiesProxy
+class PropertiesValueInjector : ValueInjector!Properties
 {
-    Properties _properties;
-    alias _properties this;
+    private Properties _root;
 
-    this(Properties properties)
+
+    void initialize(Properties config)
     {
-        _properties = properties;
+        this._root = config;
+    }
+
+
+    Properties get(string key)
+    {
+        return _root.getOrEnforce!Properties(key,
+                "In global config not found key '" ~ key ~ "'");
     }
 }
 
@@ -102,105 +105,5 @@ Loader createLoaderFromContainer(shared(DependencyContainer) container)
     {
         return loaders.loadProperties(fileName);
     };
-}
-
-
-/**
- * Функция позволяет назначить фабрику передающую параметры в конструктор
- * для зарегистрированной в контейнере класса
- * Params:
- *
- * registration = Объект регистрации в контейнере
- * config       = Конфигурация
- */
-Registration propertiesInstance(T)(Registration registration, Properties config) {
-
-    Object propertiesInstanceMethod()
-    {
-        return new T(config);
-    }
-
-    registration.instanceFactory = new InstanceFactory(registration.instanceType,
-            CreatesSingleton.yes, null, &propertiesInstanceMethod);
-    return registration;
-}
-
-
-/**
- * Шаблон для регистрации зависимостей массово
- * Используется для более простой регистрации зависимостей в контейнер DI
- *
- * Params:
- *
- * pairs = Массив из пар (наименование, класс)
- *
- * Example:
- * --------------------
- * auto callback = (Registration reg, string name, Properties cfg) {};
- * registerControllerDependencies!("api", ControllerApi)(container, config, callback);
- * --------------------
- */
-mixin template registerPropertiesDependencies(C, pairs...)
-{
-    template GenerateSwitch()
-    {
-        template GenerateSwitchBody(tpairs...)
-        {
-            static if (tpairs.length > 0)
-            {
-                enum GenerateSwitchBody = `
-                    case ("` ~ tpairs[0]  ~ `"):
-                        auto reg = container.register!(C, ` ~ tpairs[1].stringof ~ `)
-                            .propertiesInstance!(` ~ tpairs[1].stringof ~ `)(cfg);
-                        if (callback !is null)
-                            callback(reg, name, cfg);
-                        break;` ~ GenerateSwitchBody!(tpairs[2..$]);
-            }
-            else
-                enum GenerateSwitchBody = "";
-        }
-        enum GenerateSwitch = "switch(name)\n{" ~ GenerateSwitchBody!(pairs) ~ "\ndefault: break;\n}";
-    }
-
-    void registerPropertiesDependencies(shared(DependencyContainer) container, Properties config,
-            void function(Registration, string, Properties) callback = null)
-    {
-        pragma(msg, __MODULE__);
-        // pragma(msg, GenerateSwitch!());
-        foreach (Properties cfg; config.getArray())
-        {
-            auto pName = cfg.get!string("name");
-            if (pName.isNull)
-                continue;
-            string name = pName.get;
-            mixin(GenerateSwitch!());
-        }
-    }
-}
-
-
-/**
- * Функция для регистрации существующего контекста
- * Params:
- *
- * container = Контейнер зависимостей
- * ctx       = Объект контекста
- */
-void registerExistsContext(Context : ApplicationContext)(shared(DependencyContainer) container, Context ctx)
-{
-    ctx.registerDependencies(container);
-    ctx.registerContextComponents(container);
-    container.register!(ApplicationContext, Context)().existingInstance(ctx);
-    autowire(container, ctx);
-}
-
-
-void registerExtContext(Context : ApplicationContext)(shared(DependencyContainer) container, Properties config)
-{
-    auto context = new Context();
-    context.registerDependencies(container, config);
-    context.registerContextComponents(container);
-    container.register!(ApplicationContext, Context)().existingInstance(context);
-    autowire(container, context);
 }
 
