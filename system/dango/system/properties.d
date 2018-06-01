@@ -10,10 +10,10 @@ module dango.system.properties;
 private
 {
     import proped;
-    import poodinis : DependencyContainer, ApplicationContext,
-        Component, ValueInjector, Value;
+    import poodinis : ApplicationContext, Component, ValueInjector, Value;
 
     import dango.system.exception : configEnforce;
+    import dango.system.container : ApplicationContainer;
 }
 
 
@@ -60,7 +60,7 @@ string getNameOrEnforce(Properties config, string msg)
  */
 class PropertiesContext : ApplicationContext
 {
-    override void registerDependencies(shared(DependencyContainer) container)
+    override void registerDependencies(ApplicationContainer container)
     {
         container.register!(PropertiesLoader, SDLPropertiesLoader);
         container.register!(PropertiesLoader, YAMLPropertiesLoader);
@@ -97,7 +97,7 @@ class PropertiesValueInjector : ValueInjector!Properties
   *
   * container = Контейнер зависимостей
   */
-Loader createLoaderFromContainer(shared(DependencyContainer) container)
+Loader createLoaderFromContainer(ApplicationContainer container)
 {
     PropertiesLoader[] loaders = container.resolveAll!PropertiesLoader;
 

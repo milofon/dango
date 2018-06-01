@@ -13,11 +13,11 @@ private
     import std.functional: toDelegate;
     import std.format: format, formattedWrite;
 
-    import poodinis : DependencyContainer, ApplicationContext;
+    import poodinis : ApplicationContext;
     import vibe.core.log;
     import proped: Properties;
 
-    import dango.system.container : resolveNamed, registerNamed;
+    import dango.system.container : resolveNamed, registerNamed, ApplicationContainer;
     import dango.system.logging.loggers.console;
     import dango.system.logging.loggers.file;
     import dango.system.logging.loggers.html;
@@ -29,7 +29,7 @@ private
  */
 class LoggingContext : ApplicationContext
 {
-    override void registerDependencies(shared(DependencyContainer) container)
+    override void registerDependencies(ApplicationContainer container)
     {
         container.registerNamed!(LoggerFactory, HTMLLoggerFactory, "HTML");
         container.registerNamed!(LoggerFactory, FileLoggerFactory, "FILE");
@@ -99,7 +99,7 @@ package FileLogger.Format matchLogFormat(string logFormat)
  * config    = Объект свойств содержит настройки логгеров
  * dg        = Функция для обработки логгера
  */
-void configureLogging(shared(DependencyContainer) container, Properties config, void function(shared(Logger)) nothrow dg)
+void configureLogging(ApplicationContainer container, Properties config, void function(shared(Logger)) nothrow dg)
 {
     configureLogging(container, config, toDelegate(dg));
 }
@@ -117,7 +117,7 @@ void configureLogging(shared(DependencyContainer) container, Properties config, 
  * config    = Объект свойств содержит настройки логгеров
  * dg        = Функция-делегат для обработки логгера
  */
-void configureLogging(shared(DependencyContainer) container, Properties config, void delegate(shared(Logger)) nothrow dg)
+void configureLogging(ApplicationContainer container, Properties config, void delegate(shared(Logger)) nothrow dg)
 {
     if ("logger" !in config)
         return;

@@ -16,23 +16,20 @@ public
     import vibe.core.log;
 
     import dango.system.commandline : CommandLineProcessor;
+    import dango.system.container : ApplicationContainer;
 }
 
 private
 {
     import std.array : empty;
 
-    import poodinis : DependencyContainer, registerContext, existingInstance,
-            ValueInjector;
+    import poodinis : existingInstance, ValueInjector;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
     import dango.system.properties : PropertiesContext, PropertiesValueInjector;
     import dango.system.logging : configureLogging, LoggingContext;
+    import dango.system.container : registerContext;
 }
-
-
-
-alias ApplicationContainer = shared(DependencyContainer);
 
 
 /**

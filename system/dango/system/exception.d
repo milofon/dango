@@ -38,4 +38,5 @@ class ConfigException : Exception
 }
 
 
-alias configEnforce = enforce!(ConfigException);
+alias configEnforce = enforceEx!(ConfigException);
+

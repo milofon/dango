@@ -9,13 +9,13 @@ module dango.system.database.pool;
 
 private
 {
-    import std.container : SList;
+    // import std.container : SList;
 
-    import vibe.core.sync;
-    import vibe.core.core : Mutex;
+    // import vibe.core.sync;
+    // import vibe.core.core : Mutex;
 }
 
-
+/+
 /**
   * Интерфейс объекта с возможностью хранения в пуле
   */
@@ -118,3 +118,4 @@ abstract class BaseConnectionPool(C) : ConnectionPool!C
         _mutex.unlock();
     }
 }
++/
