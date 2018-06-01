@@ -20,6 +20,7 @@ private
 }
 
 
+
 class MsgPackSerializer : Serializer
 {
     private bool _withFieldName;
@@ -94,8 +95,11 @@ UniNode toUniNode(Value input)
                 UniNode[string] map;
                 foreach(Value key, Value ch; node.via.map)
                 {
-                    string k = cast(string)key.via.raw;
-                    map[k] = convert(ch);
+                    if (key.type == Type.raw)
+                    {
+                        string k = cast(string)key.via.raw;
+                        map[k] = convert(ch);
+                    }
                 }
                 return UniNode(map);
             }
@@ -106,6 +110,7 @@ UniNode toUniNode(Value input)
 
     return convert(input);
 }
+
 
 
 Value fromUniNode(UniNode input)
@@ -149,3 +154,4 @@ Value fromUniNode(UniNode input)
 
     return convert(input);
 }
+

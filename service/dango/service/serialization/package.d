@@ -12,24 +12,6 @@ public
     import vibe.data.serialization : optional;
 
     import dango.service.serialization.core : Serializer, UniNode,
-           marshalObject, unmarshalObject;
+           marshalObject, unmarshalObject, SerializerContext;
 }
 
-private
-{
-    import poodinis : DependencyContainer, ApplicationContext;
-    import dango.system.container : registerByName;
-
-    import dango.service.serialization.json : JsonSerializer;
-    import dango.service.serialization.msgpack : MsgPackSerializer;
-}
-
-
-class SerializerContext : ApplicationContext
-{
-    override void registerDependencies(shared(DependencyContainer) container)
-    {
-        container.registerByName!(Serializer, JsonSerializer)("json");
-        container.registerByName!(Serializer, MsgPackSerializer)("msgpack");
-    }
-}

@@ -20,6 +20,7 @@ private
 }
 
 
+
 class JsonSerializer : Serializer
 {
     override void initialize(Properties config) {}
@@ -89,6 +90,7 @@ UniNode toUniNode(Json input)
 }
 
 
+
 Json fromUniNode(UniNode input)
 {
     Json convert(UniNode node)
@@ -131,3 +133,4 @@ Json fromUniNode(UniNode input)
 
     return convert(input);
 }
+

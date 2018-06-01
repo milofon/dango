@@ -30,6 +30,24 @@ private
     import vibe.data.serialization :
         vSerialize = serialize,
         vDeserialize = deserialize;
+    import poodinis : DependencyContainer, ApplicationContext;
+
+    import dango.system.container : registerNamed, ApplicationContainer;
+    import dango.service.serialization.json : JsonSerializer;
+    import dango.service.serialization.msgpack : MsgPackSerializer;
+}
+
+
+/**
+ * Контекст для регистрации сериализаторов в контейнере DI
+ */
+class SerializerContext : ApplicationContext
+{
+    override void registerDependencies(ApplicationContainer container)
+    {
+        container.registerNamed!(Serializer, JsonSerializer, "json");
+        container.registerNamed!(Serializer, MsgPackSerializer, "msgpack");
+    }
 }
 
 
@@ -676,6 +694,7 @@ struct UniNodeSerializer
 }
 
 
+
 unittest
 {
     struct FD
@@ -690,6 +709,7 @@ unittest
 }
 
 
+
 class UniNodeException : Exception
 {
     this(string msg, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
@@ -700,3 +720,4 @@ class UniNodeException : Exception
 
 
 alias enforceUniNode = enforceEx!UniNodeException;
+
