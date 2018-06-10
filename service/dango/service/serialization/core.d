@@ -15,7 +15,6 @@ public
     import proped : Properties;
 }
 
-
 private
 {
     import std.algorithm.comparison : max;
@@ -30,31 +29,16 @@ private
     import vibe.data.serialization :
         vSerialize = serialize,
         vDeserialize = deserialize;
-    import poodinis : DependencyContainer, ApplicationContext;
 
-    import dango.system.container : registerNamed, ApplicationContainer;
-    import dango.service.serialization.json : JsonSerializer;
-    import dango.service.serialization.msgpack : MsgPackSerializer;
+    import dango.service.global;
 }
 
-
-/**
- * Контекст для регистрации сериализаторов в контейнере DI
- */
-class SerializerContext : ApplicationContext
-{
-    override void registerDependencies(ApplicationContainer container)
-    {
-        container.registerNamed!(Serializer, JsonSerializer, "json");
-        container.registerNamed!(Serializer, MsgPackSerializer, "msgpack");
-    }
-}
 
 
 /**
  * Основной класс сериализатор
  */
-abstract class Serializer
+interface Serializer
 {
     /**
      * Сериализация объекта языка в массив байт
@@ -62,7 +46,7 @@ abstract class Serializer
      * object = Объект для преобразования
      * Return: массив байт
      */
-    ubyte[] serializeObject(T)(T object)
+    final Bytes serializeObject(T)(T object)
     {
         return serialize(marshalObject!T(object));
     }
@@ -73,7 +57,7 @@ abstract class Serializer
      * bytes = Массив байт
      * Return: T
      */
-    T deserializeObject(T)(ubyte[] bytes)
+    final T deserializeObject(T)(Bytes bytes)
     {
         return unmarshalObject!T(deserialize(bytes));
     }
@@ -84,7 +68,7 @@ abstract class Serializer
      * bytes = Массив байт
      * Return: UniNode
      */
-    UniNode deserialize(ubyte[] bytes);
+    UniNode deserialize(Bytes bytes);
 
     /**
      * Сериализация UniNode в массив байт
@@ -92,15 +76,7 @@ abstract class Serializer
      * node = Данные в UniNode
      * Return: массив байт
      */
-    ubyte[] serialize(UniNode node);
-
-    /**
-     * Инициализация сериализатора при помощи
-     * объекта настроек
-     * Params:
-     * config = Объект настроек
-     */
-    void initialize(Properties config);
+    Bytes serialize(UniNode node);
 }
 
 

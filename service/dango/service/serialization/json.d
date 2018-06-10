@@ -16,6 +16,7 @@ private
 
     import vibe.data.json;
 
+    import dango.service.global;
     import dango.service.serialization.core;
 }
 
@@ -23,10 +24,13 @@ private
 
 class JsonSerializer : Serializer
 {
-    override void initialize(Properties config) {}
+    this() {}
 
 
-    override UniNode deserialize(ubyte[] bytes)
+    this(Properties config) {}
+
+
+    UniNode deserialize(Bytes bytes)
     {
         auto strData = cast(string)bytes;
         Json json = parseJson(strData);
@@ -34,10 +38,10 @@ class JsonSerializer : Serializer
     }
 
 
-    override ubyte[] serialize(UniNode node)
+    Bytes serialize(UniNode node)
     {
         Json json = fromUniNode(node);
-        return cast(ubyte[])json.toString();
+        return cast(Bytes)json.toString();
     }
 }
 

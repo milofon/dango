@@ -12,6 +12,25 @@ public
     import vibe.data.serialization : optional;
 
     import dango.service.serialization.core : Serializer, UniNode,
-           marshalObject, unmarshalObject, SerializerContext;
+           marshalObject, unmarshalObject;
 }
+
+private
+{
+    import std.meta;
+
+    import dango.service.factory;
+
+    import dango.service.serialization.json : JsonSerializer;
+    import dango.service.serialization.msgpack : MsgPackSerializer;
+}
+
+
+alias Serializers = AliasSeq!(
+        "JSON", JsonSerializer,
+        "MSGPACK", MsgPackSerializer
+    );
+
+
+alias SerializerFactory = ComponentFactory!(Serializers).Wrapper!Serializer;
 

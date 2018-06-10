@@ -21,8 +21,8 @@ private
     import std.meta : Alias;
 
     import vibe.core.path : InetPath;
-    import vibe.stream.tls : createTLSContext, TLSContextKind;
-    import vibe.http.server : HTTPServerSettings, TLSContext, HTTPServerOptionImpl, HTTPServerOption;
+    import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
+    import vibe.http.server : HTTPServerSettings, HTTPServerOption;
 
     import proped : PropertiesNotFoundException;
 
@@ -159,14 +159,7 @@ HTTPServerSettings loadServiceSettings(Properties config)
         throw new PropertiesNotFoundException(config, "port");
     settings.port = cast(ushort)port.get;
 
-    HTTPServerOption options = HTTPServerOption.defaults;
-    if ("options" in config)
-        options.setOptionsByName!(HTTPServerOptionImpl,
-                "distribute",
-                "errorStackTraces"
-                )(config.sub("options"));
-
-    settings.options = options;
+    settings.options = HTTPServerOption.defaults;
 
     if ("hostName" in config)
         settings.hostName = config.get!string("hostName");
@@ -221,37 +214,5 @@ TLSContext createTLSContextFrom(Properties sslConfig)
     tlsCtx.usePrivateKeyFile(privateKeyFile.get);
 
     return tlsCtx;
-}
-
-
-/**
- * Установка свойства в битовую маску
- */
-void setOption(T)(ref T options, bool flag, T value)
-{
-    if (flag)
-        options |= value;
-    else
-        options &= ~value;
-}
-
-
-/**
- * Установка свойства в битовую маску по имени свойства
- */
-void setOptionByName(T, string name)(ref T options, Properties config)
-{
-    if (name in config)
-        options.setOption(config.get!bool(name), __traits(getMember, T, name));
-}
-
-
-/**
- * Установка массива свойств в битовую маску
- */
-void setOptionsByName(T, NAMES...)(ref T options, Properties config)
-{
-    foreach(string name; NAMES)
-        options.setOptionByName!(T, name)(config);
 }
 

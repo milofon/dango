@@ -16,6 +16,7 @@ private
     import proped : Properties;
     import msgpack;
 
+    import dango.service.global;
     import dango.service.serialization.core;
 }
 
@@ -26,25 +27,25 @@ class MsgPackSerializer : Serializer
     private bool _withFieldName;
 
 
-    this()
-    {
-        _withFieldName = false;
-    }
-
-
     this(bool withFieldName)
     {
         _withFieldName = withFieldName;
     }
 
 
-    override void initialize(Properties config)
+    this()
     {
-        _withFieldName = config.getOrElse!bool("withFieldName", false);
+        this(false);
     }
 
 
-    override UniNode deserialize(ubyte[] bytes)
+    this(Properties config)
+    {
+        this(config.getOrElse!bool("withFieldName", false));
+    }
+
+
+    UniNode deserialize(Bytes bytes)
     {
         auto unpacker = StreamingUnpacker(bytes);
         unpacker.execute();
@@ -52,12 +53,12 @@ class MsgPackSerializer : Serializer
     }
 
 
-    override ubyte[] serialize(UniNode node)
+    Bytes serialize(UniNode node)
     {
         Value val = fromUniNode(node);
         auto packer = Packer(_withFieldName);
         val.toMsgpack(packer);
-        return packer.stream.data;
+        return packer.stream.data.idup;
     }
 }
 
