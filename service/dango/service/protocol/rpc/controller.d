@@ -141,26 +141,30 @@ protected:
 }
 
 
+/**
+ * Возвращает полное наименование команды
+ */
+template FullMethodName(I, string method)
+{
+    enum udas = getUDAs!(I, Controller);
+    static if (udas.length > 0)
+    {
+        enum prefix = udas[0].prefix;
+        static if (prefix.length > 0)
+            enum FullMethodName = prefix ~ "." ~ method;
+        else
+            enum FullMethodName = method;
+    }
+    else
+        enum FullMethodName = method;
+}
+
+
 private:
 
 
 void eachControllerMethods(C)(C controller, RegisterHandler hdl)
 {
-    string getFullMethodName(string method)
-    {
-        enum udas = getUDAs!(C, Controller);
-        static if (udas.length > 0)
-        {
-            string prefix = udas[0].prefix;
-            if (prefix.length > 0)
-                return prefix ~ "." ~ method;
-            else
-                return method;
-        }
-        else
-            return method;
-    }
-
     foreach (string fName; __traits(allMembers, C))
     {
         static if(IsPublicMember!(C, fName))
@@ -173,7 +177,7 @@ void eachControllerMethods(C)(C controller, RegisterHandler hdl)
                 auto HDL = GenerateHandlerFromMethod!(
                         __traits(getMember, controller, fName))(
                         &__traits(getMember, controller, fName));
-                hdl(getFullMethodName(udas[0].method), HDL);
+                hdl(FullMethodName!(C, udas[0].method), HDL);
             }
         }
     }

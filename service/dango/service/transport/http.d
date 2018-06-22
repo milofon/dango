@@ -29,8 +29,10 @@ private
     import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
     import vibe.stream.operations : readAll;
     import vibe.http.server;
+    import vibe.http.client : HTTPClientSettings, requestHTTP, HTTPClientRequest;
+    import vibe.inet.url : URL;
 
-    import dango.system.properties : getNameOrEnforce, configEnforce;
+    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
     import dango.system.container : resolveNamed;
 
     import dango.service.transport.core;
@@ -106,7 +108,7 @@ protected:
 
 
 /**
- * Транспорт использующий функционал HTTP
+ * Серверный транспорт использующий функционал HTTP
  */
 class HTTPServerTransport : BaseServerTransport!("HTTP")
 {
@@ -184,6 +186,66 @@ class HTTPServerTransport : BaseServerTransport!("HTTP")
     {
         _listener.stopListening();
         logInfo("Transport HTTP Stop");
+    }
+}
+
+
+/**
+ * Клиентский транспорт использующий функционал HTTP
+ */
+class HTTPClientTransport : BaseClientTransport!("HTTP")
+{
+    private
+    {
+        HTTPClientSettings _settings;
+        URL _entrypoint;
+    }
+
+
+    this(string entrypoint, HTTPClientSettings settings = null)
+    {
+        this(URL(entrypoint), settings);
+    }
+
+
+    this(URL entrypoint, HTTPClientSettings settings)
+    {
+        if (settings is null)
+            settings = new HTTPClientSettings();
+        initialize(entrypoint, settings);
+    }
+
+
+    void configure(Properties config)
+    {
+        auto settings = new HTTPClientSettings();
+        string entrypoint = config.getOrEnforce!string("entrypoint",
+                "Not defined entrypoint for client transport");
+        initialize(URL(entrypoint), settings);
+    }
+
+
+    Future!Bytes request(Bytes bytes)
+    {
+        // TODO: потокобезопосность
+        import vibe.core.concurrency;
+        return async({
+                auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+                        req.method = HTTPMethod.POST;
+                        req.writeBody(bytes);
+                    }, _settings);
+                return cast(Bytes)res.bodyReader.readAll();
+            });
+    }
+
+
+private:
+
+
+    void initialize(URL entrypoint, HTTPClientSettings settings)
+    {
+        _entrypoint = entrypoint;
+        _settings = settings;
     }
 }
 

@@ -23,11 +23,12 @@ private
     import dango.service.protocol.core;
     import dango.service.protocol.rpc.error;
     import dango.service.protocol.rpc.controller;
+    import dango.service.protocol.rpc.client;
 }
 
 
 /**
- * Протокол Simple
+ * Серверный протокол Simple
  */
 class PlainRpcServerProtocol : BaseServerProtocol!BinServerProtocol
 {
@@ -211,6 +212,86 @@ private:
         }
         else
             return createErrorBody(id, ErrorCode.METHOD_NOT_FOUND);
+    }
+}
+
+
+/**
+ * Клиентсткий протокол Simple
+ */
+class PlainRpcClientProtocol : RpcClientProtocol
+{
+    private ulong counterId;
+
+
+    this(Serializer serializer, ClientTransport transport)
+    {
+        super(serializer, transport);
+    }
+
+
+    override void protoConfigure(Properties config)
+    {
+        counterId = 0;
+    }
+
+
+    override final UniNode request(string cmd, UniNode params)
+    {
+        auto request = createRequest(cmd, params);
+        Bytes resData;
+        try
+        {
+            auto reqData = serializer.serialize(request);
+            auto futRes = transport.request(reqData);
+            resData = futRes.getResult;
+        }
+        catch (Exception e)
+            throw new RpcException(ErrorCode.SERVER_ERROR, e.msg);
+
+        if (resData.length <= 0)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Empty response");
+
+        auto response = serializer.deserialize(resData);
+        if (response.type != UniNode.Type.object)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Error response");
+
+        auto responseMap = response.via.map;
+        if (auto error = "error" in responseMap)
+        {
+            int errorCode;
+            string errorMsg;
+            auto errorMap = (*error).via.map;
+
+            if (auto codePtr = "code" in errorMap)
+                errorCode = (*codePtr).get!int;
+
+            if (auto msgPtr = "message" in errorMap)
+                errorMsg = (*msgPtr).get!string;
+
+            if (auto dataPtr = "data" in errorMap)
+                throw new RpcException(errorCode, errorMsg, *dataPtr);
+            else
+                throw new RpcException(errorCode, errorMsg);
+        }
+        else if (auto result = "result" in responseMap)
+            return *result;
+
+        throw new RpcException(ErrorCode.INTERNAL_ERROR,
+                "The response does not match the format");
+    }
+
+
+protected:
+
+
+    UniNode createRequest(string cmd, UniNode params)
+    {
+        UniNode[string] request;
+        request["id"] = UniNode(++counterId);
+        request["method"] = UniNode(cmd);
+        request["params"] = params;
+        return UniNode(request);
     }
 }
 

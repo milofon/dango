@@ -19,6 +19,7 @@ public
     import dango.system.container : ApplicationContainer;
 
     import dango.service.global;
+    import dango.service.transport.core : ClientTransport;
     import dango.service.serialization : Serializer;
 }
 
@@ -27,6 +28,12 @@ public
  * Интерфейс серверного протокола взаимодействия
  */
 interface ServerProtocol : Configurable!(Serializer, ApplicationContainer, Properties) {}
+
+
+/**
+ * Интерфейс клиентского протокола
+ */
+interface ClientProtocol : Configurable!(Serializer, ClientTransport, Properties) {}
 
 
 /**
@@ -70,5 +77,37 @@ abstract class BaseServerProtocol(T : ServerProtocol) : T
 
 
     void protoConfigure(ApplicationContainer container, Properties config);
+}
+
+
+/**
+ * Базовый класс клиентского протокола взаимодействия
+ */
+abstract class BaseClientProtocol : ClientProtocol
+{
+    protected
+    {
+        Serializer serializer;
+        ClientTransport transport;
+    }
+
+
+    this(Serializer serializer, ClientTransport transport)
+    {
+        this.serializer = serializer;
+        this.transport = transport;
+    }
+
+
+    final void configure(Serializer serializer, ClientTransport transport,
+            Properties config)
+    {
+        this.serializer = serializer;
+        this.transport = transport;
+        protoConfigure(config);
+    }
+
+
+    void protoConfigure(Properties config);
 }
 

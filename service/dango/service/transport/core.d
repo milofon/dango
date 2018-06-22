@@ -13,6 +13,8 @@ public
 {
     import proped : Properties;
 
+    import vibe.core.concurrency : Future;
+
     import dango.system.container : ApplicationContainer;
     import dango.service.protocol: ServerProtocol;
 }
@@ -44,6 +46,21 @@ interface ServerTransport : Configurable!(ApplicationContainer,
 
 
 /**
+ * Интерфейс клиентского транспортного уровня
+ */
+interface ClientTransport : Configurable!(Properties), Named
+{
+    /**
+     * Выполнение запроса
+     * Params:
+     * bytes = Входящие данные
+     * Return: Данные ответа
+     */
+    Future!Bytes request(Bytes bytes);
+}
+
+
+/**
  * Базовый класс серверного транспортного уровня
  */
 abstract class BaseServerTransport(string N) : ServerTransport
@@ -65,6 +82,21 @@ abstract class BaseServerTransport(string N) : ServerTransport
 
 
     void transportConfigure(ApplicationContainer container, Properties config);
+
+
+    string name() @property
+    {
+        return NAME;
+    }
+}
+
+
+/**
+ * Базовый класс клиентского транспортного уровня
+ */
+abstract class BaseClientTransport(string N) : ClientTransport
+{
+    enum NAME = N;
 
 
     string name() @property
