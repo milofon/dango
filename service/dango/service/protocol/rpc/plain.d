@@ -66,7 +66,7 @@ class PlainRpcServerProtocol : BaseServerProtocol!BinServerProtocol
         catch (Exception e)
         {
             logWarn("Error deserialize: (%s)", e.msg);
-            return serializer.serialize(createErrorBody(ErrorCode.PARSE_ERROR, e.msg));
+            return serializer.serialize(createErrorBody(null, ErrorCode.PARSE_ERROR, e.msg));
         }
 
         return serializer.serialize(handleImpl(uniReq));
@@ -99,10 +99,10 @@ class PlainRpcServerProtocol : BaseServerProtocol!BinServerProtocol
 protected:
 
 
-    UniNode createErrorHeader(D...)(int code, string msg, D data)
+    UniNode createErrorHeader(D...)(UniNode* id, int code, string msg, D data)
     {
         UniNode[string] response;
-        response["id"] = UniNode();
+        response["id"] = (id is null) ? UniNode() : *id;
         UniNode[string] err;
 
         static if (data.length == 1)
@@ -128,21 +128,21 @@ protected:
     }
 
 
-    UniNode createErrorBody(D...)(ErrorCode code, D data)
+    UniNode createErrorBody(D...)(UniNode* id, ErrorCode code, D data)
     {
-        return createErrorHeader(code, getErrorMessageByCode(code), data);
+        return createErrorHeader(id, code, getErrorMessageByCode(code), data);
     }
 
 
-    UniNode createErrorBody(RpcException ex)
+    UniNode createErrorBody(UniNode* id, RpcException ex)
     {
-        return createErrorHeader(ex.code, ex.msg, ex.data);
+        return createErrorHeader(id, ex.code, ex.msg, ex.data);
     }
 
 
-    UniNode createErrorBody(D...)(int code, string msg, D data)
+    UniNode createErrorBody(D...)(UniNode* id, int code, string msg, D data)
     {
-        return createErrorHeader(code, msg, data);
+        return createErrorHeader(id, code, msg, data);
     }
 
 
@@ -168,7 +168,7 @@ private:
         UniNode params;
 
         if (uniReq.type != UniNode.Type.object)
-            return createErrorBody(ErrorCode.PARSE_ERROR);
+            return createErrorBody(id, ErrorCode.PARSE_ERROR);
 
         UniNode[string] uniReqMap = uniReq.via.map;
         try
@@ -178,7 +178,7 @@ private:
                         || vMethod.type == UniNode.Type.raw))
             {
                 logWarn("Not found method");
-                return createErrorBody(ErrorCode.INVALID_REQUEST,
+                return createErrorBody(id, ErrorCode.INVALID_REQUEST,
                         "Parameter method is invalid");
             }
 
@@ -191,7 +191,7 @@ private:
         catch (Exception e)
         {
             logWarn("Error extract meta info: (%s)", e.msg);
-            return createErrorBody(ErrorCode.SERVER_ERROR, e.msg);
+            return createErrorBody(id, ErrorCode.SERVER_ERROR, e.msg);
         }
 
         if (existstMethod(method))
@@ -202,15 +202,15 @@ private:
                 return createResultBody(id, uniRes);
             }
             catch (RpcException e)
-                return createErrorBody(e);
+                return createErrorBody(id, e);
             catch (Exception e)
             {
                 logError("Error execute handler: (%s)", e.msg);
-                return createErrorBody(ErrorCode.SERVER_ERROR, e.msg);
+                return createErrorBody(id, ErrorCode.SERVER_ERROR, e.msg);
             }
         }
         else
-            return createErrorBody(ErrorCode.METHOD_NOT_FOUND);
+            return createErrorBody(id, ErrorCode.METHOD_NOT_FOUND);
     }
 }
 
