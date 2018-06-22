@@ -10,7 +10,7 @@ module dango.system.properties;
 private
 {
     import proped;
-    import poodinis : ApplicationContext, Component, ValueInjector, Value;
+    import poodinis : ApplicationContext;
 
     import dango.system.exception : configEnforce;
     import dango.system.container : ApplicationContainer;
@@ -65,28 +65,6 @@ class PropertiesContext : ApplicationContext
         container.register!(PropertiesLoader, SDLPropertiesLoader);
         container.register!(PropertiesLoader, YAMLPropertiesLoader);
         container.register!(PropertiesLoader, JSONPropertiesLoader);
-    }
-}
-
-
-/**
- * Инжектор настроек приложения
- */
-class PropertiesValueInjector : ValueInjector!Properties
-{
-    private Properties _root;
-
-
-    void initialize(Properties config)
-    {
-        this._root = config;
-    }
-
-
-    Properties get(string key)
-    {
-        return _root.getOrEnforce!Properties(key,
-                "In global config not found key '" ~ key ~ "'");
     }
 }
 

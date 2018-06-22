@@ -12,6 +12,8 @@ module dango.system.container.named;
 private
 {
     import std.algorithm.searching : find;
+    import std.format : fmt = format;
+    import std.uni : toUpper;
 
     import poodinis;
 }
@@ -40,15 +42,8 @@ template NamedWrapper(ConcreteType, string NAME)
 {
     class Wrapper(SuperType) : Named!SuperType
     {
+        @Autowire
         private ConcreteType _registrationType;
-
-        /**
-         * Внедрение зависимости через конструктор
-         */
-        this(ConcreteType registrationType)
-        {
-            this._registrationType = registrationType;
-        }
 
 
         string name() @property
@@ -120,11 +115,13 @@ QualifierType resolveNamed(RegistrationType, QualifierType : RegistrationType)(
             ResolveOption resolveOptions = ResolveOption.none)
 {
     TypeInfo resolveType = typeid(RegistrationType);
+    auto uName = name.toUpper;
 
     auto objects = container.resolveAll!(Named!RegistrationType);
-    auto findResult = objects.find!((o) => o.name == name);
+    auto findResult = objects.find!((o) => o.name == uName);
     if (!findResult.length)
-        throw new ResolveException("Type not registered.", resolveType);
+        throw new ResolveException(fmt!"Type not registered or name '%s' found."(uName),
+                resolveType);
 
     return findResult[0].value;
 }

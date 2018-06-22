@@ -9,27 +9,32 @@ module dango.service.transport;
 
 public
 {
-    import dango.service.transport.core : ServerTransport, ClientTransport;
+    import dango.service.transport.core : ServerTransport;
 }
 
 private
 {
-    import poodinis : ApplicationContext, DependencyContainer, newInstance;
-    import dango.system.container : registerByName;
+    import dango.system.container;
 
-    import dango.service.transport.http : HTTPServerTransport, HTTPClientTransport;
-    import dango.service.transport.zeromq : ZeroMQServerTransport, ZeroMQClientTransport;
+    import dango.service.transport.middleware : HTTPMiddlewareContext;
+    import dango.service.transport.http : HTTPServerTransport;
+    import dango.service.transport.zeromq : ZeroMQServerTransport;
 }
 
 
+/**
+ * Контекст DI транспортных уровней
+ */
 class TransportContext : ApplicationContext
 {
-    override void registerDependencies(shared(DependencyContainer) container)
+    override void registerDependencies(ApplicationContainer container)
     {
-        container.registerByName!(ServerTransport, HTTPServerTransport)("http").newInstance();
-        container.registerByName!(ServerTransport, ZeroMQServerTransport)("zmq").newInstance();
+        container.registerNamed!(ServerTransport,
+                HTTPServerTransport, HTTPServerTransport.NAME);
+        container.registerNamed!(ServerTransport,
+                ZeroMQServerTransport, ZeroMQServerTransport.NAME);
 
-        container.registerByName!(ClientTransport, HTTPClientTransport)("http").newInstance();
-        container.registerByName!(ClientTransport, ZeroMQClientTransport)("zmq").newInstance();
+        container.registerContext!HTTPMiddlewareContext;
     }
 }
+

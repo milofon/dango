@@ -11,28 +11,30 @@ module dango.service.transport.core;
 
 public
 {
-    import std.container : SList;
-
     import proped : Properties;
 
-    import vibe.core.core : Mutex, yield;
-    import vibe.core.sync;
+    import dango.system.container : ApplicationContainer;
+    import dango.service.protocol: ServerProtocol;
+}
 
-    import dango.service.protocol: RpcServerProtocol;
+private
+{
+    import dango.service.global;
 }
 
 
 /**
  * Интерфейс серверного транспортного уровня
  */
-interface ServerTransport
+interface ServerTransport : Configurable!(ApplicationContainer,
+        ServerProtocol, Properties), Named
 {
     /**
      * Запуск транспортного уровня
      * Params:
-     * config = Конфигурация транспорта
+     * proto = Протокол взаимодейтсвия
      */
-    void listen(RpcServerProtocol protocol, Properties config);
+    void listen();
 
     /**
      * Завершение работы
@@ -42,187 +44,32 @@ interface ServerTransport
 
 
 /**
- * Интерфейс клиентского транспортного уровня
+ * Базовый класс серверного транспортного уровня
  */
-interface ClientTransport
+abstract class BaseServerTransport(string N) : ServerTransport
 {
-    /**
-     * Инициализация транспорта клиента
-     */
-    void initialize(Properties config);
+    enum NAME = N;
 
-
-    /**
-     * Выполнение запроса
-     * Params:
-     * bytes = Входящие данные
-     * Return: Данные ответа
-     */
-    ubyte[] request(ubyte[] bytes);
-}
-
-
-/**
-  * Интерфейс подключения с возможностью хранения в пуле
-  */
-interface ClientConnection
-{
-    /**
-     * Проверка на активность подключения
-     */
-    bool connected() @property;
-
-    /**
-     * Установка подключения
-     */
-    void connect();
-
-    /**
-     * Разрыв соединения
-     */
-    void disconnect();
-}
-
-
-/**
- * Интерфейс пула подключений
- */
-interface ClientConnectionPool(C)
-{
-    /**
-     * Получить подключение из пула
-     */
-    C getConnection() @safe;
-
-    /**
-     * Вернуть подключение в пул
-     * Params:
-     *
-     * conn = Освобождаемое подключение
-     */
-    void freeConnection(C conn) @safe;
-
-    /**
-     * Создание нового подключения
-     */
-    C createNewConnection();
-}
-
-
-/**
- * Класс пула с возможностью работы с конкурентной многозадачностью
- */
-abstract class AsyncClientConnectionPool(C) : ClientConnectionPool!C
-{
-    private
+    protected
     {
-        SList!C _pool;
-        Mutex _mutex;
-        uint _size;
+        ServerProtocol protocol;
     }
 
 
-    this(uint size)
+    void configure(ApplicationContainer container,
+            ServerProtocol protocol, Properties config)
     {
-        _mutex = new Mutex();
-        _size = size;
-        initializePool();
+        this.protocol = protocol;
+        transportConfigure(container, config);
     }
 
 
-    C getConnection() @safe
+    void transportConfigure(ApplicationContainer container, Properties config);
+
+
+    string name() @property
     {
-        _mutex.lock();
-        while (_pool.empty)
-            yield();
-
-        auto conn = () @trusted {
-            auto conn = _pool.front();
-            if (!conn.connected)
-                conn.connect();
-            return conn;
-        } ();
-
-        _pool.removeFront();
-        _mutex.unlock();
-        return conn;
-    }
-
-
-    void freeConnection(C conn) @safe
-    {
-        _mutex.lock();
-        _pool.insertFront(conn);
-        _mutex.unlock();
-    }
-
-
-    private void initializePool()
-    {
-        _mutex.lock();
-        foreach (i; 0.._size)
-            _pool.insertFront(createNewConnection());
-        _mutex.unlock();
+        return NAME;
     }
 }
 
-
-/**
- * Класс пула с возможностью работы с многозадачностью на основе потоков
- */
-abstract class WaitClientConnectionPool(C) : ClientConnectionPool!C
-{
-    private
-    {
-        SList!C _pool;
-        Mutex _mutex;
-        TaskCondition _condition;
-        uint _size;
-    }
-
-
-    this(uint size)
-    {
-        _mutex = new Mutex();
-        _condition = new TaskCondition(_mutex);
-        _size = size;
-        initializePool();
-    }
-
-
-    C getConnection() @safe
-    {
-        _mutex.lock();
-        while (_pool.empty)
-            _condition.wait();
-
-        auto conn = () @trusted {
-            auto conn = _pool.front();
-            if (!conn.connected)
-                conn.connect();
-            return conn;
-        } ();
-
-        _pool.removeFront();
-        _mutex.unlock();
-        return conn;
-    }
-
-
-    void freeConnection(C conn) @safe
-    {
-        _mutex.lock();
-        _pool.insertFront(conn);
-        _condition.notify();
-        _mutex.unlock();
-    }
-
-
-    private void initializePool()
-    {
-        _mutex.lock();
-        foreach (i; 0.._size)
-            _pool.insertFront(createNewConnection());
-        _mutex.unlock();
-    }
-}

@@ -38,7 +38,7 @@ private
 /**
  * Основной класс сериализатор
  */
-interface Serializer
+interface Serializer : Configurable!(Properties), Named
 {
     /**
      * Сериализация объекта языка в массив байт
@@ -482,6 +482,7 @@ struct UniNode
 
 
 private :
+
 
     void checkType(TYPES...)(string op = null) const
     {

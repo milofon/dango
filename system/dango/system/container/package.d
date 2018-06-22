@@ -9,15 +9,14 @@ module dango.system.container;
 
 public
 {
-    import poodinis : registerContext;
     import dango.system.container.named : registerNamed, resolveNamed;
+    import poodinis : ApplicationContext;
 }
 
 private
 {
     import poodinis : DependencyContainer;
 }
-
 
 
 alias ApplicationContainer = shared(DependencyContainer);

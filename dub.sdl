@@ -9,9 +9,7 @@ targetPath "out"
 targetName "dango"
 
 dependency ":system" version="*"
-dependency ":http" version="*"
 dependency ":service" version="*"
 
 subPackage "system"
-subPackage "http"
 subPackage "service"

@@ -6,7 +6,7 @@ license "BSD"
 
 dependency "vibe-core" version="~>1.4.0"
 dependency "brightproof" version="~>2.4.0"
-dependency "poodinis" version="~>8.0.2"
+dependency "poodinis" version="6.3.0"
 dependency "proped" version="~>0.0.7-rc.1"
 
 targetType "library"

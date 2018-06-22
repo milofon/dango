@@ -11,27 +11,26 @@ module dango.service.application;
 
 public
 {
-    import proped : Properties;
-    import poodinis : DependencyContainer;
+    import dango.system.application;
 }
 
 private
 {
     import std.format : fmt = format;
 
-    import dango.system.application;
-    import dango.system.container : resolveByName;
     import dango.system.properties : getOrEnforce, getNameOrEnforce;
     import dango.system.exception : configEnforce;
+    import dango.system.container : resolveNamed;
 
-    import dango.service.transport;
     import dango.service.serialization;
     import dango.service.protocol;
-    import dango.service.dispatcher;
-    import dango.service.controller;
+    import dango.service.transport;
 }
 
 
+/**
+ * Приложение позволяет использовать с сервисами
+ */
 abstract class ServiceApplication : DaemonApplication
 {
     private ServerTransport[] _transports;
@@ -43,11 +42,11 @@ abstract class ServiceApplication : DaemonApplication
     }
 
 
-    override final void initDependencies(shared(DependencyContainer) container, Properties config)
+    override final void initDependencies(ApplicationContainer container, Properties config)
     {
-        container.registerContext!TransportContext;
         container.registerContext!SerializerContext;
         container.registerContext!ProtocolContext;
+        container.registerContext!TransportContext;
 
         initServiceDependencies(container, config);
     }
@@ -70,55 +69,8 @@ abstract class ServiceApplication : DaemonApplication
         {
             if (servConf.getOrElse("enabled", false))
             {
-                Properties trConf = servConf.getOrEnforce!Properties("transport",
-                        "Not defined transport config");
-                Properties serConf = servConf.getOrEnforce!Properties("serializer",
-                        "Not defined serializer config");
-                Properties protoConf = servConf.getOrEnforce!Properties("protocol",
-                        "Not defined protocol config");
-
-                string serviceName = servConf.getOrEnforce!string("name",
-                        "Not defined service name");
-                string serializerName = getNameOrEnforce(serConf,
-                        "Not defined serializer name");
-                string protoName = getNameOrEnforce(protoConf,
-                        "Not defined protocol name");
-                string transportName = getNameOrEnforce(trConf,
-                        "Not defined transport name");
-
-                Serializer serializer = container.resolveByName!Serializer(serializerName);
-                serializer.initialize(serConf);
-                configEnforce(serializer !is null,
-                        "Serializer '%s' not register".fmt(serializerName));
-
-                Dispatcher dispatcher = new Dispatcher();
-
-                RpcServerProtocol protocol = container.resolveByName!RpcServerProtocol(protoName);
-                configEnforce(protocol !is null,
-                        "Protocol '%s' not register".fmt(protoName));
-                protocol.initialize(dispatcher, serializer, protoConf);
-
-                ServerTransport tr = container.resolveByName!ServerTransport(transportName);
-                configEnforce(tr !is null,
-                        "Transport '%s' not register".fmt(transportName));
-
-                foreach (Properties ctrConf; servConf.getArray("controller"))
-                {
-                    string ctrName = getNameOrEnforce(ctrConf,
-                        "Not defined controller name");
-
-                    Controller ctrl = container.resolveByName!Controller(ctrName);
-                    configEnforce(ctrl !is null, "Controller '%s' not register".fmt(ctrName));
-
-                    ctrl.initialize(serializer, ctrConf);
-                    if (ctrl.enabled)
-                    {
-                        ctrl.register(dispatcher);
-                        logInfo("Register '%s' controller", ctrName);
-                    }
-                }
-
-                tr.listen(protocol, trConf);
+                auto tr = createServiceTransport(servConf);
+                tr.listen();
                 _transports ~= tr;
             }
         }
@@ -132,7 +84,9 @@ abstract class ServiceApplication : DaemonApplication
         return finalizeService(exitCode);
     }
 
+
 protected:
+
 
     /**
      * Регистрация зависимостей сервиса
@@ -140,7 +94,7 @@ protected:
      * container = DI контейнер
      * config = Общая конфигурация приложения
      */
-    void initServiceDependencies(shared(DependencyContainer) container, Properties config);
+    void initServiceDependencies(ApplicationContainer container, Properties config);
 
 
     /**
@@ -157,4 +111,51 @@ protected:
      * exitCode = Код возврата
      */
     int finalizeService(int exitCode);
+
+
+private:
+
+
+    ServerTransport createServiceTransport(Properties servConf)
+    {
+        string serviceName = servConf.getOrElse!string("name", "Undefined");
+        logInfo("Configuring service %s", serviceName);
+
+        Properties serConf = servConf.getOrEnforce!Properties("serializer",
+                "Not defined serializer config for service '" ~ serviceName ~ "'");
+        Properties protoConf = servConf.getOrEnforce!Properties("protocol",
+                "Not defined protocol config for service '" ~ serviceName ~ "'");
+        Properties trConf = servConf.getOrEnforce!Properties("transport",
+                "Not defined transport config for service '" ~ serviceName ~ "'");
+
+        string serializerName = getNameOrEnforce(serConf,
+                "Not defined serializer name for service '" ~ serviceName ~ "'");
+        string protoName = getNameOrEnforce(protoConf,
+                "Not defined protocol name for service '" ~ serviceName ~ "'");
+        string transportName = getNameOrEnforce(trConf,
+                "Not defined transport name for service '" ~ serviceName ~ "'");
+
+        // Т.к. протокол может быть только один, то конфиги сериализатора
+        // вынес на верхний уровень
+        Serializer serializer = container.resolveNamed!Serializer(serializerName);
+        configEnforce(serializer !is null,
+                fmt!"Serializer '%s' not register"(serializerName));
+        serializer.configure(serConf);
+        logInfo("Use serializer %s", serializerName);
+
+        ServerProtocol protocol = container.resolveNamed!ServerProtocol(protoName);
+        configEnforce(protocol !is null,
+                fmt!"Protocol '%s' not register"(protoName));
+        protocol.configure(serializer, container, protoConf);
+        logInfo("Use protocol %s", protoName);
+
+        ServerTransport transport = container.resolveNamed!ServerTransport(transportName);
+        configEnforce(transport !is null,
+                fmt!"Transport '%s' not register"(transportName));
+        transport.configure(container, protocol, trConf);
+        logInfo("Use transport %s", transportName);
+
+        return transport;
+    }
 }
+

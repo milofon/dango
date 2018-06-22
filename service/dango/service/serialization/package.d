@@ -17,20 +17,22 @@ public
 
 private
 {
-    import std.meta;
-
-    import dango.service.factory;
+    import dango.system.container;
 
     import dango.service.serialization.json : JsonSerializer;
     import dango.service.serialization.msgpack : MsgPackSerializer;
 }
 
 
-alias Serializers = AliasSeq!(
-        "JSON", JsonSerializer,
-        "MSGPACK", MsgPackSerializer
-    );
-
-
-alias SerializerFactory = ComponentFactory!(Serializers).Wrapper!Serializer;
+/**
+ * Контекст DI для сериализаторов
+ */
+class SerializerContext : ApplicationContext
+{
+    override void registerDependencies(ApplicationContainer container)
+    {
+        container.registerNamed!(Serializer, JsonSerializer, JsonSerializer.NAME);
+        container.registerNamed!(Serializer, MsgPackSerializer, MsgPackSerializer.NAME);
+    }
+}
 

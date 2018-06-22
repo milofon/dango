@@ -24,6 +24,8 @@ private
 
 class MsgPackSerializer : Serializer
 {
+    enum NAME = "MSGPACK";
+
     private bool _withFieldName;
 
 
@@ -41,7 +43,19 @@ class MsgPackSerializer : Serializer
 
     this(Properties config)
     {
-        this(config.getOrElse!bool("withFieldName", false));
+        configure(config);
+    }
+
+
+    string name() @property
+    {
+        return NAME;
+    }
+
+
+    void configure(Properties config)
+    {
+        _withFieldName = config.getOrElse!bool("withFieldName", false);
     }
 
 

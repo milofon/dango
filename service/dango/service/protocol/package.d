@@ -9,29 +9,30 @@ module dango.service.protocol;
 
 public
 {
-    import dango.service.protocol.core : RpcServerProtocol, RpcClientProtocol,
-           RpcException, createEmptyErrorByCode, createErrorByCode, ErrorCode, RpcError;
+    import dango.service.protocol.core : ServerProtocol;
 }
 
 private
 {
-    import poodinis : DependencyContainer, ApplicationContext,
-           newInstance;
-    import dango.system.container : registerByName;
+    import dango.system.container;
 
-    import dango.service.protocol.jsonrpc : JsonRpcServerProtocol, JsonRpcClientProtocol;
-    import dango.service.protocol.simple : SimpleRpcServerProtocol, SimpleRpcClientProtocol;
+    import dango.service.protocol.graphql : GraphQLServerProtocol;
+    import dango.service.protocol.rest : RESTServerProtocol;
+    import dango.service.protocol.rpc : JsonRpcServerProtocol, PlainRpcServerProtocol;
 }
 
 
+/**
+ * Контекст DI протоколов
+ */
 class ProtocolContext : ApplicationContext
 {
-    override void registerDependencies(shared(DependencyContainer) container)
+    override void registerDependencies(ApplicationContainer container)
     {
-        container.registerByName!(RpcServerProtocol, JsonRpcServerProtocol)("jsonrpc").newInstance;
-        container.registerByName!(RpcServerProtocol, SimpleRpcServerProtocol)("simple").newInstance;
-
-        container.registerByName!(RpcClientProtocol, JsonRpcClientProtocol)("jsonrpc").newInstance;
-        container.registerByName!(RpcClientProtocol, SimpleRpcClientProtocol)("simple").newInstance;
+        container.registerNamed!(ServerProtocol, JsonRpcServerProtocol, "JSONRPC");
+        container.registerNamed!(ServerProtocol, PlainRpcServerProtocol, "PLAIN");
+        container.registerNamed!(ServerProtocol, RESTServerProtocol, "REST");
+        container.registerNamed!(ServerProtocol, GraphQLServerProtocol, "GRAPHQL");
     }
 }
+

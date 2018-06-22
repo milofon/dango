@@ -25,7 +25,6 @@ private
 }
 
 
-
 /**
  * Исключение транспорта
  */
@@ -36,3 +35,4 @@ class TransportException : Exception
 
 
 alias transportEnforce = enforceEx!(TransportException);
+

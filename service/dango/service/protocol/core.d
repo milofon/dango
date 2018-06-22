@@ -11,170 +11,64 @@ module dango.service.protocol.core;
 
 public
 {
-    import std.typecons : Nullable;
-
     import proped : Properties;
 
-    import dango.service.serialization : Serializer, UniNode;
-    import dango.service.dispatcher : Dispatcher;
-    import dango.service.transport : ClientTransport;
+    import vibe.http.server : HTTPServerRequest, HTTPServerResponse,
+           HTTPServerRequestHandler;
+
+    import dango.system.container : ApplicationContainer;
+
+    import dango.service.global;
+    import dango.service.serialization : Serializer;
 }
 
 
 /**
- * Интерфейс серверного Rpc протокола
+ * Интерфейс серверного протокола взаимодействия
  */
-interface RpcServerProtocol
-{
-    /**
-     * Инициализация протокола
-     * Params:
-     * dispatcher = Диспетчер вызовов
-     * serializer = Сериализатор
-     * config = Конфигурация протокола
-     */
-    void initialize(Dispatcher dispatcher, Serializer serializer, Properties config);
+interface ServerProtocol : Configurable!(Serializer, ApplicationContainer, Properties) {}
 
+
+/**
+ * Интерфейс бинарного серверного протокола взаимодействия
+ */
+interface BinServerProtocol : ServerProtocol
+{
     /**
      * Метод-обработик входящейго запроса
      * Params:
      * data = Бинарные данные
      * Return: Ответ в бинарном виде
      */
-    ubyte[] handle(ubyte[] data);
+    Bytes handle(Bytes data);
 }
 
 
 /**
- * Интерфейс клиентского Rpc протокола
+ * Интерфейс http серверного протокола взаимодействия
  */
-interface RpcClientProtocol
-{
-    /**
-     * Инициализация клиентского протокола
-     * Params:
-     * serializer = Сериализатор
-     * config = Конфигурация протокола
-     */
-    void initialize(Serializer serializer, ClientTransport transport);
-
-    /**
-     * Отправляет запрос удаленной команды
-     * Params:
-     * cmd = Команда
-     * params = Параметры
-     * Return: Результат выполнения удаленной команды (result)
-     */
-    UniNode request(string cmd, UniNode params);
-}
+interface HTTPServerProtocol : ServerProtocol, HTTPServerRequestHandler {}
 
 
 /**
- * Сообщение об ошибке
+ * Базовый класс серверного протокола взаимодействия
  */
-struct RpcError(T)
+abstract class BaseServerProtocol(T : ServerProtocol) : T
 {
-    int code;
-    string message;
-    Nullable!T data;
-}
-
-
-/**
- * Создает новое сообщение об ошибке по коду
- * Params:
- * code = Код ошибки
- */
-RpcError!T createEmptyErrorByCode(T = ubyte)(int code)
-{
-    RpcError!T result;
-    result.code = code;
-    switch (code)
+    protected
     {
-        case -32700:
-            result.message = "Parse error";
-            break;
-        case -32600:
-            result.message = "Invalid Request";
-            break;
-        case -32601:
-            result.message = "Method not found";
-            break;
-        case -32602:
-            result.message = "Invalid params";
-            break;
-        case -32603:
-            result.message = "Internal error";
-            break;
-        default:
-            result.message = "Server error";
-            break;
-    }
-    return result;
-}
-
-
-/**
- * Создает новое сообщение об ошибке по коду с доп. данными
- * Params:
- * code = Код ошибки
- * data = Доп. данные
- */
-RpcError!T createErrorByCode(T)(int code, T data)
-{
-    auto ret = createEmptyErrorByCode!T(code);
-    ret.data = Nullable!T(data);
-    return ret;
-}
-
-
-/**
- * Предопределенные коды ошибок
- */
-enum ErrorCode
-{
-    PARSE_ERROR = -32700,
-    INVALID_REQUEST = -32600,
-    METHOD_NOT_FOUND = -32601,
-    INVALID_PARAMS = -32602,
-    INTERNAL_ERROR = -32603,
-    SERVER_ERROR = -32000
-}
-
-
-/**
- * Ошибка Rpc
- */
-class RpcException : Exception
-{
-    private RpcError!UniNode _error;
-
-    this(int code, string message, string file = __FILE__,
-            size_t line = __LINE__, Throwable next = null)
-    {
-        _error.code = code;
-        _error.message = message;
-        super(message, file, line, next);
+        Serializer serializer;
     }
 
 
-    this(int code, string message, UniNode data, string file = __FILE__,
-            size_t line = __LINE__, Throwable next = null)
+    final void configure(Serializer serializer, ApplicationContainer container,
+            Properties config)
     {
-        _error.data = data;
-        this(code, message, file, line, next);
+        this.serializer = serializer;
+        protoConfigure(container, config);
     }
 
 
-    this(RpcError!UniNode error, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
-    {
-        _error = error;
-        super(error.message, file, line, next);
-    }
-
-
-    RpcError!UniNode error() @property nothrow
-    {
-        return _error;
-    }
+    void protoConfigure(ApplicationContainer container, Properties config);
 }
+

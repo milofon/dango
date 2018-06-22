@@ -24,10 +24,25 @@ private
 
 class JsonSerializer : Serializer
 {
+    enum NAME = "JSON";
+
+
     this() {}
 
 
-    this(Properties config) {}
+    this(Properties config)
+    {
+        configure(config);
+    }
+
+
+    string name() @property
+    {
+        return NAME;
+    }
+
+
+    void configure(Properties config) {}
 
 
     UniNode deserialize(Bytes bytes)

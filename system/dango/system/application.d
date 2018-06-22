@@ -23,12 +23,11 @@ private
 {
     import std.array : empty;
 
-    import poodinis : existingInstance, ValueInjector;
+    import poodinis : existingInstance;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
-    import dango.system.properties : PropertiesContext, PropertiesValueInjector;
+    import dango.system.properties : PropertiesContext;
     import dango.system.logging : configureLogging, LoggingContext;
-    import dango.system.container : registerContext;
 }
 
 
@@ -223,11 +222,6 @@ private:
     void doInitDependencies(ApplicationContainer container, Properties config)
     {
         container.register!(Application, typeof(this)).existingInstance(this);
-
-        auto propInjector = new PropertiesValueInjector();
-        propInjector.initialize(config);
-        container.register!(ValueInjector!Properties, PropertiesValueInjector)
-            .existingInstance(propInjector);
 
         container.registerContext!PropertiesContext;
         container.registerContext!LoggingContext;
