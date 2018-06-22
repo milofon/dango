@@ -11,28 +11,30 @@ module dango.service.transport.zeromq;
 
 private
 {
-    import core.thread;
-    import core.memory : GC;
-
-    import std.datetime : Clock;
-    import std.string : toStringz, fromStringz;
+    import core.time : msecs;
 
     import vibe.core.log;
-    import vibe.core.core : yield;
+    import vibe.core.core : yield, Task, runWorkerTaskH, runTask;
 
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.service.exception;
     import dango.system.properties : getOrEnforce;
 
     import dango.service.transport.core;
+    import dango.service.protocol.core;
 }
 
 
-alias Handler = ubyte[] delegate(ubyte[]);
+/**
+ * Функция обработки запроса
+ */
+alias Handler = Bytes delegate(Bytes);
 
 
+/**
+ * Объект настроек ZeroMQ
+ */
 struct ZeroMQTransportSettings
 {
     string uri;
@@ -40,266 +42,109 @@ struct ZeroMQTransportSettings
 }
 
 
-
-class ZeroMQServerTransport : ServerTransport
+/**
+ * Транспорт использующий функционал ZeroMQ
+ */
+class ZeroMQServerTransport : BaseServerTransport!("ZEROMQ")
 {
     private
     {
         ZeroMQTransportSettings _settings;
-        ZeroMQWorker _worker;
+        Task _task;
+        bool _running;
+        Handler _hdl;
     }
 
 
-    void listen(RpcServerProtocol protocol, Properties config)
+    override void transportConfigure(ApplicationContainer container, Properties config)
     {
-        _settings.uri = config.getOrEnforce!string("bind",
-                "ZeroMQ transport is not defined bind");
-        _settings.useBroker = config.getOrElse!bool("broker", false);
+        _settings = loadServiceSettings(config);
+    }
 
+
+    void listen()
+    {
         const ver = zmqVersion();
         logInfo("Version ZeroMQ: %s.%s.%s", ver.major, ver.minor, ver.patch);
 
+        auto binProto = cast(BinServerProtocol)protocol;
+        if (binProto is null)
+            throw new Exception("The type of the protocol is not supported by transport");
 
-        ubyte[] handler(ubyte[] data)
-        {
-            return protocol.handle(data);
-        }
-
-        _worker = new ZeroMQWorker(_settings, &handler);
-        _worker.start();
-
+        _hdl = &binProto.handle;
+        _task = runWorkerTaskH!(ZeroMQServerTransport.process)(cast(shared)this);
         logInfo("Transport ZeroMQ Start");
     }
 
 
     void shutdown()
     {
-        _worker.stop();
+        _running = false;
         logInfo("Transport ZeroMQ Stop");
     }
-}
 
 
-
-private final class ZeroMQWorker : Thread
-{
-    private
-    {
-        ZeroMQTransportSettings _settings;
-        bool _running;
-        Handler _handler;
-    }
-
-
-    this(ZeroMQTransportSettings settings, Handler handler)
-    {
-        _settings = settings;
-        _handler = handler;
-        super(&run);
-    }
-
-
-    void run()
+    void process() shared
     {
         _running = true;
+        ubyte[0] empty;
         ubyte[] buffer;
 
-        auto worker = Socket(SocketType.rep);
-
-        if (_settings.useBroker)
-        {
-            worker.connect(_settings.uri);
-            logInfo("Connect to broker %s", _settings.uri);
-        }
-        else
-        {
-            worker.bind(_settings.uri);
-            logInfo("Listening for requests on %s", _settings.uri);
-        }
-
+        auto worker = Socket(SocketType.router);
+        worker.bind(_settings.uri);
+        logInfo("Listening for requests on %s", _settings.uri);
 
         PollItem[] items = [
             PollItem(worker, PollFlags.pollIn),
         ];
 
-        auto payload = Frame();
+        scope(exit)
+            worker.close();
 
         while (_running)
         {
             poll(items, 100.msecs);
             if (items[0].returnedEvents & PollFlags.pollIn)
             {
-                worker.receive(payload);
-
+                auto payload = Frame();
+                bool needSplit = false;
+                Bytes identity;
                 buffer.length = 0;
-                buffer ~= payload.data;
+
+                worker.receive(payload);
+                identity = payload.data.idup;
 
                 while (payload.more)
                 {
                     worker.receive(payload);
-                    buffer ~= payload.data;
+                    if (payload.more && payload.size == 0)
+                        needSplit = true;
+                    else
+                        buffer ~= payload.data.idup;
                 }
-                ubyte[] resData = _handler(buffer);
-                worker.send(resData);
+
+                runTask((Bytes identity, Bytes data, bool needSplit) {
+                        auto res = _hdl(data);
+                        worker.send(identity, true);
+                        if (needSplit)
+                            worker.send(empty, true);
+                        worker.send(res, false);
+                    }, identity, buffer.idup, needSplit);
             }
-        }
-    }
-
-
-    void stop()
-    {
-        _running = false;
-    }
-}
-
-
-
-class ZeroMQClientConnection : ClientConnection
-{
-    private
-    {
-        Socket _socket;
-        Context _ctx;
-
-        PollItem[] _items;
-        string _uri;
-        ubyte[] _buffer;
-        bool _connected;
-        Duration _timeout;
-    }
-
-
-    this(string uri, uint timeout)
-    {
-        _timeout = timeout.msecs;
-        _uri = uri;
-    }
-
-
-    bool connected() @property
-    {
-        return _socket.initialized && _connected;
-    }
-
-
-    void connect()
-    {
-        _ctx = Context();
-        _socket = Socket(_ctx, SocketType.req);
-        _items = [PollItem(_socket, PollFlags.pollIn)];
-        _socket.connect(_uri);
-        _connected = true;
-    }
-
-
-    void disconnect()
-    {
-        _socket.linger = Duration.zero;
-        _socket.close();
-        _connected = false;
-    }
-
-
-    ubyte[] request(ubyte[] bytes)
-    {
-        _socket.send(bytes);
-
-        auto payload = Frame();
-        auto start = Clock.currTime;
-        auto current = start;
-
-        // GC.disable();
-        // scope(exit) GC.enable();
-
-        while ((current - start) < _timeout)
-        {
-            poll(_items, 100.msecs);
-            if (_items[0].returnedEvents & PollFlags.pollIn)
-            {
-                _socket.receive(payload);
-
-                _buffer.length = 0;
-                _buffer ~= payload.data;
-
-                while (payload.more)
-                {
-                    _socket.receive(payload);
-                    _buffer ~= payload.data;
-                }
-                return _buffer.dup;
-            }
-            current = Clock.currTime;
             yield();
         }
-
-        disconnect();
-        throw new TransportException("Request timeout error");
     }
 }
 
 
-
-// class ZeroMQClientConnectionPool : WaitClientConnectionPool!ZeroMQClientConnection
-// {
-//     private
-//     {
-//         string _uri;
-//         uint _timeout;
-//     }
+private:
 
 
-//     this(string uri, uint timeout, uint size)
-//     {
-//         _uri = uri;
-//         _timeout = timeout;
-//         super(size);
-//     }
-
-
-//     ZeroMQClientConnection createNewConnection()
-//     {
-//         return new ZeroMQClientConnection(_uri, _timeout);
-//     }
-// }
-
-
-
-class ZeroMQClientTransport : ClientTransport
+ZeroMQTransportSettings loadServiceSettings(Properties config)
 {
-    private
-    {
-        ZeroMQClientConnection _conn;
-        // ZeroMQClientConnectionPool _pool;
-    }
-
-
-    this() {}
-
-
-    this(string uri, uint timeout, uint size)
-    {
-        _conn = new ZeroMQClientConnection(uri, timeout);
-        // _pool = new ZeroMQClientConnectionPool(uri, timeout, size);
-    }
-
-
-    void initialize(Properties config)
-    {
-        string uri = config.getOrEnforce!string("uri",
-                "Not defined uri for client transport");
-        long timeout = config.getOrElse!long("timeout", 500);
-        long poolSize = config.getOrElse!long("poolSize", 10);
-        _conn = new ZeroMQClientConnection(uri, cast(uint)timeout);
-        // _pool = new ZeroMQClientConnectionPool(uri, cast(uint)timeout, cast(uint)poolSize);
-    }
-
-
-    ubyte[] request(ubyte[] bytes)
-    {
-        if (!_conn.connected())
-            _conn.connect();
-        // auto conn = _pool.getConnection();
-        // scope(exit) _pool.freeConnection(conn);
-        return _conn.request(bytes);
-    }
+    auto uri = config.getOrEnforce!string("bind",
+                "ZeroMQ transport is not defined bind");
+    auto useBroker = config.getOrElse!bool("broker", false);
+    return ZeroMQTransportSettings(uri, useBroker);
 }
+
