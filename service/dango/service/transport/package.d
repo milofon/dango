@@ -15,10 +15,10 @@ public
 private
 {
     import dango.system.container;
+    import dango.system.component;
 
-    import dango.service.transport.middleware : HTTPMiddlewareContext;
-    import dango.service.transport.http : HTTPServerTransport;
-    import dango.service.transport.zeromq : ZeroMQServerTransport;
+    import dango.service.transport.web : WebTransportContext;
+    import dango.service.transport.zeromq : ZeroMQServerTransportFactory;
 }
 
 
@@ -29,12 +29,8 @@ class TransportContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerNamed!(ServerTransport,
-                HTTPServerTransport, HTTPServerTransport.NAME);
-        container.registerNamed!(ServerTransport,
-                ZeroMQServerTransport, ZeroMQServerTransport.NAME);
-
-        container.registerContext!HTTPMiddlewareContext;
+        container.registerContext!WebTransportContext;
+        container.registerFactory!(ServerTransport, ZeroMQServerTransportFactory);
     }
 }
 

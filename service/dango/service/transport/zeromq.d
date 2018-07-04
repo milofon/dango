@@ -19,17 +19,12 @@ private
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.system.properties : getOrEnforce;
+    import dango.system.component;
+    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
+    import dango.service.types;
     import dango.service.transport.core;
-    import dango.service.protocol.core;
 }
-
-
-/**
- * Функция обработки запроса
- */
-alias Handler = Bytes delegate(Bytes);
 
 
 /**
@@ -45,20 +40,23 @@ struct ZeroMQTransportSettings
 /**
  * Транспорт использующий функционал ZeroMQ
  */
-class ZeroMQServerTransport : BaseServerTransport!("ZEROMQ")
+class ZeroMQServerTransport : BaseServerTransport!"ZEROMQ"
 {
     private
     {
+        ServerProtocol _protocol;
         ZeroMQTransportSettings _settings;
+
         Task _task;
         bool _running;
-        Handler _hdl;
+        Bytes delegate(Bytes) _hdl;
     }
 
 
-    override void transportConfigure(ApplicationContainer container, Properties config)
+    this(ServerProtocol protocol, ZeroMQTransportSettings settings)
     {
-        _settings = loadServiceSettings(config);
+        this._protocol = protocol;
+        this._settings = settings;
     }
 
 
@@ -67,11 +65,7 @@ class ZeroMQServerTransport : BaseServerTransport!("ZEROMQ")
         const ver = zmqVersion();
         logInfo("Version ZeroMQ: %s.%s.%s", ver.major, ver.minor, ver.patch);
 
-        auto binProto = cast(BinServerProtocol)protocol;
-        if (binProto is null)
-            throw new Exception("The type of the protocol is not supported by transport");
-
-        _hdl = &binProto.handle;
+        _hdl = &_protocol.handle;
         _task = runWorkerTaskH!(ZeroMQServerTransport.process)(cast(shared)this);
         logInfo("Transport ZeroMQ Start");
     }
@@ -133,6 +127,24 @@ class ZeroMQServerTransport : BaseServerTransport!("ZEROMQ")
             }
             yield();
         }
+    }
+}
+
+
+/**
+ * Фабрика транспорта использующий функционал ZeroMQ
+ */
+class ZeroMQServerTransportFactory : BaseServerTransportFactory!ZeroMQServerTransport
+{
+    this(ApplicationContainer container)
+    {
+        super(container);
+    }
+
+
+    override ZeroMQServerTransport create(ServerProtocol protocol, Properties config)
+    {
+        return new ZeroMQServerTransport(protocol, loadServiceSettings(config));
     }
 }
 

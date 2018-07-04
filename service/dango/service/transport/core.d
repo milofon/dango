@@ -9,27 +9,25 @@
 
 module dango.service.transport.core;
 
+
 public
 {
-    import proped : Properties;
-
-    import vibe.core.concurrency : Future;
-
     import dango.system.container : ApplicationContainer;
-    import dango.service.protocol: ServerProtocol;
+    import dango.service.protocol : ServerProtocol;
 }
 
 private
 {
-    import dango.service.global;
+    import dango.system.component;
+
+    import dango.service.types;
 }
 
 
 /**
  * Интерфейс серверного транспортного уровня
  */
-interface ServerTransport : Configurable!(ApplicationContainer,
-        ServerProtocol, Properties), Named
+interface ServerTransport : Named
 {
     /**
      * Запуск транспортного уровня
@@ -46,43 +44,12 @@ interface ServerTransport : Configurable!(ApplicationContainer,
 
 
 /**
- * Интерфейс клиентского транспортного уровня
- */
-interface ClientTransport : Configurable!(Properties), Named
-{
-    /**
-     * Выполнение запроса
-     * Params:
-     * bytes = Входящие данные
-     * Return: Данные ответа
-     */
-    Future!Bytes request(Bytes bytes);
-}
-
-
-/**
  * Базовый класс серверного транспортного уровня
  */
 abstract class BaseServerTransport(string N) : ServerTransport
 {
     enum NAME = N;
 
-    protected
-    {
-        ServerProtocol protocol;
-    }
-
-
-    void configure(ApplicationContainer container,
-            ServerProtocol protocol, Properties config)
-    {
-        this.protocol = protocol;
-        transportConfigure(container, config);
-    }
-
-
-    void transportConfigure(ApplicationContainer container, Properties config);
-
 
     string name() @property
     {
@@ -92,16 +59,14 @@ abstract class BaseServerTransport(string N) : ServerTransport
 
 
 /**
- * Базовый класс клиентского транспортного уровня
+ * Базовый класс фабрики серверного транспортного уровня
  */
-abstract class BaseClientTransport(string N) : ClientTransport
+abstract class BaseServerTransportFactory(T : ServerTransport)
+    : AutowireComponentFactory!(ServerTransport, T, ServerProtocol)
 {
-    enum NAME = N;
-
-
-    string name() @property
+    this(ApplicationContainer container)
     {
-        return NAME;
+        super(container);
     }
 }
 

@@ -20,7 +20,7 @@ private
 
     import dango.system.properties : getOrEnforce, getNameOrEnforce;
     import dango.system.exception : configEnforce;
-    import dango.system.container : resolveNamed;
+    import dango.system.component : resolveFactory;
 
     import dango.service.serialization;
     import dango.service.protocol;
@@ -42,6 +42,12 @@ abstract class ServiceApplication : DaemonApplication
     }
 
 
+    this(string name, SemVer release)
+    {
+        super(name, release);
+    }
+
+
     override final void initDependencies(ApplicationContainer container, Properties config)
     {
         container.registerContext!SerializerContext;
@@ -49,12 +55,6 @@ abstract class ServiceApplication : DaemonApplication
         container.registerContext!TransportContext;
 
         initServiceDependencies(container, config);
-    }
-
-
-    this(string name, SemVer release)
-    {
-        super(name, release);
     }
 
 
@@ -119,7 +119,7 @@ private:
     ServerTransport createServiceTransport(Properties servConf)
     {
         string serviceName = servConf.getOrElse!string("name", "Undefined");
-        logInfo("Configuring service %s", serviceName);
+        logInfo("Configuring service '%s'", serviceName);
 
         Properties serConf = servConf.getOrEnforce!Properties("serializer",
                 "Not defined serializer config for service '" ~ serviceName ~ "'");
@@ -137,22 +137,24 @@ private:
 
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
-        Serializer serializer = container.resolveNamed!Serializer(serializerName);
-        configEnforce(serializer !is null,
+        auto serFactory = container.resolveFactory!Serializer(serializerName);
+        configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
-        serializer.configure(serConf);
+        Serializer serializer = serFactory.create(serConf);
         logInfo("Use serializer %s", serializerName);
 
-        ServerProtocol protocol = container.resolveNamed!ServerProtocol(protoName);
-        configEnforce(protocol !is null,
+        auto protoFactory = container.resolveFactory!(ServerProtocol,
+                Serializer)(protoName);
+        configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
-        protocol.configure(serializer, container, protoConf);
+        ServerProtocol protocol = protoFactory.create(serializer, protoConf);
         logInfo("Use protocol %s", protoName);
 
-        ServerTransport transport = container.resolveNamed!ServerTransport(transportName);
-        configEnforce(transport !is null,
+        auto trFactory = container.resolveFactory!(ServerTransport,
+                ServerProtocol)(transportName);
+        configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
-        transport.configure(container, protocol, trConf);
+        ServerTransport transport = trFactory.create(protocol, trConf);
         logInfo("Use transport %s", transportName);
 
         return transport;
