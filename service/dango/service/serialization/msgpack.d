@@ -59,7 +59,7 @@ class MsgPackSerializer : BaseSerializer!"MSGPACK"
 
 
 
-class MsgPackSerializerFactory : SimpleComponentFactory!(Serializer, MsgPackSerializer)
+class MsgPackSerializerFactory : BaseSerializerFactory!MsgPackSerializer
 {
     override MsgPackSerializer create(Properties config)
     {

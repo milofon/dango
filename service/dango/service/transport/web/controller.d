@@ -27,7 +27,7 @@ private
 /**
  * Класс контроллера RPC
  */
-class RPCWebController : NamedBaseWebController!"RPC"
+class RpcWebController : NamedBaseWebController!"RPC"
 {
     private
     {
@@ -93,7 +93,7 @@ class RpcChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class RPCWebControllerFactory : ComponentFactory!(WebController)
+class RpcWebControllerFactory : ComponentFactory!(WebController)
 {
     private
     {
@@ -109,12 +109,12 @@ class RPCWebControllerFactory : ComponentFactory!(WebController)
     }
 
 
-    override RPCWebController create(Properties config)
+    override RpcWebController create(Properties config)
     {
         auto entrypoint = config.getOrEnforce!string("entrypoint",
                 "Not defined entrypoint in configuration transport web");
 
-        auto ret = new RPCWebController(_protocol, entrypoint);
+        auto ret = new RpcWebController(_protocol, entrypoint);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }
@@ -122,9 +122,9 @@ class RPCWebControllerFactory : ComponentFactory!(WebController)
 
     Registration registerFactory()
     {
-        enum NAME = RPCWebController.NAME;
+        enum NAME = RpcWebController.NAME;
         return _container.registerNamed!(ComponentFactory!(WebController),
-                RPCWebControllerFactory, NAME).existingInstance(this);
+                RpcWebControllerFactory, NAME).existingInstance(this);
     }
 }
 

@@ -9,7 +9,6 @@
 
 module dango.service.serialization.core;
 
-
 public
 {
     import proped : Properties;
@@ -85,14 +84,15 @@ interface Serializer : Named
  */
 abstract class BaseSerializer(string N) : Serializer
 {
-    enum NAME = N;
-
-
-    string name() @property
-    {
-        return NAME;
-    }
+    mixin NamedMixin!N;
 }
+
+
+/**
+ * Базовая фабрика сериализатора
+ */
+alias BaseSerializerFactory(SType : Serializer) = SimpleComponentFactory!(
+        Serializer, SType);
 
 
 /**

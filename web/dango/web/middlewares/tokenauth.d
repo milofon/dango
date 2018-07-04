@@ -61,6 +61,7 @@ class TokenAuthWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");
         auto ret = new TokenAuthWebMiddleware(token);
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

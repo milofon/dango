@@ -48,25 +48,13 @@ interface ServerTransport : Named
  */
 abstract class BaseServerTransport(string N) : ServerTransport
 {
-    enum NAME = N;
-
-
-    string name() @property
-    {
-        return NAME;
-    }
+    mixin NamedMixin!N;
 }
 
 
 /**
  * Базовый класс фабрики серверного транспортного уровня
  */
-abstract class BaseServerTransportFactory(T : ServerTransport)
-    : AutowireComponentFactory!(ServerTransport, T, ServerProtocol)
-{
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-}
+alias BaseServerTransportFactory(T : ServerTransport) = AutowireComponentFactory!(
+        ServerTransport, T, ServerProtocol);
 

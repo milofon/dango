@@ -12,6 +12,7 @@ module dango.system.component;
 public
 {
     import proped : Properties;
+    import poodinis : autowire;
 
     import dango.system.container : ApplicationContainer;
 }
@@ -58,41 +59,45 @@ interface Activated
 }
 
 
-/**
- * Интерфейс фабрики для создания компонентов системы
- * I - конструируемый тип
- */
-interface ComponentFactory(I)
-    if (is(I == interface) || is (I == class))
+mixin template NamedMixin(string N)
 {
-    /**
-     * Создает компонент на основе конфигов
-     */
-    I create(Properties config);
+    enum NAME = N;
+
+    string name() @property
+    {
+        return NAME;
+    }
+}
+
+
+mixin template ActivatedMixin()
+{
+    private bool _enabled;
+
+    bool enabled() @property
+    {
+        return _enabled;
+    }
+
+
+    void enabled(bool val) @property
+    {
+        _enabled = val;
+    }
 }
 
 
 /**
  * Интерфейс фабрики для создания компонентов системы
  * I - конструируемый тип
- * T - тип для геренации конструкторов
  */
-interface GenericComponentFactory(I, T : I) : ComponentFactory!I
-    if (is(T == class))
+interface ComponentFactory(I, A...)
+    if (is(I == interface) || is (I == class))
 {
-    static if (__traits(compiles, __traits(getOverloads, T, `__ctor`)))
-        static foreach (ctor; __traits(getOverloads, T, `__ctor`))
-        {
-            static if (!(Parameters!ctor.length == 1
-                        && is(Parameters!ctor[0] == Properties)))
-            {
-                T create(Parameters!ctor);
-            }
-        }
-    else
-    {
-        T create();
-    }
+    /**
+     * Создает компонент на основе конфигов
+     */
+    I create(A args, Properties config);
 }
 
 
@@ -101,7 +106,7 @@ interface GenericComponentFactory(I, T : I) : ComponentFactory!I
  * I - конструируемый тип
  * T - тип для геренации конструкторов
  */
-class AutowireComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
+class AutowireComponentFactory(I, T : I, A...) : ComponentFactory!(I, A)
 {
     protected ApplicationContainer container;
 
@@ -136,7 +141,7 @@ class AutowireComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
     }
 
 
-    T create(Properties config)
+    T create(A args, Properties config)
     {
         throw new Exception("Not implemented create using configuration");
     }
@@ -148,19 +153,16 @@ class AutowireComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
      * container = Контейнер DI
      * options   = Опции poodinis
      */
-    static Registration registerComponent(F : AutowireComponentFactory!(I, T))(
+    static Registration registerComponent(F : AutowireComponentFactory!(I, T, A))(
             ApplicationContainer container, RegistrationOption options = RegistrationOption.none)
     {
         auto factory = new F(container);
         container.autowire(factory);
-        container.register!(GenericComponentFactory!(I, T), F)
-            .existingInstance(factory);
-
         static if (is(T : Named) && __traits(compiles, T.NAME))
-            return container.registerNamed!(ComponentFactory!I, F, T.NAME)
+            return container.registerNamed!(ComponentFactory!(I, A), F, T.NAME)
                 .existingInstance(factory);
         else
-            return container.register!(ComponentFactory!I, F)
+            return container.register!(ComponentFactory!(I, A), F)
                 .existingInstance(factory);
     }
 }
@@ -170,7 +172,7 @@ class AutowireComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
  * Класс фабрики для создания компонентов системы с простым вызовом конструкторов
  * T - конструируемый тип
  */
-class SimpleComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
+class SimpleComponentFactory(I, T : I, A...) : ComponentFactory!(I, A)
 {
     static if (__traits(compiles, __traits(getOverloads, T, `__ctor`)))
         static foreach (ctor; __traits(getOverloads, T, `__ctor`))
@@ -193,7 +195,7 @@ class SimpleComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
     }
 
 
-    T create(Properties config)
+    T create(A args, Properties config)
     {
         throw new Exception("Not implemented create using configuration");
     }
@@ -205,14 +207,13 @@ class SimpleComponentFactory(I, T : I) : GenericComponentFactory!(I, T)
      * container = Контейнер DI
      * options   = Опции poodinis
      */
-    static Registration registerComponent(F : SimpleComponentFactory!(I, T))(
+    static Registration registerComponent(F : SimpleComponentFactory!(I, T, A))(
             ApplicationContainer container, RegistrationOption options = RegistrationOption.none)
     {
-        container.register!(GenericComponentFactory!(I, T), F);
         static if (is(T : Named) && __traits(compiles, T.NAME))
-            return container.registerNamed!(ComponentFactory!I, F, T.NAME);
+            return container.registerNamed!(ComponentFactory!(I, A), F, T.NAME);
         else
-            return container.register!(ComponentFactory!I, F);
+            return container.register!(ComponentFactory!(I, A), F);
     }
 }
 
@@ -236,23 +237,10 @@ Registration registerFactory(C, F : ComponentFactory!C)(ApplicationContainer con
  * container = Контейнер DI
  * options   = Опции poodinis
  */
-ComponentFactory!C resolveFactory(C)(ApplicationContainer container,
+ComponentFactory!(C, A) resolveFactory(C, A...)(ApplicationContainer container,
         ResolveOption resolveOptions = ResolveOption.none)
 {
-    return container.resolve!(ComponentFactory!C)(resolveOptions);
-}
-
-
-/**
- * Резолвинг компонента при помощи фабрики зарегистрированной в DI
- * Params:
- * container = Контейнер DI
- * options   = Опции poodinis
- */
-GenericComponentFactory!(I, T) resolveFactory(I, T : I)(ApplicationContainer container,
-        ResolveOption resolveOptions = ResolveOption.none)
-{
-    return container.resolve!(GenericComponentFactory!(I, T))(resolveOptions);
+    return container.resolve!(ComponentFactory!(C, A))(resolveOptions);
 }
 
 
@@ -262,9 +250,9 @@ GenericComponentFactory!(I, T) resolveFactory(I, T : I)(ApplicationContainer con
  * container = Контейнер DI
  * options   = Опции poodinis
  */
-ComponentFactory!C resolveFactory(C)(ApplicationContainer container, string name,
+ComponentFactory!(C, A) resolveFactory(C, A...)(ApplicationContainer container, string name,
         ResolveOption resolveOptions = ResolveOption.none)
 {
-    return container.resolveNamed!(ComponentFactory!C)(name, resolveOptions);
+    return container.resolveNamed!(ComponentFactory!(C, A))(name, resolveOptions);
 }
 

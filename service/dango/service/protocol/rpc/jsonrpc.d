@@ -12,38 +12,29 @@ module dango.service.protocol.rpc.jsonrpc;
 private
 {
     import dango.service.serialization;
-
-    import dango.service.protocol.rpc.plain;
+    import dango.service.protocol.rpc.core;
 }
 
 
 /**
  * Протокол JsonRPC
  */
-class JsonRpcServerProtocol : PlainRpcServerProtocol
+class JsonRpcServerProtocol : BaseRpcServerProtocol!"JSONRPC"
 {
-    override UniNode createErrorHeader(D...)(int code, string msg, D data)
+    this(Serializer serializer)
+    {
+        super(serializer);
+    }
+
+
+    override UniNode createErrorHeader(UniNode* id, int code, string msg, UniNode data)
     {
         UniNode[string] response;
         response["jsonrpc"] = UniNode("2.0");
         response["id"] = UniNode();
         UniNode[string] err;
 
-        static if (data.length == 1)
-        {
-            static if (is(D[0] == UniNode))
-                err["data"] = data[0];
-            else
-                err["data"] = marshalObject(data[0]);
-        }
-        else static if (data.length > 1)
-        {
-            UniNode[] edata;
-            foreach (dt; data)
-                edata ~= marshalObject(dt);
-            err["data"] = UniNode(edata);
-        }
-
+        err["data"] = data;
         err["code"] = UniNode(code);
         err["message"] = UniNode(msg);
 

@@ -84,6 +84,7 @@ class BaseAuthWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
         string realm = config.getOrElse!string("realm", "");
 
         auto ret = new BaseAuthWebMiddleware(username, password, realm);
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

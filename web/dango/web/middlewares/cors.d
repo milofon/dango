@@ -145,6 +145,7 @@ class CorsWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
         }
 
         auto ret = new CorsWebMiddleware(origins, methods, headers);
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

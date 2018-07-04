@@ -9,29 +9,22 @@
 
 module dango.service.protocol.rpc.controller;
 
-public
-{
-    import proped : Properties;
-
-    import dango.service.serialization : Serializer;
-}
-
 private
 {
     import std.traits;
-    import std.meta : Alias;
+    import std.meta : Alias, AliasSeq;
     import std.format : fmt = format;
-    import std.typecons : Tuple;
     import std.functional : toDelegate;
+    import std.typecons : Tuple;
 
     import vibe.core.log : logInfo;
 
+    import dango.system.component;
     import dango.system.traits;
 
-    import dango.service.global;
+    import dango.service.protocol.rpc.error;
     import dango.service.serialization : UniNode,
            marshalObject, unmarshalObject;
-    import dango.service.protocol.rpc.error;
 }
 
 
@@ -66,58 +59,111 @@ struct Method
 
 
 /**
- * Интерфейс контроллера
+ * Возвращает список обработчиков контроллера
+ * Params:
+ * C = Проверяемый тип
  */
-interface RpcController : Configurable!(Serializer, Properties), Activated
+template GetRpcControllerMethods(C)
 {
-    /**
-     * Регистрация обработчиков в диспетчер
-     * Params:
-     * dispatcher = Диспетчер
-     */
-    void register(RegisterHandler hdl);
+    private template Get(NList...)
+    {
+        static if (NList.length == 0)
+            alias Get = AliasSeq!();
+        else static if (NList.length == 1)
+        {
+            static if(IsPublicMember!(C, NList[0]))
+            {
+                alias Member = Alias!(__traits(getMember, C, NList[0]));
+                static if (isCallable!Member && getUDAs!(Member, Method).length)
+                    alias Get = AliasSeq!(__traits(getMember, C, NList[0]));
+                else
+                    alias Get = AliasSeq!();
+            }
+            else
+                alias Get = AliasSeq!();
+        }
+        else
+            alias Get = AliasSeq!(
+                    Get!(NList[0 .. $/2]),
+                    Get!(NList[$/2.. $]));
+    }
+
+    alias GetRpcControllerMethods = Get!(__traits(allMembers, C));
 }
 
 
 /**
-  * Базовый класс для контроллеров
-  * Params:
-  * P = Тип потомка
-  */
-abstract class BaseRpcController(P) : P, RpcController
+ * Интерфейс контроллера
+ */
+interface RpcController : Activated
 {
-    private
+    /**
+     * Регистрация обработчиков в диспетчер
+     * На каждый обработчик формируется вызов dg
+     * Params:
+     * dg = Функция регистрации цепочки
+     */
+    void registerHandlers(RegisterHandler hdl);
+}
+
+
+/**
+ * Базовый класс RPC контроллера
+ * Params:
+ * CType = Объект с определенными в нем обработчиками
+ */
+abstract class BaseRpcController : RpcController
+{
+    mixin ActivatedMixin!();
+}
+
+
+/**
+ * Базовый класс RPC контроллера с возможностью именования
+ * Params:
+ * N = Имя контроллера
+ */
+abstract class NamedBaseRpcController(string N) : BaseRpcController, Named
+{
+    mixin NamedMixin!N;
+}
+
+
+/**
+ * Базовый класс rpc контроллера
+ * Params:
+ * CType = Объект с определенными в нем обработчиками
+ */
+abstract class GenericRpcController(CType, IType, string N)
+    : NamedBaseRpcController!N, IType
+{
+    static assert(is(IType == interface),
+            IType.stringof ~ " is not interface");
+
+    static assert(is(CType == class),
+            CType.stringof ~ " is not class");
+
+    static assert(hasUDA!(IType, Controller),
+            IType.stringof ~ " is not marked with a Controller");
+
+    alias Handlers = GetRpcControllerMethods!IType;
+
+    static assert(Handlers.length, "The controller must contain handlers");
+
+
+    void registerHandlers(RegisterHandler hdl)
     {
-        Serializer _serializer;
-        bool _enabled;
+        CType controller = cast(CType)this;
+        foreach(Member; Handlers)
+        {
+            enum udas = getUDAs!(Member, Method);
+            enum fName = __traits(identifier, Member);
+            auto HDL = GenerateHandlerFromMethod!(
+                    __traits(getMember, controller, fName))(
+                    &__traits(getMember, controller, fName));
+            hdl(FullMethodName!(IType, udas[0].method), HDL);
+        }
     }
-
-
-    final void configure(Serializer serializer, Properties config)
-    {
-        _serializer = serializer;
-        _enabled = config.getOrElse!bool("enabled", false);
-
-        controllerConfigure(config);
-    }
-
-
-    bool enabled() @property
-    {
-        return _enabled;
-    }
-
-
-    void register(RegisterHandler hdl)
-    {
-        eachControllerMethods!P(cast(P)this, hdl);
-    }
-
-
-protected:
-
-
-    void controllerConfigure(Properties config) {}
 
 
     void enforceRpc(V)(V value, int code, string message,
@@ -142,6 +188,33 @@ protected:
 
 
 /**
+ * Базовая фабрика для RPC контроллеров
+ * Params:
+ * CType = Тип контроллера
+ */
+class BaseRpcControllerFactory(CType : RpcController) : AutowireComponentFactory!(
+        RpcController, CType)
+{
+    this(ApplicationContainer container)
+    {
+        super(container);
+    }
+
+
+    override CType create(Properties config)
+    {
+        auto ret = new CType();
+        container.autowire(ret);
+        ret.enabled = config.getOrElse!bool("enabled", false);
+        return ret;
+    }
+}
+
+
+private:
+
+
+/**
  * Возвращает полное наименование команды
  */
 template FullMethodName(I, string method)
@@ -160,30 +233,9 @@ template FullMethodName(I, string method)
 }
 
 
-private:
-
-
-void eachControllerMethods(C)(C controller, RegisterHandler hdl)
-{
-    foreach (string fName; __traits(allMembers, C))
-    {
-        static if(IsPublicMember!(C, fName))
-        {
-            alias member = Alias!(__traits(getMember, C, fName));
-            enum udas = getUDAs!(member, Method);
-
-            static if (isCallable!member && udas.length > 0)
-            {
-                auto HDL = GenerateHandlerFromMethod!(
-                        __traits(getMember, controller, fName))(
-                        &__traits(getMember, controller, fName));
-                hdl(FullMethodName!(C, udas[0].method), HDL);
-            }
-        }
-    }
-}
-
-
+/**
+ * Генерация обработчика на основе функции
+ */
 template GenerateHandlerFromMethod(alias F)
 {
     alias ParameterIdents = ParameterIdentifierTuple!F;

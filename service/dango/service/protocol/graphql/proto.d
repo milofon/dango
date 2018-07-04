@@ -18,17 +18,34 @@ private
 /**
  * Протокол GraphQL
  */
-class GraphQLServerProtocol : BaseServerProtocol!BinServerProtocol
+class GraphQLServerProtocol : BaseServerProtocol!"GRAPHQL"
 {
-    override void protoConfigure(ApplicationContainer container, Properties config)
+    this(Serializer serializer)
     {
-
+        super(serializer);
     }
 
 
     Bytes handle(Bytes data)
     {
         return data;
+    }
+}
+
+
+
+class GraphQLServerProtocolFactory : BaseServerProtocolFactory!GraphQLServerProtocol
+{
+    this(ApplicationContainer container)
+    {
+        super(container);
+    }
+
+
+    override GraphQLServerProtocol create(Serializer serializer, Properties config)
+    {
+        auto ret = new GraphQLServerProtocol(serializer);
+        return ret;
     }
 }
 

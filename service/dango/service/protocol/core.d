@@ -12,34 +12,22 @@ module dango.service.protocol.core;
 public
 {
     import proped : Properties;
-
-    import vibe.http.server : HTTPServerRequest, HTTPServerResponse,
-           HTTPServerRequestHandler;
-
     import dango.system.container : ApplicationContainer;
 
-    import dango.service.global;
-    import dango.service.transport.core : ClientTransport;
+    import dango.service.types;
     import dango.service.serialization : Serializer;
+}
+
+private
+{
+    import dango.system.component;
 }
 
 
 /**
  * Интерфейс серверного протокола взаимодействия
  */
-interface ServerProtocol : Configurable!(Serializer, ApplicationContainer, Properties) {}
-
-
-/**
- * Интерфейс клиентского протокола
- */
-interface ClientProtocol : Configurable!(Serializer, ClientTransport, Properties) {}
-
-
-/**
- * Интерфейс бинарного серверного протокола взаимодействия
- */
-interface BinServerProtocol : ServerProtocol
+interface ServerProtocol : Named
 {
     /**
      * Метод-обработик входящейго запроса
@@ -51,63 +39,22 @@ interface BinServerProtocol : ServerProtocol
 }
 
 
-/**
- * Интерфейс http серверного протокола взаимодействия
- */
-interface HTTPServerProtocol : ServerProtocol, HTTPServerRequestHandler {}
 
-
-/**
- * Базовый класс серверного протокола взаимодействия
- */
-abstract class BaseServerProtocol(T : ServerProtocol) : T
+abstract class BaseServerProtocol(string N) : ServerProtocol
 {
-    protected
-    {
-        Serializer serializer;
-    }
+    mixin NamedMixin!N;
 
 
-    final void configure(Serializer serializer, ApplicationContainer container,
-            Properties config)
+    protected Serializer serializer;
+
+    this(Serializer serializer)
     {
         this.serializer = serializer;
-        protoConfigure(container, config);
     }
-
-
-    void protoConfigure(ApplicationContainer container, Properties config);
 }
 
 
-/**
- * Базовый класс клиентского протокола взаимодействия
- */
-abstract class BaseClientProtocol : ClientProtocol
-{
-    protected
-    {
-        Serializer serializer;
-        ClientTransport transport;
-    }
 
-
-    this(Serializer serializer, ClientTransport transport)
-    {
-        this.serializer = serializer;
-        this.transport = transport;
-    }
-
-
-    final void configure(Serializer serializer, ClientTransport transport,
-            Properties config)
-    {
-        this.serializer = serializer;
-        this.transport = transport;
-        protoConfigure(config);
-    }
-
-
-    void protoConfigure(Properties config);
-}
+alias BaseServerProtocolFactory(T : ServerProtocol) = AutowireComponentFactory!(
+        ServerProtocol, T, Serializer);
 

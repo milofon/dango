@@ -109,6 +109,7 @@ class BaseWebMiddlewareFactory(MType : WebMiddleware) : AutowireComponentFactory
     override MType create(Properties config)
     {
         auto ret = new MType();
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

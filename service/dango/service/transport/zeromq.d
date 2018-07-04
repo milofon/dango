@@ -144,7 +144,9 @@ class ZeroMQServerTransportFactory : BaseServerTransportFactory!ZeroMQServerTran
 
     override ZeroMQServerTransport create(ServerProtocol protocol, Properties config)
     {
-        return new ZeroMQServerTransport(protocol, loadServiceSettings(config));
+        auto ret = new ZeroMQServerTransport(protocol, loadServiceSettings(config));
+        container.autowire(ret);
+        return ret;
     }
 }
 

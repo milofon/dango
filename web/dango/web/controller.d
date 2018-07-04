@@ -143,7 +143,6 @@ interface WebController : Activated
 /**
  * Базовый класс web контроллера
  * Params:
- * CType = Объект с определенными в нем обработчиками
  */
 abstract class BaseWebController : WebController
 {
@@ -166,7 +165,6 @@ abstract class BaseWebController : WebController
 /**
  * Базовый класс web контроллера с возможностью именования
  * Params:
- * CType = Объект с определенными в нем обработчиками
  * N = Имя контроллера
  */
 abstract class NamedBaseWebController(string N) : BaseWebController, Named
@@ -198,6 +196,7 @@ class BaseWebControllerFactory(CType : WebController) : AutowireComponentFactory
     override CType create(Properties config)
     {
         auto ret = new CType();
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

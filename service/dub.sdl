@@ -4,9 +4,8 @@ copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD"
 
-dependency "dango:system" version="*"
+dependency "dango:web" version="*"
 
-dependency "vibe-d:http" version="~>0.8.3"
 dependency "zmqd" version="~>1.1.0"
 dependency "msgpack-d" version="~>1.0.0-beta.6"
 

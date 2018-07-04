@@ -109,6 +109,7 @@ class FilesWebControllerFactory : AutowireComponentFactory!(WebController,
                 "Not defined prefix parameter");
 
         auto ret = new FilesWebController(path, prefix);
+        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

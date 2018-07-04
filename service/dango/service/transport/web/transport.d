@@ -17,7 +17,7 @@ private
 
     import dango.web.server : WebApplicationServer;
     import dango.service.transport.core;
-    import dango.service.transport.web.controller : RPCWebControllerFactory;
+    import dango.service.transport.web.controller : RpcWebControllerFactory;
 }
 
 
@@ -62,12 +62,13 @@ class WebServerTransportFactory : BaseServerTransportFactory!WebServerTransport
 
     override WebServerTransport create(ServerProtocol protocol, Properties config)
     {
-        auto rpcControllerFactory = new RPCWebControllerFactory(protocol, container);
+        auto rpcControllerFactory = new RpcWebControllerFactory(protocol, container);
         rpcControllerFactory.registerFactory();
 
         auto serverFactory = container.resolveFactory!WebApplicationServer;
         auto server = serverFactory.create(config);
         auto ret = new WebServerTransport(server);
+        container.autowire(ret);
         return ret;
     }
 }

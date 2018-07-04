@@ -15,10 +15,13 @@ public
 private
 {
     import dango.system.container;
+    import dango.system.component;
 
-    import dango.service.protocol.graphql : GraphQLServerProtocol;
-    import dango.service.protocol.rest : RESTServerProtocol;
-    import dango.service.protocol.rpc : JsonRpcServerProtocol, PlainRpcServerProtocol;
+    import dango.service.protocol.graphql : GraphQLServerProtocolFactory;
+
+    import dango.service.protocol.rpc.core : RpcServerProtocolFactory;
+    import dango.service.protocol.rpc.plain : PlainRpcServerProtocol;
+    import dango.service.protocol.rpc.jsonrpc : JsonRpcServerProtocol;
 }
 
 
@@ -29,10 +32,12 @@ class ProtocolContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerNamed!(ServerProtocol, JsonRpcServerProtocol, "JSONRPC");
-        container.registerNamed!(ServerProtocol, PlainRpcServerProtocol, "PLAIN");
-        container.registerNamed!(ServerProtocol, RESTServerProtocol, "REST");
-        container.registerNamed!(ServerProtocol, GraphQLServerProtocol, "GRAPHQL");
+        container.registerFactory!(ServerProtocol,
+                GraphQLServerProtocolFactory);
+        container.registerFactory!(ServerProtocol,
+                RpcServerProtocolFactory!PlainRpcServerProtocol);
+        container.registerFactory!(ServerProtocol,
+                RpcServerProtocolFactory!JsonRpcServerProtocol);
     }
 }
 
