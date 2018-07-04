@@ -16,35 +16,14 @@ private
 
     import vibe.data.json;
 
-    import dango.service.global;
+    import dango.service.types;
     import dango.service.serialization.core;
 }
 
 
 
-class JsonSerializer : Serializer
+class JsonSerializer : BaseSerializer!"JSON"
 {
-    enum NAME = "JSON";
-
-
-    this() {}
-
-
-    this(Properties config)
-    {
-        configure(config);
-    }
-
-
-    string name() @property
-    {
-        return NAME;
-    }
-
-
-    void configure(Properties config) {}
-
-
     UniNode deserialize(Bytes bytes)
     {
         auto strData = cast(string)bytes;

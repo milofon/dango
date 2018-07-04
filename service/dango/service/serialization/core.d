@@ -30,15 +30,15 @@ private
         vSerialize = serialize,
         vDeserialize = deserialize;
 
-    import dango.service.global;
+    import dango.system.component;
+    import dango.service.types;
 }
 
 
-
 /**
- * Основной класс сериализатор
+ * Основной интерфейс сериализатор
  */
-interface Serializer : Configurable!(Properties), Named
+interface Serializer : Named
 {
     /**
      * Сериализация объекта языка в массив байт
@@ -77,6 +77,21 @@ interface Serializer : Configurable!(Properties), Named
      * Return: массив байт
      */
     Bytes serialize(UniNode node);
+}
+
+
+/**
+ * Базовый класс сериализатор
+ */
+abstract class BaseSerializer(string N) : Serializer
+{
+    enum NAME = N;
+
+
+    string name() @property
+    {
+        return NAME;
+    }
 }
 
 
@@ -511,9 +526,9 @@ private :
 
         string name = "UniNode of type " ~ type.to!string;
         if (!op.length)
-            throw new UniNodeException("Got %s, expected %s.".fmt(name, expected));
+            throw new UniNodeException(fmt!"Got %s, expected %s."(name, expected));
         else
-            throw new UniNodeException("Got %s, expected %s for %s.".fmt(name, expected, op));
+            throw new UniNodeException(fmt!"Got %s, expected %s for %s."(name, expected, op));
     }
 }
 

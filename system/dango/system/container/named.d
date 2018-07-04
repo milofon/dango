@@ -75,9 +75,10 @@ Registration registerNamed(SuperType, ConcreteType : SuperType, string Name)(
             shared(DependencyContainer) container,
             RegistrationOption options = RegistrationOption.none)
 {
-    container.register!(SuperType, ConcreteType)(options);
+    auto ret = container.register!(SuperType, ConcreteType)(options);
     alias W = NamedWrapper!(ConcreteType, Name).Wrapper!SuperType;
-    return container.register!(Named!SuperType, W);
+    container.register!(Named!SuperType, W)(options);
+    return ret;
 }
 
 

@@ -12,6 +12,7 @@ module dango.system.traits;
 private
 {
     import std.traits;
+    import std.meta;
 }
 
 
@@ -23,6 +24,39 @@ private
  */
 template IsPublicMember(C, string N)
 {
-    enum access = __traits(getProtection, __traits(getMember, C, N));
-    enum IsPublicMember = access == "public";
+    static if (__traits(compiles, __traits(getMember, C, N)))
+    {
+        alias member = Alias!(__traits(getMember, C, N));
+        static if (__traits(compiles, __traits(getProtection, member)))
+        {
+            enum access = __traits(getProtection, member);
+            enum IsPublicMember = access == "public";
+        }
+        else
+            enum IsPublicMember = false;
+    }
+    else
+        enum IsPublicMember = false;
 }
+
+
+/**
+ * Обработка мемберов указанного типа.
+ * На каждый публичный мембер вызывается делегат
+ * Params:
+ * T      = Тип
+ * DG     = Делегат
+ * object = Экземпляр типа T
+ */
+void eachPublicMembers(T, alias DG, A...)(T object, A args)
+{
+    foreach (string fName; __traits(allMembers, T))
+    {
+        static if(IsPublicMember!(T, fName))
+        {
+            alias Member = Alias!(__traits(getMember, T, fName));
+            DG!(T, Member)(object, args);
+        }
+    }
+}
+

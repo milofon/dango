@@ -16,16 +16,15 @@ private
     import proped : Properties;
     import msgpack;
 
-    import dango.service.global;
+    import dango.system.component;
+    import dango.service.types;
     import dango.service.serialization.core;
 }
 
 
 
-class MsgPackSerializer : Serializer
+class MsgPackSerializer : BaseSerializer!"MSGPACK"
 {
-    enum NAME = "MSGPACK";
-
     private bool _withFieldName;
 
 
@@ -38,24 +37,6 @@ class MsgPackSerializer : Serializer
     this()
     {
         this(false);
-    }
-
-
-    this(Properties config)
-    {
-        configure(config);
-    }
-
-
-    string name() @property
-    {
-        return NAME;
-    }
-
-
-    void configure(Properties config)
-    {
-        _withFieldName = config.getOrElse!bool("withFieldName", false);
     }
 
 
@@ -73,6 +54,18 @@ class MsgPackSerializer : Serializer
         auto packer = Packer(_withFieldName);
         val.toMsgpack(packer);
         return packer.stream.data.idup;
+    }
+}
+
+
+
+class MsgPackSerializerFactory : SimpleComponentFactory!(Serializer, MsgPackSerializer)
+{
+    override MsgPackSerializer create(Properties config)
+    {
+        auto withFieldName = config.getOrElse!bool("withFieldName", false);
+        MsgPackSerializer ret = new MsgPackSerializer(withFieldName);
+        return ret;
     }
 }
 
