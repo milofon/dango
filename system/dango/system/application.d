@@ -47,6 +47,38 @@ interface Application
     int run(string[] args);
 
     /**
+     * Свойство возвращает наименование приложения
+     */
+    string name() @property pure nothrow;
+
+    /**
+     * Свойство возвращает версию приложения
+     */
+    SemVer release() @property pure nothrow;
+
+    /**
+     * Получение аргументов из командной строки
+     *
+     * Params:
+     * processor = Объект для разбора командной строки
+     *
+     * Returns: Успешность получения свойств
+     */
+    bool parseCommandLine(CommandLineProcessor processor);
+
+    /**
+     * Возвращает строку помощи для консоли
+     */
+    string helpText() @property;
+}
+
+
+/**
+ * Интерфейс приложения с возможностью конфигурирования
+ */
+interface ConfigurableApplication : Application
+{
+    /**
      * Функция загружает свойства из файла при помощи локального загрузчика
      * Params:
      *
@@ -57,27 +89,59 @@ interface Application
     Properties loadProperties(string filePath);
 
     /**
-     * Свойство возвращает наименование приложения
+     * Возвращает пути до файлов по-умолчанию
      */
-    string name() @property pure nothrow;
+    string[] getDefaultConfigFiles();
 
     /**
-     * Свойство возвращает версию приложения
+     * Запуск приложения
+     *
+     * Params:
+     * config = Входящие параметры
+     *
+     * Returns: Код завершения работы приложения
      */
-    SemVer release() @property pure nothrow;
+    int runApplication(Properties config);
+}
+
+
+/**
+ * Интерфейс приложения с возможностью инициализировать зависимости
+ */
+interface DependenciesApplication : ConfigurableApplication
+{
+    /**
+     * Инициализация зависимостей
+     *
+     * Params:
+     * container = Контейнер DI
+     * config = Конфигурация
+     */
+    void initializeDependencies(ApplicationContainer container, Properties config);
+
+    /**
+     * Инициализация зависимостей с глобальным конфигом
+     *
+     * Params:
+     * container = Контейнер DI
+     * config = Конфигурация
+     */
+    void initializeGlobalDependencies(ApplicationContainer container, Properties config);
 }
 
 
 /**
  * Базовый класс приложения
  */
-abstract class BaseApplication : Application
+abstract class BaseApplication : DependenciesApplication
 {
     private
     {
         string _applicationName;
         SemVer _applicationVersion;
-        ApplicationContainer _container;
+
+        Properties _config;
+
         string[] _configFiles;
         Loader _propLoader;
     }
@@ -101,7 +165,7 @@ abstract class BaseApplication : Application
     final int run(string[] args)
     {
         // иницмализируем зависимости
-        _container = new ApplicationContainer();
+        auto container = new ApplicationContainer();
         _propLoader = createPropertiesLoader();
 
         // загружаем параметры командной строки
@@ -112,48 +176,42 @@ abstract class BaseApplication : Application
         if (_configFiles.empty)
             _configFiles = getDefaultConfigFiles();
 
-        Properties config;
-
         foreach(string cFile; _configFiles)
-            config ~= loadProperties(cFile);
+            _config ~= loadProperties(cFile);
 
-        config ~= cProcessor.getOptionProperties();
-        config ~= cProcessor.getEnvironmentProperties();
+        _config ~= cProcessor.getOptionProperties();
+        _config ~= cProcessor.getEnvironmentProperties();
 
-        doInitDependencies(_container, config);
-        configureLogging(_container, config, &registerLogger);
-        initDependencies(_container, config);
+        initApplicationDependencies(container, _config);
+        configureLogging(container, _config, &registerLogger);
 
-        return runApplication(config);
+        return runApplication(_config);
     }
 
     /**
-     * Свойство возвращает локальный контейнер
+     * Создает новый контейнер на основе конфигурации
      */
-    ApplicationContainer container() @property pure nothrow
+    ApplicationContainer createContainer(Properties config)
     {
-        return _container;
+        auto container = new ApplicationContainer();
+        initializeGlobalDependencies(container, _config);
+        initializeDependencies(container, config);
+        return container;
     }
 
-    /**
-     * Свойство возвращает наименование приложения
-     */
+
     string name() @property pure nothrow
     {
         return _applicationName;
     }
 
-    /**
-     * Свойство возвращает версию приложения
-     */
+
     SemVer release() @property pure nothrow
     {
         return _applicationVersion;
     }
 
-    /**
-     * Функция загружает свойства из файла при помощи локального загрузчика
-     */
+
     Properties loadProperties(string filePath)
     {
         if (_propLoader is null)
@@ -161,65 +219,23 @@ abstract class BaseApplication : Application
         return _propLoader(filePath);
     }
 
-protected:
 
-    /**
-     * Запуск приложения
-     *
-     * Params:
-     * config = Входящие параметры
-     *
-     * Returns: Код завершения работы приложения
-     */
-    int runApplication(Properties config);
-
-    /**
-     * Возвращает пути до файлов по-умолчанию
-     */
-    string[] getDefaultConfigFiles()
-    {
-        return [];
-    }
-
-    /**
-     * Инициализация зависимостей
-     *
-     * Params:
-     * container = Контейнер DI
-     *
-     * Example:
-     * ---
-     * initDependencies(container);
-     * ---
-     */
-    void initDependencies(ApplicationContainer container, Properties config) {}
-
-    /**
-     * Получение аргументов из командной строки
-     *
-     * Params:
-     * processor = Объект для разбора командной строки
-     *
-     * Returns: Успешность получения свойств
-     */
-    bool parseCommandLine(CommandLineProcessor processor)
-    {
-        return true;
-    }
-
-    /**
-     * Возвращает строку помощи для консоли
-     */
     string helpText() @property
     {
         return _applicationName;
     }
 
 
+    bool parseCommandLine(CommandLineProcessor processor)
+    {
+        return true;
+    }
+
+
 private:
 
 
-    void doInitDependencies(ApplicationContainer container, Properties config)
+    void initApplicationDependencies(ApplicationContainer container, Properties config)
     {
         container.register!(Application, typeof(this)).existingInstance(this);
 
@@ -247,28 +263,8 @@ private:
  * Приложение запускающее обработчик событий
  * работающее в режиме демона
  */
-abstract class DaemonApplication : BaseApplication
+interface DaemonApplication : ConfigurableApplication
 {
-    this(string name, string _version)
-    {
-        super(name, _version);
-    }
-
-
-    this(string name, SemVer _version)
-    {
-        super(name, _version);
-    }
-
-
-protected:
-
-
-    override final int runApplication(Properties config)
-    {
-        return runLoop(config);
-    }
-
     /**
      * Запуск демона сервисов
      * Params:
@@ -284,6 +280,31 @@ protected:
      * exitStatus = Код завершения приложения
      */
     int finalizeDaemon(int exitStatus);
+}
+
+
+/**
+ * Базовая реализация приложения запускающее обработчик событий
+ * работающее в режиме демона
+ */
+abstract class BaseDaemonApplication : BaseApplication, DaemonApplication
+{
+    this(string name, string _version)
+    {
+        super(name, _version);
+    }
+
+
+    this(string name, SemVer _version)
+    {
+        super(name, _version);
+    }
+
+
+    final int runApplication(Properties config)
+    {
+        return runLoop(config);
+    }
 
 
 private:

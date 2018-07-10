@@ -9,8 +9,10 @@ module dango.system.container;
 
 public
 {
+    import poodinis : ApplicationContext, Autowire, autowire, CreatesSingleton;
+
     import dango.system.container.named : registerNamed, resolveNamed;
-    import poodinis : ApplicationContext;
+    import dango.system.container.component;
 }
 
 private

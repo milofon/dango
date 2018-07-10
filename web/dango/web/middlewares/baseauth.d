@@ -19,13 +19,13 @@ private
     import proped : Properties;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.component;
+    import dango.system.container;
     import dango.web.middleware;
 }
 
 
 
-class BaseAuthWebMiddleware : NamedBaseWebMiddleware!("BASEAUTH")
+class BaseAuthWebMiddleware : BaseWebMiddleware
 {
     private
     {
@@ -66,16 +66,9 @@ private:
 
 
 
-class BaseAuthWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
-        BaseAuthWebMiddleware)
+class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("BASEAUTH")
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override BaseAuthWebMiddleware create(Properties config)
+    WebMiddleware createComponent(Properties config)
     {
         string username = config.getOrEnforce!string("username",
                 "Not defined username parameter").strip;
@@ -84,7 +77,6 @@ class BaseAuthWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
         string realm = config.getOrElse!string("realm", "");
 
         auto ret = new BaseAuthWebMiddleware(username, password, realm);
-        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

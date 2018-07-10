@@ -14,14 +14,14 @@ private
     import proped : Properties;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.web.middleware;
 }
 
 
 
-class TokenAuthWebMiddleware : NamedBaseWebMiddleware!("TOKENAUTH")
+class TokenAuthWebMiddleware : BaseWebMiddleware
 {
     private string _token;
 
@@ -47,21 +47,13 @@ class TokenAuthWebMiddleware : NamedBaseWebMiddleware!("TOKENAUTH")
 
 
 
-class TokenAuthWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
-        TokenAuthWebMiddleware)
+class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("TOKENAUTH")
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override TokenAuthWebMiddleware create(Properties config)
+    WebMiddleware createComponent(Properties config)
     {
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");
         auto ret = new TokenAuthWebMiddleware(token);
-        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

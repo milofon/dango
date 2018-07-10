@@ -15,7 +15,6 @@ public
 private
 {
     import dango.system.container;
-    import dango.system.component;
 
     import dango.web.controllers.files;
 }
@@ -26,7 +25,7 @@ class WebControllersContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(WebController, FilesWebControllerFactory);
+        container.registerFactory!(FilesWebControllerFactory, FilesWebController);
     }
 }
 

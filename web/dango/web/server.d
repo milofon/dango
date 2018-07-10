@@ -26,7 +26,7 @@ private
     import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
 
     import dango.system.properties : getOrEnforce, getNameOrEnforce, configEnforce;
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.web.controller;
     import dango.web.middleware;
@@ -36,7 +36,7 @@ private
 
 alias MiddlewareConfig = Tuple!(
         Properties, "config",
-        ComponentFactory!WebMiddleware, "factory",
+        PostComponentFactory!WebMiddleware, "factory",
         string, "label");
 
 
@@ -84,19 +84,14 @@ class WebApplicationServer
 /**
  * Класс фабрики веб сервера
  */
-class WebApplicationServerFactory : AutowireComponentFactory!(WebApplicationServer,
-        WebApplicationServer)
+class WebApplicationServerFactory : ComponentFactory!(WebApplicationServer,
+        ApplicationContainer)
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override WebApplicationServer create(Properties webConf)
+    WebApplicationServer createComponent(Properties webConf,
+            ApplicationContainer container)
     {
         HTTPServerSettings settings = loadServiceSettings(webConf);
-        auto server = super.create(settings);
+        auto server = new WebApplicationServer(settings);
 
         string webName = webConf.getOrElse!string("name", "Undefined");
         logInfo("Configuring web application %s", webName);

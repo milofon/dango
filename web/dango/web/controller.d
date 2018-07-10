@@ -15,11 +15,13 @@ public
 
     import vibe.http.server : HTTPMethod, HTTPServerRequestHandler,
             HTTPServerRequestDelegate, HTTPServerRequest, HTTPServerResponse;
+
+    import dango.web.controllers.generic;
 }
 
 private
 {
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.web.middleware;
 }
@@ -146,36 +148,7 @@ interface WebController : Activated
  */
 abstract class BaseWebController : WebController
 {
-    private bool _enabled;
-
-
-    bool enabled() @property
-    {
-        return _enabled;
-    }
-
-
-    void enabled(bool val) @property
-    {
-        this._enabled = val;
-    }
-}
-
-
-/**
- * Базовый класс web контроллера с возможностью именования
- * Params:
- * N = Имя контроллера
- */
-abstract class NamedBaseWebController(string N) : BaseWebController, Named
-{
-    enum NAME = N;
-
-
-    string name() @property
-    {
-        return NAME;
-    }
+    mixin ActivatedMixin!();
 }
 
 
@@ -184,21 +157,8 @@ abstract class NamedBaseWebController(string N) : BaseWebController, Named
  * Params:
  * CType = Тип контроллера
  */
-class BaseWebControllerFactory(CType : WebController) : AutowireComponentFactory!(
-        WebController, CType)
+abstract class BaseWebControllerFactory(string N) : ComponentFactory!(WebController), Named
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override CType create(Properties config)
-    {
-        auto ret = new CType();
-        container.autowire(ret);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
-    }
+    mixin NamedMixin!N;
 }
 

@@ -15,7 +15,6 @@ public
 private
 {
     import dango.system.container;
-    import dango.system.component;
 
     import dango.web.middlewares.tokenauth;
     import dango.web.middlewares.cors;
@@ -28,9 +27,9 @@ class WebMiddlewaresContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(WebMiddleware, TokenAuthWebMiddlewareFactory);
-        container.registerFactory!(WebMiddleware, BaseAuthWebMiddlewareFactory);
-        container.registerFactory!(WebMiddleware, CorsWebMiddlewareFactory);
+        container.registerFactory!(TokenAuthWebMiddlewareFactory, TokenAuthWebMiddleware);
+        container.registerFactory!(BaseAuthWebMiddlewareFactory, BaseAuthWebMiddleware);
+        container.registerFactory!(CorsWebMiddlewareFactory, CorsWebMiddleware);
     }
 }
 

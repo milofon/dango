@@ -23,14 +23,14 @@ private
 
     import dango.system.exception : configEnforce, ConfigException;
     import dango.system.properties : getOrEnforce;
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.web.middleware;
 }
 
 
 
-class CorsWebMiddleware : NamedBaseWebMiddleware!("CORS")
+class CorsWebMiddleware : BaseWebMiddleware
 {
     private
     {
@@ -110,16 +110,9 @@ private:
 
 
 
-class CorsWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
-        CorsWebMiddleware)
+class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory!("CORS")
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override CorsWebMiddleware create(Properties config)
+    WebMiddleware createComponent(Properties config)
     {
         string[] origins;
         foreach (Properties orp; config.getArray("origin"))
@@ -145,7 +138,6 @@ class CorsWebMiddlewareFactory : AutowireComponentFactory!(WebMiddleware,
         }
 
         auto ret = new CorsWebMiddleware(origins, methods, headers);
-        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

@@ -71,8 +71,7 @@ template GetWebControllerHandlers(C)
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(CType, IType, string N) :
-    NamedBaseWebController!N, IType
+abstract class GenericWebController(CType, IType) : BaseWebController
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -101,7 +100,7 @@ abstract class GenericWebController(CType, IType, string N) :
     private enum __existsCreateHandler = hasMember!(CType, "createHandler");
     static assert(__existsCreateHandler, CType.stringof
             ~ " must contain the function "
-            ~ "'HTTPServerRequestDelegate createHandler!(HandlerType, alias Member)"
+            ~ "'HTTPServerRequestDelegate createHandler(HandlerType, alias Member)"
             ~ "(HandlerType hdl)'");
 
     static if (__existsCreateHandler) private

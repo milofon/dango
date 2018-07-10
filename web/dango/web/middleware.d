@@ -21,7 +21,7 @@ private
 
     import vibe.http.server : HTTPServerRequestHandler;
 
-    import dango.system.component;
+    import dango.system.container;
 }
 
 
@@ -43,22 +43,11 @@ interface WebMiddleware : Activated, HTTPServerRequestHandler
  */
 abstract class BaseWebMiddleware : WebMiddleware
 {
+    mixin ActivatedMixin!();
+
     private
     {
-        bool _enabled;
         WebMiddleware _next;
-    }
-
-
-    bool enabled() @property
-    {
-        return _enabled;
-    }
-
-
-    void enabled(bool val) @property
-    {
-        this._enabled = val;
     }
 
 
@@ -78,41 +67,11 @@ abstract class BaseWebMiddleware : WebMiddleware
 
 
 /**
- * Базовый класс Middleware с возможность именования
- * Params:
- * N = Имя компонента
- */
-abstract class NamedBaseWebMiddleware(string N) : BaseWebMiddleware, Named
-{
-    enum NAME = N;
-
-
-    string name() @property
-    {
-        return NAME;
-    }
-}
-
-
-/**
  * Базовая фабрика для web контроллеров
  */
-class BaseWebMiddlewareFactory(MType : WebMiddleware) : AutowireComponentFactory!(
-        WebMiddleware, MType)
+abstract class BaseWebMiddlewareFactory(string N) : ComponentFactory!(WebMiddleware), Named
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override MType create(Properties config)
-    {
-        auto ret = new MType();
-        container.autowire(ret);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
-    }
+    mixin NamedMixin!N;
 }
 
 

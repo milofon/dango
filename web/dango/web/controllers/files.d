@@ -14,7 +14,7 @@ private
     import std.algorithm.searching : endsWith;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.component;
+    import dango.system.container;
 
     import vibe.http.fileserver;
 
@@ -25,7 +25,7 @@ private
 /**
  * Класс контроллера позволяющий раздавать статику из директории
  */
-class FilesWebController : NamedBaseWebController!"FILES"
+class FilesWebController : BaseWebController
 {
     private
     {
@@ -92,16 +92,9 @@ class FilesChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class FilesWebControllerFactory : AutowireComponentFactory!(WebController,
-        FilesWebController)
+class FilesWebControllerFactory : BaseWebControllerFactory!("FILES")
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override FilesWebController create(Properties config)
+    WebController createComponent(Properties config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");
@@ -109,7 +102,6 @@ class FilesWebControllerFactory : AutowireComponentFactory!(WebController,
                 "Not defined prefix parameter");
 
         auto ret = new FilesWebController(path, prefix);
-        container.autowire(ret);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }

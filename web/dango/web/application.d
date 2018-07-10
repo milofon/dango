@@ -16,8 +16,8 @@ public
 
 private
 {
-    import dango.system.component : resolveFactory, registerFactory;
     import dango.system.properties : getOrEnforce;
+    import dango.system.container : registerFactory, resolveFactory;
 
     import dango.web.server;
     import dango.web.middlewares;
@@ -28,7 +28,28 @@ private
 /**
  * Приложение позволяет инициализировать веб приложение
  */
-abstract class WebApplication : DaemonApplication
+interface WebApplication : DaemonApplication
+{
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeWebApplication(Properties config);
+
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeWebApplication(int exitCode);
+}
+
+
+/**
+ * Базовая реализация приложения позволяет инициализировать веб приложение
+ */
+abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
 {
     private
     {
@@ -48,58 +69,36 @@ abstract class WebApplication : DaemonApplication
     }
 
 
-    override final void initDependencies(ApplicationContainer container, Properties config)
+    void initializeGlobalDependencies(ApplicationContainer container, Properties config)
     {
-        container.registerFactory!(WebApplicationServer, WebApplicationServerFactory);
+        container.registerFactory!(WebApplicationServerFactory, WebApplicationServer);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
-        initWebDependencies(container, config);
     }
 
 
-    override void initializeDaemon(Properties config)
+    final void initializeDaemon(Properties config)
     {
-        initializeWeb(config);
+        initializeWebApplication(config);
 
-        auto webConf = config.getOrEnforce!Properties("web",
+        auto webConfigs = config.getOrEnforce!Properties("web",
                 "Not found web application configurations");
 
-        auto serverFactory = container.resolveFactory!WebApplicationServer;
-        _server = serverFactory.create(webConf);
-        _server.listen();
+        foreach (Properties webConf; webConfigs.getArray())
+        {
+            auto container = createContainer(webConf);
+            auto serverFactory = container.resolveFactory!(WebApplicationServer,
+                    ApplicationContainer);
+            _server = serverFactory.create(webConf, container);
+            _server.listen();
+        }
     }
 
 
-    override int finalizeDaemon(int exitCode)
+    final int finalizeDaemon(int exitCode)
     {
         _server.shutdown();
-        return finalizeWeb(exitCode);
+        return finalizeWebApplication(exitCode);
     }
-
-
-protected:
-
-
-    /**
-     * Регистрация зависимостей сервиса
-     * Params:
-     * container = DI контейнер
-     * config = Общая конфигурация приложения
-     */
-    void initWebDependencies(ApplicationContainer container, Properties config);
-
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeWeb(Properties config);
-
-    /**
-     * Завершение работы сервиса
-     * Params:
-     * exitCode = Код возврата
-     */
-    int finalizeWeb(int exitCode);
 }
 
