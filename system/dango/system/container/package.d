@@ -13,6 +13,7 @@ public
 
     import dango.system.container.named : registerNamed, resolveNamed;
     import dango.system.container.component;
+    import dango.system.container.context : registerContext, ConfigurableContext;
 }
 
 private

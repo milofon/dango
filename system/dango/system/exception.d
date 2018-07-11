@@ -14,8 +14,6 @@ private
     import std.exception : enforceEx, enforce;
 
     import proped : Properties;
-
-    import vibe.core.log : logError;
 }
 
 
@@ -23,6 +21,7 @@ mixin template ExceptionMixin()
 {
     this(string msg, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
     {
+        import vibe.core.log : logError;
         logError(msg);
         super(msg, file, line, next);
     }

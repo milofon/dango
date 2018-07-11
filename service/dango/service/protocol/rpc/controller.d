@@ -9,6 +9,11 @@
 
 module dango.service.protocol.rpc.controller;
 
+public
+{
+    import proped : Properties;
+}
+
 private
 {
     import std.traits;

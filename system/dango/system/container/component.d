@@ -204,7 +204,6 @@ Registration factoryInstance(F : ComponentFactory!(I, A), I, A...)(
         Registration registration, CreatesSingleton createSingleton, Properties config, A args)
 {
     auto factoryFunctor = new F();
-    container.autowire(factoryFunctor);
     auto factory = new SimplePreComponentFactory!(F, I, A)(factoryFunctor, config, args);
 
     return registration.factoryInstance!(PreComponentFactory!(I, A), I)(
