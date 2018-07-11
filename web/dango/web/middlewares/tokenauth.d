@@ -53,9 +53,7 @@ class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("TOKENAUTH")
     {
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");
-        auto ret = new TokenAuthWebMiddleware(token);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
+        return new TokenAuthWebMiddleware(token);
     }
 }
 

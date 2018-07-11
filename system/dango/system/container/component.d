@@ -108,6 +108,22 @@ interface ComponentFactory(I, A...)
 
 
 /**
+ * Интерфейс фабрики для создания компонентов системы
+ * с возможностью пост иниуиализации
+ * Params:
+ * I - Конструируемый тип
+ * A - Типы аргументов
+ */
+interface InitializingFactory(I, A...)
+{
+    /**
+     * Позволяет провести пост инициализаяю комопнента
+     */
+    I initializeComponent(I component, Properties config, A args);
+}
+
+
+/**
  * Интерфейс фабрики с возможностью создать объект
  * на основе преинициализированных данных.
  * Params:
@@ -131,17 +147,18 @@ interface PreComponentFactory(I, A...)
  * I - Конструируемый тип
  * A - Типы аргументов
  */
-class SimplePreComponentFactory(I, A...) : PreComponentFactory!(I, A)
+class SimplePreComponentFactory(F : ComponentFactory!(I, A), I, A...)
+    : PreComponentFactory!(I, A)
 {
     private
     {
-        ComponentFactory!(I, A) _factory;
+        F _factory;
         Properties _config;
         A _args;
     }
 
 
-    this(ComponentFactory!(I, A) factory, Properties config, A args)
+    this(F factory, Properties config, A args)
     {
         this._factory = factory;
         this._config = config;
@@ -188,7 +205,7 @@ Registration factoryInstance(F : ComponentFactory!(I, A), I, A...)(
 {
     auto factoryFunctor = new F();
     container.autowire(factoryFunctor);
-    auto factory = new SimplePreComponentFactory!(I, A)(factoryFunctor, config, args);
+    auto factory = new SimplePreComponentFactory!(F, I, A)(factoryFunctor, config, args);
 
     return registration.factoryInstance!(PreComponentFactory!(I, A), I)(
             createSingleton, factory);
@@ -222,16 +239,17 @@ interface PostComponentFactory(I, A...)
  * T = Реализация компонента
  * A - Типы аргументов
  */
-class AutowirePostComponentFactory(I, T:I, A...) : PostComponentFactory!(I, A)
+class AutowirePostComponentFactory(F : ComponentFactory!(I, A), I, T:I, A...)
+    : PostComponentFactory!(I, A)
 {
     private
     {
-        ComponentFactory!(I, A) _factory;
+        F _factory;
         ApplicationContainer _container;
     }
 
 
-    this(ApplicationContainer container, ComponentFactory!(I, A) factory)
+    this(ApplicationContainer container, F factory)
     {
         this._container = container;
         this._factory = factory;
@@ -241,11 +259,28 @@ class AutowirePostComponentFactory(I, T:I, A...) : PostComponentFactory!(I, A)
     I create(Properties config, A args)
     {
         auto ret = cast(T)_factory.createComponent(config, args);
+        static if (is (F : InitializingFactory!(I, A)))
+            ret = cast(T)_factory.initializeComponent(ret, config, args);
         _container.autowire!T(ret);
         return ret;
     }
 }
 
+
+Registration registerFactory(F : ComponentFactory!(I, A), T:I, I, A...)(
+        ApplicationContainer container, F factoryFunctor,
+        RegistrationOption options = RegistrationOption.none)
+{
+    auto factory = new AutowirePostComponentFactory!(F, I, T, A)(container, factoryFunctor);
+    static if (is(F : Named) && __traits(compiles, F.NAME))
+        return container.registerNamed!(PostComponentFactory!(I, A),
+                AutowirePostComponentFactory!(F, I, T, A), F.NAME)(options)
+            .existingInstance(factory);
+    else
+        return container.register!(PostComponentFactory!(I, A),
+                AutowirePostComponentFactory!(F, I, T, A))(options)
+            .existingInstance(factory);
+}
 
 /**
  * Регистрация фабрики компонентов в контейнер
@@ -260,16 +295,7 @@ Registration registerFactory(F : ComponentFactory!(I, A), T:I, I, A...)(
 {
     auto factoryFunctor = new F();
     container.autowire(factoryFunctor);
-    auto factory = new AutowirePostComponentFactory!(I, T, A)(container, factoryFunctor);
-
-    static if (is(F : Named) && __traits(compiles, F.NAME))
-        return container.registerNamed!(PostComponentFactory!(I, A),
-                AutowirePostComponentFactory!(I, T, A), F.NAME)(options)
-            .existingInstance(factory);
-    else
-        return container.register!(PostComponentFactory!(I, A),
-                AutowirePostComponentFactory!(I, T, A))(options)
-            .existingInstance(factory);
+    return registerFactory!(F, T, I, A)(container, factoryFunctor, options);
 }
 
 

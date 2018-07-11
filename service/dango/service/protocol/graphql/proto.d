@@ -18,7 +18,7 @@ private
 /**
  * Протокол GraphQL
  */
-class GraphQLServerProtocol : BaseServerProtocol!"GRAPHQL"
+class GraphQLServerProtocol : BaseServerProtocol
 {
     this(Serializer serializer)
     {
@@ -34,18 +34,12 @@ class GraphQLServerProtocol : BaseServerProtocol!"GRAPHQL"
 
 
 
-class GraphQLServerProtocolFactory : BaseServerProtocolFactory!GraphQLServerProtocol
+class GraphQLServerProtocolFactory : BaseServerProtocolFactory!"GRAPHQL"
 {
-    this(ApplicationContainer container)
+    ServerProtocol createComponent(Properties config, ApplicationContainer container,
+            Serializer serializer)
     {
-        super(container);
-    }
-
-
-    override GraphQLServerProtocol create(Serializer serializer, Properties config)
-    {
-        auto ret = new GraphQLServerProtocol(serializer);
-        return ret;
+        return new GraphQLServerProtocol(serializer);
     }
 }
 

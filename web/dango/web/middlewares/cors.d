@@ -137,9 +137,7 @@ class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory!("CORS")
             headers ~= h.get.toLower;
         }
 
-        auto ret = new CorsWebMiddleware(origins, methods, headers);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
+        return new CorsWebMiddleware(origins, methods, headers);
     }
 
 

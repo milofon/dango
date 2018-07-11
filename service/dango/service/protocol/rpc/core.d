@@ -21,7 +21,7 @@ private
 
     import vibe.core.log;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
     import dango.service.serialization;
@@ -49,8 +49,7 @@ interface RpcServerProtocol
 /**
  * Базовый протокол RPC
  */
-abstract class BaseRpcServerProtocol(string NAME) :
-    BaseServerProtocol!NAME, RpcServerProtocol
+abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
 {
     private
     {
@@ -103,6 +102,7 @@ abstract class BaseRpcServerProtocol(string NAME) :
 
 
 protected:
+
 
     UniNode createErrorHeader(UniNode* id, int code, string msg, UniNode data);
 
@@ -210,17 +210,13 @@ private:
 /**
  * Фабрика протокола RPC
  */
-class RpcServerProtocolFactory(T : RpcServerProtocol) : BaseServerProtocolFactory!(T)
+class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
+        : BaseServerProtocolFactory!(N)
 {
-    this(ApplicationContainer container)
+    ServerProtocol createComponent(Properties config, ApplicationContainer container,
+            Serializer serializer)
     {
-        super(container);
-    }
-
-
-    override T create(Serializer serializer, Properties config)
-    {
-        auto ret = super.create(serializer);
+        auto ret = new CType(serializer);
 
         foreach (Properties ctrConf; config.getArray("controller"))
         {
@@ -232,6 +228,8 @@ class RpcServerProtocolFactory(T : RpcServerProtocol) : BaseServerProtocolFactor
                     fmt!"RPC controller '%s' not register"(ctrName));
 
             RpcController ctrl = ctrlFactory.create(ctrConf);
+            configEnforce(ctrl !is null,
+                    fmt!"RPC controller factory '%s' return null"(ctrName));
 
             if (ctrl.enabled)
             {

@@ -18,7 +18,7 @@ public
 
 private
 {
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.service.types;
 }
@@ -27,7 +27,7 @@ private
 /**
  * Интерфейс серверного транспортного уровня
  */
-interface ServerTransport : Named
+interface ServerTransport
 {
     /**
      * Запуск транспортного уровня
@@ -44,17 +44,11 @@ interface ServerTransport : Named
 
 
 /**
- * Базовый класс серверного транспортного уровня
+ * Базовый класс фабрики серверного транспортного уровня
  */
-abstract class BaseServerTransport(string N) : ServerTransport
+abstract class BaseServerTransportFactory(string N) : ComponentFactory!(
+        ServerTransport, ApplicationContainer, ServerProtocol), Named
 {
     mixin NamedMixin!N;
 }
-
-
-/**
- * Базовый класс фабрики серверного транспортного уровня
- */
-alias BaseServerTransportFactory(T : ServerTransport) = AutowireComponentFactory!(
-        ServerTransport, T, ServerProtocol);
 

@@ -16,14 +16,14 @@ private
 
     import vibe.data.json;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.service.types;
     import dango.service.serialization.core;
 }
 
 
 
-class JsonSerializer : BaseSerializer!"JSON"
+class JsonSerializer : Serializer
 {
     UniNode deserialize(Bytes bytes)
     {
@@ -42,9 +42,9 @@ class JsonSerializer : BaseSerializer!"JSON"
 
 
 
-class JsonSerializerFactory : BaseSerializerFactory!JsonSerializer
+class JsonSerializerFactory : BaseSerializerFactory!("JSON")
 {
-    override JsonSerializer create(Properties config)
+    Serializer createComponent(Properties config)
     {
         return new JsonSerializer();
     }

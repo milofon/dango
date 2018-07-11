@@ -101,9 +101,7 @@ class FilesWebControllerFactory : BaseWebControllerFactory!("FILES")
         string prefix = config.getOrEnforce!string("prefix",
                 "Not defined prefix parameter");
 
-        auto ret = new FilesWebController(path, prefix);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
+        return new FilesWebController(path, prefix);
     }
 }
 

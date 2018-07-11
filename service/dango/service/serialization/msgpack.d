@@ -16,14 +16,14 @@ private
     import proped : Properties;
     import msgpack;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.service.types;
     import dango.service.serialization.core;
 }
 
 
 
-class MsgPackSerializer : BaseSerializer!"MSGPACK"
+class MsgPackSerializer : Serializer
 {
     private bool _withFieldName;
 
@@ -59,9 +59,9 @@ class MsgPackSerializer : BaseSerializer!"MSGPACK"
 
 
 
-class MsgPackSerializerFactory : BaseSerializerFactory!MsgPackSerializer
+class MsgPackSerializerFactory : BaseSerializerFactory!"MSGPACK"
 {
-    override MsgPackSerializer create(Properties config)
+    Serializer createComponent(Properties config)
     {
         auto withFieldName = config.getOrElse!bool("withFieldName", false);
         MsgPackSerializer ret = new MsgPackSerializer(withFieldName);

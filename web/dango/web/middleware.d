@@ -69,9 +69,17 @@ abstract class BaseWebMiddleware : WebMiddleware
 /**
  * Базовая фабрика для web контроллеров
  */
-abstract class BaseWebMiddlewareFactory(string N) : ComponentFactory!(WebMiddleware), Named
+abstract class BaseWebMiddlewareFactory(string N)
+        : ComponentFactory!(WebMiddleware), InitializingFactory!(WebMiddleware), Named
 {
     mixin NamedMixin!N;
+
+
+    WebMiddleware initializeComponent(WebMiddleware component, Properties config)
+    {
+        component.enabled = config.getOrElse!bool("enabled", false);
+        return component;
+    }
 }
 
 

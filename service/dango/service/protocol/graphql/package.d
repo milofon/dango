@@ -9,6 +9,6 @@ module dango.service.protocol.graphql;
 
 public
 {
-    import dango.service.protocol.graphql.proto : GraphQLServerProtocolFactory;
+    import dango.service.protocol.graphql.proto;
 }
 

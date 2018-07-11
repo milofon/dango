@@ -10,14 +10,12 @@ module dango.service.transport.web;
 private
 {
     import dango.system.container;
-    import dango.system.component;
 
     import dango.web.server : WebApplicationServerFactory, WebApplicationServer;
     import dango.web.middlewares;
     import dango.web.controllers;
 
-    import dango.service.transport.core : ServerTransport;
-    import dango.service.transport.web.transport : WebServerTransportFactory;
+    import dango.service.transport.web.transport;
 }
 
 
@@ -28,11 +26,12 @@ class WebTransportContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(WebApplicationServer, WebApplicationServerFactory);
+        container.registerFactory!(WebApplicationServerFactory, WebApplicationServer);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
 
-        container.registerFactory!(ServerTransport, WebServerTransportFactory);
+        container.registerFactory!(WebServerTransportFactory,
+                WebServerTransport);
     }
 }
 

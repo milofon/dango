@@ -76,9 +76,7 @@ class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("BASEAUTH")
                 "Not defined password parameter").strip;
         string realm = config.getOrElse!string("realm", "");
 
-        auto ret = new BaseAuthWebMiddleware(username, password, realm);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
+        return new BaseAuthWebMiddleware(username, password, realm);
     }
 }
 

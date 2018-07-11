@@ -18,10 +18,9 @@ public
 private
 {
     import dango.system.container;
-    import dango.system.component;
 
-    import dango.service.serialization.json : JsonSerializerFactory;
-    import dango.service.serialization.msgpack : MsgPackSerializerFactory;
+    import dango.service.serialization.json;
+    import dango.service.serialization.msgpack;
 }
 
 
@@ -32,8 +31,8 @@ class SerializerContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(Serializer, JsonSerializerFactory);
-        container.registerFactory!(Serializer, MsgPackSerializerFactory);
+        container.registerFactory!(JsonSerializerFactory, JsonSerializer);
+        container.registerFactory!(MsgPackSerializerFactory, MsgPackSerializer);
     }
 }
 

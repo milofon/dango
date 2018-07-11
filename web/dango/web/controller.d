@@ -157,8 +157,16 @@ abstract class BaseWebController : WebController
  * Params:
  * CType = Тип контроллера
  */
-abstract class BaseWebControllerFactory(string N) : ComponentFactory!(WebController), Named
+abstract class BaseWebControllerFactory(string N)
+    : ComponentFactory!(WebController), InitializingFactory!(WebController), Named
 {
     mixin NamedMixin!N;
+
+
+    WebController initializeComponent(WebController component, Properties config)
+    {
+        component.enabled = config.getOrElse!bool("enabled", false);
+        return component;
+    }
 }
 

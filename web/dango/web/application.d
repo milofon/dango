@@ -53,7 +53,7 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
 {
     private
     {
-        WebApplicationServer _server;
+        WebApplicationServer[] _servers;
     }
 
 
@@ -86,18 +86,23 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
 
         foreach (Properties webConf; webConfigs.getArray())
         {
-            auto container = createContainer(webConf);
-            auto serverFactory = container.resolveFactory!(WebApplicationServer,
-                    ApplicationContainer);
-            _server = serverFactory.create(webConf, container);
-            _server.listen();
+            if (webConf.getOrElse("enabled", false))
+            {
+                auto container = createContainer(webConf);
+                auto serverFactory = container.resolveFactory!(WebApplicationServer,
+                        ApplicationContainer);
+                auto server = serverFactory.create(webConf, container);
+                server.listen();
+                _servers ~= server;
+            }
         }
     }
 
 
     final int finalizeDaemon(int exitCode)
     {
-        _server.shutdown();
+        foreach (WebApplicationServer server; _servers)
+            server.shutdown();
         return finalizeWebApplication(exitCode);
     }
 }

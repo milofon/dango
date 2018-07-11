@@ -19,7 +19,7 @@ private
 /**
  * Протокол JsonRPC
  */
-class JsonRpcServerProtocol : BaseRpcServerProtocol!"JSONRPC"
+class JsonRpcServerProtocol : BaseRpcServerProtocol
 {
     this(Serializer serializer)
     {
@@ -55,4 +55,8 @@ class JsonRpcServerProtocol : BaseRpcServerProtocol!"JSONRPC"
         return UniNode(response);
     }
 }
+
+
+alias JsonRpcServerProtocolFactory = RpcServerProtocolFactory!(
+                JsonRpcServerProtocol, "JSONRPC");
 

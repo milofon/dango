@@ -17,7 +17,7 @@ private
 
 
 
-class PlainRpcServerProtocol : BaseRpcServerProtocol!"PLAIN"
+class PlainRpcServerProtocol : BaseRpcServerProtocol
 {
     this(Serializer serializer)
     {
@@ -51,4 +51,9 @@ class PlainRpcServerProtocol : BaseRpcServerProtocol!"PLAIN"
         return UniNode(response);
     }
 }
+
+
+
+alias PlainRpcServerProtocolFactory = RpcServerProtocolFactory!(
+                PlainRpcServerProtocol, "PLAIN");
 

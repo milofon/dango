@@ -19,7 +19,7 @@ private
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
     import dango.service.types;
@@ -40,7 +40,7 @@ struct ZeroMQTransportSettings
 /**
  * Транспорт использующий функционал ZeroMQ
  */
-class ZeroMQServerTransport : BaseServerTransport!"ZEROMQ"
+class ZeroMQServerTransport : ServerTransport
 {
     private
     {
@@ -134,18 +134,12 @@ class ZeroMQServerTransport : BaseServerTransport!"ZEROMQ"
 /**
  * Фабрика транспорта использующий функционал ZeroMQ
  */
-class ZeroMQServerTransportFactory : BaseServerTransportFactory!ZeroMQServerTransport
+class ZeroMQServerTransportFactory : BaseServerTransportFactory!("ZEROMQ")
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
-
-
-    override ZeroMQServerTransport create(ServerProtocol protocol, Properties config)
+    ServerTransport createComponent(Properties config, ApplicationContainer container,
+            ServerProtocol protocol)
     {
         auto ret = new ZeroMQServerTransport(protocol, loadServiceSettings(config));
-        container.autowire(ret);
         return ret;
     }
 }

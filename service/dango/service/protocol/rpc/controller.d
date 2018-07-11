@@ -19,7 +19,7 @@ private
 
     import vibe.core.log : logInfo;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.system.traits;
 
     import dango.service.protocol.rpc.error;
@@ -119,23 +119,11 @@ abstract class BaseRpcController : RpcController
 
 
 /**
- * Базовый класс RPC контроллера с возможностью именования
- * Params:
- * N = Имя контроллера
- */
-abstract class NamedBaseRpcController(string N) : BaseRpcController, Named
-{
-    mixin NamedMixin!N;
-}
-
-
-/**
  * Базовый класс rpc контроллера
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericRpcController(CType, IType, string N)
-    : NamedBaseRpcController!N, IType
+abstract class GenericRpcController(CType, IType) : BaseRpcController
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -192,21 +180,16 @@ abstract class GenericRpcController(CType, IType, string N)
  * Params:
  * CType = Тип контроллера
  */
-class BaseRpcControllerFactory(CType : RpcController) : AutowireComponentFactory!(
-        RpcController, CType)
+abstract class BaseRpcControllerFactory(string N)
+    : ComponentFactory!RpcController, InitializingFactory!(RpcController), Named
 {
-    this(ApplicationContainer container)
-    {
-        super(container);
-    }
+    mixin NamedMixin!N;
 
 
-    override CType create(Properties config)
+    RpcController initializeComponent(RpcController component, Properties config)
     {
-        auto ret = new CType();
-        container.autowire(ret);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
+        component.enabled = config.getOrElse!bool("enabled", false);
+        return component;
     }
 }
 

@@ -20,14 +20,14 @@ public
 
 private
 {
-    import dango.system.component;
+    import dango.system.container;
 }
 
 
 /**
  * Интерфейс серверного протокола взаимодействия
  */
-interface ServerProtocol : Named
+interface ServerProtocol
 {
     /**
      * Метод-обработик входящейго запроса
@@ -40,12 +40,10 @@ interface ServerProtocol : Named
 
 
 
-abstract class BaseServerProtocol(string N) : ServerProtocol
+abstract class BaseServerProtocol : ServerProtocol
 {
-    mixin NamedMixin!N;
-
-
     protected Serializer serializer;
+
 
     this(Serializer serializer)
     {
@@ -55,6 +53,9 @@ abstract class BaseServerProtocol(string N) : ServerProtocol
 
 
 
-alias BaseServerProtocolFactory(T : ServerProtocol) = AutowireComponentFactory!(
-        ServerProtocol, T, Serializer);
+abstract class BaseServerProtocolFactory(string N) :
+    ComponentFactory!(ServerProtocol, ApplicationContainer, Serializer), Named
+{
+    mixin NamedMixin!N;
+}
 

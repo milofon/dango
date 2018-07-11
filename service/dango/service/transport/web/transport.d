@@ -11,20 +11,21 @@ module dango.service.transport.web.transport;
 
 private
 {
-    import dango.system.component;
+    import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
-
+    import dango.web.controller : WebController;
     import dango.web.server : WebApplicationServer;
+
     import dango.service.transport.core;
-    import dango.service.transport.web.controller : RpcWebControllerFactory;
+    import dango.service.transport.web.controller;
 }
 
 
 /**
  * Серверный транспорт использующий функционал HTTP
  */
-class WebServerTransport : BaseServerTransport!("WEB")
+class WebServerTransport : ServerTransport
 {
     private
     {
@@ -52,24 +53,20 @@ class WebServerTransport : BaseServerTransport!("WEB")
 
 
 
-class WebServerTransportFactory : BaseServerTransportFactory!WebServerTransport
+class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
 {
-    this(ApplicationContainer container)
+    ServerTransport createComponent(Properties config, ApplicationContainer container,
+            ServerProtocol protocol)
     {
-        super(container);
-    }
+        auto rpcFactory = new RpcWebControllerFactory(protocol);
+        container.registerFactory!(RpcWebControllerFactory,
+                RpcWebController)(rpcFactory);
 
+        auto serverFactory = container.resolveFactory!(WebApplicationServer,
+                ApplicationContainer);
+        auto server = serverFactory.create(config, container);
 
-    override WebServerTransport create(ServerProtocol protocol, Properties config)
-    {
-        auto rpcControllerFactory = new RpcWebControllerFactory(protocol, container);
-        rpcControllerFactory.registerFactory();
-
-        auto serverFactory = container.resolveFactory!WebApplicationServer;
-        auto server = serverFactory.create(config);
-        auto ret = new WebServerTransport(server);
-        container.autowire(ret);
-        return ret;
+        return new WebServerTransport(server);
     }
 }
 

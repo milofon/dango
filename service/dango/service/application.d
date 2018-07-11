@@ -20,7 +20,7 @@ private
 
     import dango.system.properties : getOrEnforce, getNameOrEnforce;
     import dango.system.exception : configEnforce;
-    import dango.system.component : resolveFactory;
+    import dango.system.container : resolveFactory;
 
     import dango.service.serialization;
     import dango.service.protocol;
@@ -29,9 +29,30 @@ private
 
 
 /**
+ * Приложение позволяет инициализировать веб приложение
+ */
+interface ServiceApplication : DaemonApplication
+{
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeServiceApplication(Properties config);
+
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeServiceApplication(int exitCode);
+}
+
+
+/**
  * Приложение позволяет использовать с сервисами
  */
-abstract class ServiceApplication : DaemonApplication
+abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplication
 {
     private ServerTransport[] _transports;
 
@@ -48,19 +69,17 @@ abstract class ServiceApplication : DaemonApplication
     }
 
 
-    override final void initDependencies(ApplicationContainer container, Properties config)
+    void initializeGlobalDependencies(ApplicationContainer container, Properties config)
     {
         container.registerContext!SerializerContext;
         container.registerContext!ProtocolContext;
         container.registerContext!TransportContext;
-
-        initServiceDependencies(container, config);
     }
 
 
-    override void initializeDaemon(Properties config)
+    final void initializeDaemon(Properties config)
     {
-        initializeService(config);
+        initializeServiceApplication(config);
 
         auto sConfgs = config.getOrEnforce!Properties("service",
                 "Not found service configurations");
@@ -69,7 +88,8 @@ abstract class ServiceApplication : DaemonApplication
         {
             if (servConf.getOrElse("enabled", false))
             {
-                auto tr = createServiceTransport(servConf);
+                auto container = createContainer(servConf);
+                auto tr = createServiceTransport(container, servConf);
                 tr.listen();
                 _transports ~= tr;
             }
@@ -77,46 +97,19 @@ abstract class ServiceApplication : DaemonApplication
     }
 
 
-    override int finalizeDaemon(int exitCode)
+    final int finalizeDaemon(int exitCode)
     {
         foreach (ServerTransport tr; _transports)
             tr.shutdown();
-        return finalizeService(exitCode);
+        return finalizeServiceApplication(exitCode);
     }
-
-
-protected:
-
-
-    /**
-     * Регистрация зависимостей сервиса
-     * Params:
-     * container = DI контейнер
-     * config = Общая конфигурация приложения
-     */
-    void initServiceDependencies(ApplicationContainer container, Properties config);
-
-
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeService(Properties config);
-
-
-    /**
-     * Завершение работы сервиса
-     * Params:
-     * exitCode = Код возврата
-     */
-    int finalizeService(int exitCode);
 
 
 private:
 
 
-    ServerTransport createServiceTransport(Properties servConf)
+    ServerTransport createServiceTransport(ApplicationContainer container,
+            Properties servConf)
     {
         string serviceName = servConf.getOrElse!string("name", "Undefined");
         logInfo("Configuring service '%s'", serviceName);
@@ -141,21 +134,21 @@ private:
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         Serializer serializer = serFactory.create(serConf);
-        logInfo("Use serializer %s", serializerName);
+        logInfo("Use serializer '%s'", serializerName);
 
         auto protoFactory = container.resolveFactory!(ServerProtocol,
-                Serializer)(protoName);
+                ApplicationContainer, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
-        ServerProtocol protocol = protoFactory.create(serializer, protoConf);
-        logInfo("Use protocol %s", protoName);
+        ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
+        logInfo("Use protocol '%s'", protoName);
 
         auto trFactory = container.resolveFactory!(ServerTransport,
-                ServerProtocol)(transportName);
+                ApplicationContainer, ServerProtocol)(transportName);
         configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
-        ServerTransport transport = trFactory.create(protocol, trConf);
-        logInfo("Use transport %s", transportName);
+        ServerTransport transport = trFactory.create(trConf, container, protocol);
+        logInfo("Use transport '%s'", transportName);
 
         return transport;
     }

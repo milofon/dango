@@ -29,7 +29,7 @@ private
         vSerialize = serialize,
         vDeserialize = deserialize;
 
-    import dango.system.component;
+    import dango.system.container;
     import dango.service.types;
 }
 
@@ -37,7 +37,7 @@ private
 /**
  * Основной интерфейс сериализатор
  */
-interface Serializer : Named
+interface Serializer
 {
     /**
      * Сериализация объекта языка в массив байт
@@ -80,19 +80,12 @@ interface Serializer : Named
 
 
 /**
- * Базовый класс сериализатор
+ * Базовая фабрика сериализатора
  */
-abstract class BaseSerializer(string N) : Serializer
+abstract class BaseSerializerFactory(string N) : ComponentFactory!Serializer, Named
 {
     mixin NamedMixin!N;
 }
-
-
-/**
- * Базовая фабрика сериализатора
- */
-alias BaseSerializerFactory(SType : Serializer) = SimpleComponentFactory!(
-        Serializer, SType);
 
 
 /**

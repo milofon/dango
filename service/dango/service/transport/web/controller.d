@@ -16,8 +16,7 @@ private
     import vibe.stream.operations : readAll;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.container : registerNamed;
-    import dango.system.component;
+    import dango.system.container;
 
     import dango.web.controller;
     import dango.service.protocol;
@@ -27,7 +26,7 @@ private
 /**
  * Класс контроллера RPC
  */
-class RpcWebController : NamedBaseWebController!"RPC"
+class RpcWebController : BaseWebController
 {
     private
     {
@@ -93,23 +92,20 @@ class RpcChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class RpcWebControllerFactory : ComponentFactory!(WebController)
+class RpcWebControllerFactory : ComponentFactory!(WebController), Named
 {
-    private
-    {
-        ApplicationContainer _container;
-        ServerProtocol _protocol;
-    }
+    mixin NamedMixin!"RPC";
+
+    private ServerProtocol _protocol;
 
 
-    this(ServerProtocol protocol, ApplicationContainer container)
+    this(ServerProtocol protocol)
     {
-        this._container = container;
         this._protocol = protocol;
     }
 
 
-    override RpcWebController create(Properties config)
+    WebController createComponent(Properties config)
     {
         auto entrypoint = config.getOrEnforce!string("entrypoint",
                 "Not defined entrypoint in configuration transport web");
@@ -117,14 +113,6 @@ class RpcWebControllerFactory : ComponentFactory!(WebController)
         auto ret = new RpcWebController(_protocol, entrypoint);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
-    }
-
-
-    Registration registerFactory()
-    {
-        enum NAME = RpcWebController.NAME;
-        return _container.registerNamed!(ComponentFactory!(WebController),
-                RpcWebControllerFactory, NAME).existingInstance(this);
     }
 }
 
