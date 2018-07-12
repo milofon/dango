@@ -11,10 +11,12 @@ module dango.web.controller;
 
 public
 {
-    import dango.web.middleware : WebMiddleware;
+    import proped : Properties;
 
     import vibe.http.server : HTTPMethod, HTTPServerRequestHandler,
             HTTPServerRequestDelegate, HTTPServerRequest, HTTPServerResponse;
+
+    import dango.web.middleware : WebMiddleware;
 
     import dango.web.controllers.generic;
 }

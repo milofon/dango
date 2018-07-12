@@ -27,6 +27,7 @@ private
     import dango.system.container;
     import dango.system.traits;
 
+    import dango.service.protocol.rpc.doc;
     import dango.service.protocol.rpc.error;
     import dango.service.serialization : UniNode,
            marshalObject, unmarshalObject;
@@ -109,6 +110,13 @@ interface RpcController : Activated
      * dg = Функция регистрации цепочки
      */
     void registerHandlers(RegisterHandler hdl);
+
+    /**
+     * Регистрация документации метода
+     * Params:
+     * dg = Функция обработки документации
+     */
+    void registerDocumentation(RegisterDoc hdl);
 }
 
 
@@ -128,13 +136,10 @@ abstract class BaseRpcController : RpcController
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericRpcController(CType, IType) : BaseRpcController
+abstract class GenericRpcController(IType) : BaseRpcController, IType
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
-
-    static assert(is(CType == class),
-            CType.stringof ~ " is not class");
 
     static assert(hasUDA!(IType, Controller),
             IType.stringof ~ " is not marked with a Controller");
@@ -146,15 +151,25 @@ abstract class GenericRpcController(CType, IType) : BaseRpcController
 
     void registerHandlers(RegisterHandler hdl)
     {
-        CType controller = cast(CType)this;
         foreach(Member; Handlers)
         {
             enum udas = getUDAs!(Member, Method);
             enum fName = __traits(identifier, Member);
             auto HDL = GenerateHandlerFromMethod!(
-                    __traits(getMember, controller, fName))(
-                    &__traits(getMember, controller, fName));
+                    __traits(getMember, this, fName))(
+                    &__traits(getMember, this, fName));
             hdl(FullMethodName!(IType, udas[0].method), HDL);
+        }
+    }
+
+
+    void registerDocumentation(RegisterDoc hdl)
+    {
+        foreach(Member; Handlers)
+        {
+            enum udas = getUDAs!(Member, Method);
+            enum name = FullMethodName!(IType, udas[0].method);
+            hdl(generateDocumentation!(IType, name, Member)());
         }
     }
 

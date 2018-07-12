@@ -20,6 +20,8 @@ private
 
     import dango.service.protocol.rpc.plain;
     import dango.service.protocol.rpc.jsonrpc;
+
+    import dango.service.protocol.rpc.doc.web;
 }
 
 
@@ -36,6 +38,9 @@ class ProtocolContext : ApplicationContext
                 PlainRpcServerProtocol);
         container.registerFactory!(JsonRpcServerProtocolFactory,
                 JsonRpcServerProtocol);
+
+        container.registerFactory!(RpcDocumentationWebControllerFactory,
+                RpcDocumentationWebController);
     }
 }
 

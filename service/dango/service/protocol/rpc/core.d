@@ -18,6 +18,7 @@ private
 {
     import std.string : strip;
     import std.format : fmt = format;
+    import std.array : appender;
 
     import vibe.core.log;
 
@@ -28,6 +29,7 @@ private
     import dango.service.protocol.core;
     import dango.service.protocol.rpc.controller;
     import dango.service.protocol.rpc.error;
+    import dango.service.protocol.rpc.doc;
 }
 
 
@@ -234,6 +236,14 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             if (ctrl.enabled)
             {
                 ctrl.registerHandlers(&ret.registerHandler);
+
+                auto docs = appender!(MethodDoc[]);
+                ctrl.registerDocumentation(&docs.put!MethodDoc);
+
+                ret.registerHandler("__doc", (params) {
+                        return marshalObject(docs.data);
+                    });
+
                 logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
             }
         }

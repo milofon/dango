@@ -1,0 +1,41 @@
+doctype html
+html
+    head
+        title Dango RPC documentation
+        script(src="https://code.jquery.com/jquery-3.2.1.min.js", integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=", crossorigin="anonymous")
+        link(href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css", rel="stylesheet", integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u", crossorigin="anonymous")
+        script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js", integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa", crossorigin="anonymous")
+
+        :css
+            #box .method {
+                font-size: 22px;
+            }
+    body
+        div#box
+
+        :javascript
+            var getDoc = function(entrypoint, callback) {
+                $.ajax(entrypoint, {
+                    method: "POST",
+                    contentType: "application/json; charset=UTF-8",
+                    data: JSON.stringify({"id": 1, "method": "__doc", "params": {}}),
+                    dataType: "json",
+                }).done(function (res) {
+                    callback(res.result);
+                });
+            };
+
+            var createDocItem = function(docItem) {
+                var method = docItem.method;
+                var content = docItem.content;
+                return $("<div class='item'><span class='method'>" + method + "</span><pre class='content'>" + content + "</pre></div>");
+            };
+
+            $(document).ready(function() {
+                getDoc("!{entrypoint}", function(docs) {
+                    var box = $("#box");
+                    $.each(docs, function(idx, docItem) {
+                        box.append(createDocItem(docItem));
+                    });
+                });
+            });
