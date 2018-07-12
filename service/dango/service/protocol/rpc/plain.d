@@ -31,7 +31,8 @@ class PlainRpcServerProtocol : BaseRpcServerProtocol
         response["id"] = (id is null) ? UniNode() : *id;
         UniNode[string] err;
 
-        err["data"] = data;
+        if (data.type != UniNode.Type.nil)
+            err["data"] = data;
         err["code"] = UniNode(code);
         err["message"] = UniNode(msg);
 

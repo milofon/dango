@@ -34,7 +34,8 @@ class JsonRpcServerProtocol : BaseRpcServerProtocol
         response["id"] = UniNode();
         UniNode[string] err;
 
-        err["data"] = data;
+        if (data.type != UniNode.Type.nil)
+            err["data"] = data;
         err["code"] = UniNode(code);
         err["message"] = UniNode(msg);
 

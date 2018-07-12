@@ -11,5 +11,6 @@ public
 {
     import dango.service.protocol.rpc.doc;
     import dango.service.protocol.rpc.controller;
+    import dango.service.protocol.rpc.error : RpcException;
 }
 
