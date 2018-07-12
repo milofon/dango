@@ -41,31 +41,6 @@ class RpcDocumentationWebController : BaseWebController
     void registerChains(ChainRegister dg)
     {
         dg(new RpcDocChain(_path, _entrypoint));
-        dg(new class BaseChain {
-                this()
-                {
-                    super((scope HTTPServerRequest req, scope HTTPServerResponse res){
-                                res.writeBody("I am v2");
-                            });
-                }
-
-
-                HTTPMethod method() @property
-                {
-                    return HTTPMethod.PUT;
-                }
-
-
-                string path() @property
-                {
-                    return "/v2";
-                }
-
-                void attachMiddleware(WebMiddleware mdw)
-                {
-                    pushMiddleware(mdw);
-                }
-            });
     }
 }
 
