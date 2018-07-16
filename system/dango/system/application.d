@@ -57,28 +57,6 @@ interface Application
     SemVer release() @property pure nothrow;
 
     /**
-     * Получение аргументов из командной строки
-     *
-     * Params:
-     * processor = Объект для разбора командной строки
-     *
-     * Returns: Успешность получения свойств
-     */
-    bool parseCommandLine(CommandLineProcessor processor);
-
-    /**
-     * Возвращает строку помощи для консоли
-     */
-    string helpText() @property;
-}
-
-
-/**
- * Интерфейс приложения с возможностью конфигурирования
- */
-interface ConfigurableApplication : Application
-{
-    /**
      * Функция загружает свойства из файла при помощи локального загрузчика
      * Params:
      *
@@ -89,60 +67,22 @@ interface ConfigurableApplication : Application
     Properties loadProperties(string filePath);
 
     /**
-     * Возвращает пути до файлов по-умолчанию
+     * Контейнер DI приложения
      */
-    string[] getDefaultConfigFiles();
-
-    /**
-     * Запуск приложения
-     *
-     * Params:
-     * config = Входящие параметры
-     *
-     * Returns: Код завершения работы приложения
-     */
-    int runApplication(Properties config);
-}
-
-
-/**
- * Интерфейс приложения с возможностью инициализировать зависимости
- */
-interface DependenciesApplication : ConfigurableApplication
-{
-    /**
-     * Инициализация зависимостей
-     *
-     * Params:
-     * container = Контейнер DI
-     * config = Конфигурация
-     */
-    void initializeDependencies(ApplicationContainer container, Properties config);
-
-    /**
-     * Инициализация зависимостей с глобальным конфигом
-     *
-     * Params:
-     * container = Контейнер DI
-     * config = Конфигурация
-     */
-    void initializeGlobalDependencies(ApplicationContainer container, Properties config);
+    ApplicationContainer container() @property pure nothrow;
 }
 
 
 /**
  * Базовый класс приложения
  */
-abstract class BaseApplication : DependenciesApplication
+abstract class BaseApplication : Application
 {
     private
     {
         string _applicationName;
         SemVer _applicationVersion;
-
-        Properties _config;
-
-        string[] _configFiles;
+        ApplicationContainer _container;
         Loader _propLoader;
     }
 
@@ -157,46 +97,8 @@ abstract class BaseApplication : DependenciesApplication
     {
         _applicationName = name;
         _applicationVersion = _version;
-    }
-
-    /**
-     * See_Also: Application.run
-     */
-    final int run(string[] args)
-    {
-        // иницмализируем зависимости
-        auto container = new ApplicationContainer();
         _propLoader = createPropertiesLoader();
-
-        // загружаем параметры командной строки
-        auto cProcessor = new CommandLineProcessor(args);
-        if (!doParseCommandLine(cProcessor))
-            return 1;
-
-        if (_configFiles.empty)
-            _configFiles = getDefaultConfigFiles();
-
-        foreach(string cFile; _configFiles)
-            _config ~= loadProperties(cFile);
-
-        _config ~= cProcessor.getOptionProperties();
-        _config ~= cProcessor.getEnvironmentProperties();
-
-        initApplicationDependencies(container, _config);
-        configureLogging(container, _config, &registerLogger);
-
-        return runApplication(_config);
-    }
-
-    /**
-     * Создает новый контейнер на основе конфигурации
-     */
-    ApplicationContainer createContainer(Properties config)
-    {
-        auto container = new ApplicationContainer();
-        initializeGlobalDependencies(container, _config);
-        initializeDependencies(container, config);
-        return container;
+        _container = new ApplicationContainer();
     }
 
 
@@ -212,6 +114,44 @@ abstract class BaseApplication : DependenciesApplication
     }
 
 
+    ApplicationContainer container() @property pure nothrow
+    {
+        return _container;
+    }
+
+
+    /**
+     * See_Also: Application.run
+     */
+    final int run(string[] args)
+    {
+        string[] configFiles;
+
+        // загружаем параметры командной строки
+        auto cProcessor = new CommandLineProcessor(args);
+        if (!doParseCommandLine(cProcessor, configFiles))
+            return 1;
+
+        if (configFiles.empty)
+            configFiles = getDefaultConfigFiles();
+
+        Properties config;
+        foreach(string cFile; configFiles)
+            config ~= loadProperties(cFile);
+
+        config ~= cProcessor.getOptionProperties();
+        config ~= cProcessor.getEnvironmentProperties();
+
+        // иницмализируем зависимостей
+        doInitializeDependencies(config);
+        configureLogging(container, config, &registerLogger);
+
+        initializeDependencies(container, config);
+
+        return runApplication(config);
+    }
+
+
     Properties loadProperties(string filePath)
     {
         if (_propLoader is null)
@@ -220,33 +160,71 @@ abstract class BaseApplication : DependenciesApplication
     }
 
 
+protected:
+
+    /**
+     * Запуск приложения
+     *
+     * Params:
+     * config = Входящие параметры
+     *
+     * Returns: Код завершения работы приложения
+     */
+    int runApplication(Properties config);
+
+    /**
+     * Получение аргументов из командной строки
+     *
+     * Params:
+     * processor = Объект для разбора командной строки
+     *
+     * Returns: Успешность получения свойств
+     */
+    bool parseCommandLine(CommandLineProcessor processor)
+    {
+        return true;
+    }
+
+    /**
+     * Возвращает строку помощи для консоли
+     */
     string helpText() @property
     {
         return _applicationName;
     }
 
-
-    bool parseCommandLine(CommandLineProcessor processor)
+    /**
+     * Возвращает пути до файлов по-умолчанию
+     */
+    string[] getDefaultConfigFiles()
     {
-        return true;
+        return [];
+    }
+
+    /**
+     * Инициализация зависимостей
+     *
+     * Params:
+     * container = Контейнер DI
+     * config = Конфигурация
+     */
+    void initializeDependencies(ApplicationContainer container, Properties config);
+
+
+    void doInitializeDependencies(Properties config)
+    {
+        container.register!(Application, typeof(this)).existingInstance(this);
+        container.registerContext!PropertiesContext;
+        container.registerContext!LoggingContext;
     }
 
 
 private:
 
 
-    void initApplicationDependencies(ApplicationContainer container, Properties config)
+    bool doParseCommandLine(CommandLineProcessor processor, ref string[] configFiles)
     {
-        container.register!(Application, typeof(this)).existingInstance(this);
-
-        container.registerContext!PropertiesContext;
-        container.registerContext!LoggingContext;
-    }
-
-
-    bool doParseCommandLine(CommandLineProcessor processor)
-    {
-        processor.readOption("config|c", &_configFiles, "Конфигурационный файл");
+        processor.readOption("config|c", &configFiles, "Конфигурационный файл");
 
         bool ret = parseCommandLine(processor);
         ret &= processor.checkOptions();
@@ -259,12 +237,32 @@ private:
 }
 
 
+
 /**
- * Приложение запускающее обработчик событий
+ * Базовая реализация приложения запускающее обработчик событий
  * работающее в режиме демона
  */
-interface DaemonApplication : ConfigurableApplication
+abstract class BaseDaemonApplication : BaseApplication
 {
+    this(string name, string _version)
+    {
+        super(name, _version);
+    }
+
+
+    this(string name, SemVer _version)
+    {
+        super(name, _version);
+    }
+
+
+    final override int runApplication(Properties config)
+    {
+        return runLoop(config);
+    }
+
+protected:
+
     /**
      * Запуск демона сервисов
      * Params:
@@ -280,35 +278,8 @@ interface DaemonApplication : ConfigurableApplication
      * exitStatus = Код завершения приложения
      */
     int finalizeDaemon(int exitStatus);
-}
-
-
-/**
- * Базовая реализация приложения запускающее обработчик событий
- * работающее в режиме демона
- */
-abstract class BaseDaemonApplication : BaseApplication, DaemonApplication
-{
-    this(string name, string _version)
-    {
-        super(name, _version);
-    }
-
-
-    this(string name, SemVer _version)
-    {
-        super(name, _version);
-    }
-
-
-    final int runApplication(Properties config)
-    {
-        return runLoop(config);
-    }
-
 
 private:
-
 
     /**
      * Запуск основного цикла обработки событий

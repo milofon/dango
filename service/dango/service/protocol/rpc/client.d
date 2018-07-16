@@ -96,6 +96,18 @@ class ClientFactory(I) : ComponentFactory!(I, ApplicationContainer)
 }
 
 
+/**
+ * Регистрация клиента
+ */
+void registerClient(TYPE, string NAME)(ApplicationContainer container, Properties config)
+{
+    alias Client = InterfaceClient!(TYPE);
+    alias Factory = ClientFactory!(TYPE);
+    container.registerNamed!(TYPE, Client, NAME)
+        .factoryInstance!(Factory)(CreatesSingleton.yes, config, container);
+}
+
+
 private:
 
 

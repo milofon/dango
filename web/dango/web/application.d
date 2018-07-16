@@ -26,30 +26,9 @@ private
 
 
 /**
- * Приложение позволяет инициализировать веб приложение
- */
-interface WebApplication : DaemonApplication
-{
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeWebApplication(Properties config);
-
-    /**
-     * Завершение работы сервиса
-     * Params:
-     * exitCode = Код возврата
-     */
-    int finalizeWebApplication(int exitCode);
-}
-
-
-/**
  * Базовая реализация приложения позволяет инициализировать веб приложение
  */
-abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
+abstract class BaseWebApplication : BaseDaemonApplication
 {
     private
     {
@@ -68,16 +47,32 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
         super(name, release);
     }
 
+protected:
 
-    void initializeGlobalDependencies(ApplicationContainer container, Properties config)
+    override void doInitializeDependencies(Properties config)
     {
+        super.doInitializeDependencies(config);
         container.registerFactory!(WebApplicationServerFactory, WebApplicationServer);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
     }
 
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeWebApplication(Properties config);
 
-    final void initializeDaemon(Properties config)
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeWebApplication(int exitCode);
+
+
+    final override void initializeDaemon(Properties config)
     {
         initializeWebApplication(config);
 
@@ -88,7 +83,6 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
         {
             if (webConf.getOrElse("enabled", false))
             {
-                auto container = createContainer(webConf);
                 auto serverFactory = container.resolveFactory!(WebApplicationServer,
                         ApplicationContainer);
                 auto server = serverFactory.create(webConf, container);
@@ -99,7 +93,7 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
     }
 
 
-    final int finalizeDaemon(int exitCode)
+    final override int finalizeDaemon(int exitCode)
     {
         foreach (WebApplicationServer server; _servers)
             server.shutdown();

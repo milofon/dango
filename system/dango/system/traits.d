@@ -13,6 +13,7 @@ private
 {
     import std.traits;
     import std.meta;
+    import std.typecons;
 }
 
 
@@ -58,5 +59,25 @@ void eachPublicMembers(T, alias DG, A...)(T object, A args)
             DG!(T, Member)(object, args);
         }
     }
+}
+
+
+
+template Pair(string N, T)
+{
+    alias NAME = N;
+    alias TYPE = T;
+}
+
+
+
+template byPair(NList...)
+{
+    static if (NList.length > 1)
+        alias byPair = AliasSeq!(
+                Pair!(NList[0], NList[1]),
+                byPair!(NList[2..$]));
+    else
+        alias byPair = AliasSeq!();
 }
 

@@ -29,30 +29,9 @@ private
 
 
 /**
- * Приложение позволяет инициализировать веб приложение
- */
-interface ServiceApplication : DaemonApplication
-{
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeServiceApplication(Properties config);
-
-    /**
-     * Завершение работы сервиса
-     * Params:
-     * exitCode = Код возврата
-     */
-    int finalizeServiceApplication(int exitCode);
-}
-
-
-/**
  * Приложение позволяет использовать с сервисами
  */
-abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplication
+abstract class BaseServiceApplication : BaseDaemonApplication
 {
     private ServerTransport[] _transports;
 
@@ -68,16 +47,18 @@ abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplicatio
         super(name, release);
     }
 
+protected:
 
-    void initializeGlobalDependencies(ApplicationContainer container, Properties config)
+    override void doInitializeDependencies(Properties config)
     {
+        super.doInitializeDependencies(config);
         container.registerContext!SerializerContext;
         container.registerContext!ProtocolContext;
         container.registerContext!TransportContext;
     }
 
 
-    final void initializeDaemon(Properties config)
+    final override void initializeDaemon(Properties config)
     {
         initializeServiceApplication(config);
 
@@ -88,7 +69,6 @@ abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplicatio
         {
             if (servConf.getOrElse("enabled", false))
             {
-                auto container = createContainer(servConf);
                 auto tr = createServiceTransport(container, servConf);
                 tr.listen();
                 _transports ~= tr;
@@ -97,12 +77,26 @@ abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplicatio
     }
 
 
-    final int finalizeDaemon(int exitCode)
+    final override int finalizeDaemon(int exitCode)
     {
         foreach (ServerTransport tr; _transports)
             tr.shutdown();
         return finalizeServiceApplication(exitCode);
     }
+
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeServiceApplication(Properties config);
+
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeServiceApplication(int exitCode);
 
 
 private:
