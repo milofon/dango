@@ -11,10 +11,14 @@ module dango.service.transport.zeromq;
 
 private
 {
-    import core.time : msecs;
+    import core.time : msecs, Duration;
+    import core.memory : GC;
+
+    import std.datetime : Clock;
 
     import vibe.core.log;
     import vibe.core.core : yield, Task, runWorkerTaskH, runTask;
+    import vibe.core.connectionpool : ConnectionPool;
 
     import deimos.zmq.zmq;
     import zmqd;
@@ -23,6 +27,7 @@ private
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
     import dango.service.types;
+    import dango.service.exception;
     import dango.service.transport.core;
 }
 
@@ -145,7 +150,139 @@ class ZeroMQServerTransportFactory : BaseServerTransportFactory!("ZEROMQ")
 }
 
 
+class ZeroMQClientTransport : ClientTransport
+{
+    private
+    {
+        ConnectionPool!ZeroMQConnection _pool;
+    }
+
+
+    this(string uri, long timeout)
+    {
+        _pool = new ConnectionPool!ZeroMQConnection({
+                auto ret = new ZeroMQConnection(uri, timeout.msecs);
+                ret.connect();
+                return ret;
+            });
+    }
+
+
+    Future!Bytes request(Bytes bytes)
+    {
+        return _pool.lockConnection().request(bytes);
+    }
+}
+
+
+/**
+ * Фабрика клиенсткого транспорта использующего функционал ZeroMQ
+ */
+class ZeroMQClientTransportFactory : BaseClientTransportFactory!"ZEROMQ"
+{
+    ClientTransport createComponent(Properties config)
+    {
+        string uri = config.getOrEnforce!string("uri",
+                "Not defined uri for client transport");
+        long timeout = config.getOrElse!long("timeout", 500);
+        return new ZeroMQClientTransport(uri, timeout);
+    }
+}
+
+
 private:
+
+
+class ZeroMQConnection
+{
+    private
+    {
+        Socket _socket;
+        PollItem[] _items;
+        bool _connected;
+        Duration _timeout;
+        string _uri;
+    }
+
+
+    this(string uri, Duration timeout)
+    {
+        this._uri = uri;
+        this._timeout = timeout;
+    }
+
+
+    bool connected() @property
+    {
+        return _socket.initialized && _connected;
+    }
+
+
+    void connect()
+    {
+        _socket = Socket(SocketType.req);
+        _items = [PollItem(_socket, PollFlags.pollIn)];
+        _socket.connect(_uri);
+        _connected = true;
+    }
+
+
+    void disconnect()
+    {
+        _socket.linger = Duration.zero;
+        _socket.close();
+        _connected = false;
+    }
+
+
+    Future!Bytes request(Bytes bytes)
+    {
+        // TODO: потокобезопосность
+        import vibe.core.concurrency;
+
+        GC.disable();
+        scope(exit) GC.enable();
+
+        _socket.send(bytes);
+
+        return async({
+            auto start = Clock.currTime;
+            auto current = start;
+            auto payload = Frame();
+            ubyte[] buffer;
+
+            GC.disable();
+            scope(exit) GC.enable();
+
+            while ((current - start) < _timeout)
+            {
+                poll(_items, 100.msecs);
+                if (_items[0].returnedEvents & PollFlags.pollIn)
+                {
+                    _socket.receive(payload);
+
+                    buffer.length = 0;
+                    buffer ~= payload.data;
+
+                    while (payload.more)
+                    {
+                        _socket.receive(payload);
+                        buffer ~= payload.data;
+                    }
+
+                    return buffer.idup;
+                }
+
+                current = Clock.currTime;
+                yield();
+            }
+
+            disconnect();
+            throw new TransportException("Request timeout error");
+        });
+    }
+}
+
 
 
 ZeroMQTransportSettings loadServiceSettings(Properties config)

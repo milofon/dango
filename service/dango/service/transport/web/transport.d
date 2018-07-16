@@ -11,6 +11,11 @@ module dango.service.transport.web.transport;
 
 private
 {
+    import vibe.http.client : HTTPClientSettings, requestHTTP, HTTPClientRequest;
+    import vibe.inet.url : URL;
+    import vibe.http.server : HTTPMethod;
+    import vibe.stream.operations : readAll;
+
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
@@ -19,6 +24,7 @@ private
 
     import dango.service.transport.core;
     import dango.service.transport.web.controller;
+    import dango.service.types;
 }
 
 
@@ -52,7 +58,9 @@ class WebServerTransport : ServerTransport
 }
 
 
-
+/**
+ * Фабрика серверного транспорта использующего функционал HTTP
+ */
 class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
 {
     ServerTransport createComponent(Properties config, ApplicationContainer container,
@@ -67,6 +75,62 @@ class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
         auto server = serverFactory.create(config, container);
 
         return new WebServerTransport(server);
+    }
+}
+
+
+/**
+ * Клиентский транспорт использующий функционал HTTP
+ */
+class WebClientTransport : ClientTransport
+{
+    private
+    {
+        HTTPClientSettings _settings;
+        URL _entrypoint;
+    }
+
+
+    this(string entrypoint, HTTPClientSettings settings = null)
+    {
+        this(URL(entrypoint), settings);
+    }
+
+
+    this(URL entrypoint, HTTPClientSettings settings = null)
+    {
+        _settings = (settings is null) ? new HTTPClientSettings() : settings;
+        _entrypoint = entrypoint;
+    }
+
+
+    Future!Bytes request(Bytes bytes)
+    {
+        // TODO: потокобезопосность
+        import vibe.core.concurrency;
+        return async({
+                auto res = requestHTTP(_entrypoint, (scope HTTPClientRequest req) {
+                            req.method = HTTPMethod.POST;
+                            req.writeBody(bytes);
+                        }, _settings);
+                return cast(Bytes)res.bodyReader.readAll();
+            });
+    }
+}
+
+
+/**
+ * Фабрика клиенсткого транспорта использующего функционал HTTP
+ */
+class WebClientTransportFactory : BaseClientTransportFactory!"WEB"
+{
+    ClientTransport createComponent(Properties config)
+    {
+        auto settings = new HTTPClientSettings();
+        string entrypoint = config.getOrEnforce!string("entrypoint",
+                "Not defined entrypoint for client transport");
+
+        return new WebClientTransport(entrypoint, settings);
     }
 }
 

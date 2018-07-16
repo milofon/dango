@@ -214,9 +214,6 @@ abstract class BaseRpcControllerFactory(string N)
 }
 
 
-private:
-
-
 /**
  * Возвращает полное наименование команды
  */
@@ -234,6 +231,9 @@ template FullMethodName(I, string method)
     else
         enum FullMethodName = method;
 }
+
+
+private:
 
 
 /**

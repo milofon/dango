@@ -12,6 +12,8 @@ module dango.service.transport.core;
 
 public
 {
+    import vibe.core.concurrency : Future;
+
     import dango.system.container : ApplicationContainer;
     import dango.service.protocol : ServerProtocol;
 }
@@ -19,7 +21,6 @@ public
 private
 {
     import dango.system.container;
-
     import dango.service.types;
 }
 
@@ -48,6 +49,31 @@ interface ServerTransport
  */
 abstract class BaseServerTransportFactory(string N) : ComponentFactory!(
         ServerTransport, ApplicationContainer, ServerProtocol), Named
+{
+    mixin NamedMixin!N;
+}
+
+
+/**
+ * Интерфейс клиентского транспортного уровня
+ */
+interface ClientTransport
+{
+    /**
+     * Выполнение запроса
+     * Params:
+     * bytes = Входящие данные
+     * Return: Данные ответа
+     */
+    Future!Bytes request(Bytes bytes);
+}
+
+
+/**
+ * Базовый класс фабрики клиентского транспортного уровня
+ */
+abstract class BaseClientTransportFactory(string N) :
+    ComponentFactory!(ClientTransport), Named
 {
     mixin NamedMixin!N;
 }

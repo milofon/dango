@@ -41,6 +41,11 @@ class ProtocolContext : ApplicationContext
 
         container.registerFactory!(RpcDocumentationWebControllerFactory,
                 RpcDocumentationWebController);
+
+        container.registerFactory!(PlainRpcClientProtocolFactory,
+                PlainRpcClientProtocol);
+        container.registerFactory!(JsonRpcClientProtocolFactory,
+                JsonRpcClientProtocol);
     }
 }
 

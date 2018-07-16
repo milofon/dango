@@ -32,6 +32,8 @@ class WebTransportContext : ApplicationContext
 
         container.registerFactory!(WebServerTransportFactory,
                 WebServerTransport);
+        container.registerFactory!(WebClientTransportFactory,
+                WebClientTransport);
     }
 }
 

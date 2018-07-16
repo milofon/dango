@@ -12,6 +12,8 @@ module dango.service.protocol.rpc.core;
 public
 {
     import dango.service.serialization : Serializer;
+    import dango.service.transport.core : ClientTransport;
+    import dango.service.protocol.rpc.error : RpcException, ErrorCode;
 }
 
 private
@@ -242,13 +244,89 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
 
                 ret.registerHandler("__doc", (params) {
                         return marshalObject(docs.data);
-                    });
+                        });
 
                 logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
             }
         }
 
         return ret;
+    }
+}
+
+
+/**
+ * Клиент-протокол RPC
+ */
+interface RpcClientProtocol
+{
+    UniNode request(string cmd, UniNode params);
+}
+
+
+/**
+ * Клиент-протокол RPC
+ */
+abstract class BaseRpcClientProtocol : RpcClientProtocol
+{
+    protected
+    {
+        ClientTransport _transport;
+        Serializer _serializer;
+    }
+
+
+    this(ClientTransport transport, Serializer serializer)
+    {
+        this._serializer = serializer;
+        this._transport = transport;
+    }
+
+
+    UniNode request(string cmd, UniNode params)
+    {
+        auto request = createRequest(cmd, params);
+        Bytes resData;
+        try
+        {
+            auto reqData = _serializer.serialize(request);
+            auto futRes = _transport.request(reqData);
+            resData = futRes.getResult;
+        }
+        catch (Exception e)
+            throw new RpcException(ErrorCode.SERVER_ERROR, e.msg);
+
+        if (resData.length <= 0)
+            throw new RpcException(ErrorCode.INTERNAL_ERROR, "Empty response");
+
+        auto response = _serializer.deserialize(resData);
+        return parseResponse(response);
+    }
+
+
+protected:
+
+
+    UniNode createRequest(string cmd, UniNode params);
+
+
+    UniNode parseResponse(UniNode response);
+}
+
+
+/**
+ * Фабрика Клиент-протокола RPC
+ */
+class RpcClientProtocolFactory(T : BaseRpcClientProtocol, string N) : ComponentFactory!(
+        RpcClientProtocol, ClientTransport, Serializer), Named
+{
+    mixin NamedMixin!N;
+
+
+    RpcClientProtocol createComponent(Properties config, ClientTransport transport,
+            Serializer serializer)
+    {
+        return new T(transport, serializer);
     }
 }
 

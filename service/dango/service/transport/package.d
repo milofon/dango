@@ -29,8 +29,11 @@ class TransportContext : ApplicationContext
     override void registerDependencies(ApplicationContainer container)
     {
         container.registerContext!WebTransportContext;
+
         container.registerFactory!(ZeroMQServerTransportFactory,
                 ZeroMQServerTransport);
+        container.registerFactory!(ZeroMQClientTransportFactory,
+                ZeroMQClientTransport);
     }
 }
 
