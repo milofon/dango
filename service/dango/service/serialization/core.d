@@ -21,8 +21,8 @@ private
            isNumeric, isFloatingPoint, isArray, ForeachType,
            isStaticArray;
     import std.format : fmt = format;
+    import std.exception : enforce;
     import std.array : appender;
-    import std.exception : enforceEx;
     import std.conv : to;
 
     import vibe.data.serialization :
@@ -193,21 +193,6 @@ struct UniNode
     }
 
 
-    this(bool value)
-    {
-        this(Type.boolean);
-        via.boolean = value;
-    }
-
-
-    unittest
-    {
-        auto node = UniNode(false);
-        assert (node.type == Type.boolean);
-        assert (node.get!bool == false);
-    }
-
-
     this(T)(T value) if (isSignedNumeric!T)
     {
         this(Type.signed);
@@ -247,6 +232,21 @@ struct UniNode
             assert (is (typeof(node.get!TT) == TT));
             assert (node.get!TT == 11);
         }
+    }
+
+
+    this(bool value)
+    {
+        this(Type.boolean);
+        via.boolean = value;
+    }
+
+
+    unittest
+    {
+        auto node = UniNode(false);
+        assert (node.type == Type.boolean);
+        assert (node.get!bool == false);
     }
 
 
@@ -554,7 +554,7 @@ struct UniNodeSerializer
 
 
     // serialization
-    UniNode getSerializedResult()
+    UniNode getSerializedResult() @safe
     {
         return _current;
     }
@@ -610,8 +610,14 @@ struct UniNodeSerializer
     }
 
 
+    void writeValue(TypeTraits, T)(UniNode value) if (is(T == UniNode))
+    {
+        _current = value;
+    }
+
+
     // deserialization
-    void readDictionary(TypeTraits)(scope void delegate(string) entry_callback)
+    void readDictionary(TypeTraits)(scope void delegate(string) @safe entry_callback) @safe
     {
         enforceUniNode(_current.type == UniNode.Type.object, "Expected UniNode object");
         auto old = _current;
@@ -630,7 +636,8 @@ struct UniNodeSerializer
     void endReadDictionaryEntry(ElementTypeTraits)(string) {}
 
 
-    void readArray(TypeTraits)(scope void delegate(size_t) size_callback, scope void delegate() entry_callback)
+    void readArray(TypeTraits)(scope void delegate(size_t) @safe size_callback,
+            scope void delegate() @safe entry_callback)
     {
         enforceUniNode(_current.type == UniNode.Type.array, "Expected UniNode array");
         auto old = _current;
@@ -704,5 +711,12 @@ class UniNodeException : Exception
 }
 
 
-alias enforceUniNode = enforceEx!UniNodeException;
+
+private void enforceUniNode(string file = __FILE__, size_t line = __LINE__)(bool cond,
+        lazy string message = "JSON exception") @safe
+{
+    () @trusted {
+        enforce!UniNodeException(cond, message, file, line);
+    } ();
+}
 
