@@ -17,8 +17,9 @@ private
 
 
 
-MethodDoc parseDocumentation(string method, string comment)
+void parseDocumentation(ref MethodDoc md, string method, string comment)
 {
-    return MethodDoc(method, comment.outdent);
+    md.method = method;
+    md.content = comment;
 }
 

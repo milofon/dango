@@ -10,8 +10,47 @@ module dango.service.protocol.rpc.doc;
 private
 {
     import std.traits;
+    import std.meta;
+    import std.conv : to;
+    import std.array : appender, Appender;
 
+    import vibe.data.serialization : optional;
+
+    import dango.service.serialization : UniNode, marshalObject;
     import dango.service.protocol.rpc.doc.parser : parseDocumentation;
+}
+
+
+/**
+ * Обработчик метода получения документации
+ */
+class DocumataionHandler
+{
+    private Appender!(MethodDoc[]) _methods;
+
+
+    string method() @property
+    {
+        return "__doc";
+    }
+
+
+    UniNode handle(UniNode params)
+    {
+        return marshalObject(_methods.data);
+    }
+
+
+    void registerMethodDoc(MethodDoc md)
+    {
+        _methods.put(md);
+    }
+
+
+    void registerTypeDoc(TypeDoc[] td)
+    {
+        import std.stdio: wl = writeln;
+    }
 }
 
 
@@ -24,19 +63,41 @@ struct Doc
 }
 
 
-
+/**
+  * Документация метода
+  */
 struct MethodDoc
 {
     string method;
     string content;
-    string[] params;
+
+    string retTypeDoc;
+    string retDoc;
+
+    FieldDoc[] params;
 }
 
 
-/**
- * Функция регистрации обработчика запроса
- */
-alias RegisterDoc = void delegate(MethodDoc);
+
+struct FieldDoc
+{
+    string name; // имя поля
+    string note; // примечание
+    string typeDoc; // наименование типа
+    UniNode defVal; // значение по умолчанию
+}
+
+
+
+struct TypeDoc
+{
+    string name; // имя типа
+}
+
+
+alias RegisterMethodDoc = void delegate(MethodDoc);
+
+alias RegisterTypeDoc = void delegate(TypeDoc[]);
 
 
 /**
@@ -46,15 +107,60 @@ alias RegisterDoc = void delegate(MethodDoc);
  * name   = Имя метода
  * Member = Символ метода
  */
-MethodDoc generateDocumentation(IType, string name, alias Member)()
+MethodDoc generateMethodDocumentation(IType, string name, alias Member)()
 {
     enum annotations = getUDAs!(Member, Doc);
     static if (annotations.length)
     {
         enum content = annotations[0].content;
-        return parseDocumentation(name, content);
+        alias ParameterIdents = ParameterIdentifierTuple!Member;
+        alias ParameterTypes = ParameterTypeTuple!Member;
+        alias ParameterDefs = ParameterDefaults!Member;
+        alias RT = ReturnType!Member;
+
+        MethodDoc ret;
+        ret.retTypeDoc = generateTypeDoc!RT;
+
+        foreach (i, T; ParameterTypes)
+        {
+            FieldDoc param;
+            param.name = ParameterIdents[i];
+            param.typeDoc = generateTypeDoc!T;
+
+            alias def = ParameterDefs[i];
+            static if (!is(def == void))
+                param.defVal = UniNode(def);
+
+            ret.params ~= param;
+        }
+
+        parseDocumentation(ret, name, content);
+        return ret;
     }
     else
         return MethodDoc(name ~ "no doc");
+}
+
+
+/**
+ * Генерация документации на используемые в методе типы
+ * Params:
+ * IType  = Тип интерфейса контроллера
+ * Member = Символ метода
+ */
+TypeDoc[] generateTypesDocumentation(IType, alias Member)()
+{
+    alias ParameterTypes = ParameterTypeTuple!Member;
+    TypeDoc[] ret;
+    return ret;
+}
+
+
+private:
+
+
+template generateTypeDoc(T)
+{
+    enum generateTypeDoc = T.stringof;
 }
 

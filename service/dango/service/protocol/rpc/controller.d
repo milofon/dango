@@ -116,7 +116,7 @@ interface RpcController : Activated
      * Params:
      * dg = Функция обработки документации
      */
-    void registerDocumentation(RegisterDoc hdl);
+    void registerDocumentation(RegisterMethodDoc rmd, RegisterTypeDoc rtd);
 }
 
 
@@ -163,13 +163,14 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
     }
 
 
-    void registerDocumentation(RegisterDoc hdl)
+    void registerDocumentation(RegisterMethodDoc rmd, RegisterTypeDoc rtd)
     {
         foreach(Member; Handlers)
         {
             enum udas = getUDAs!(Member, Method);
             enum name = FullMethodName!(IType, udas[0].method);
-            hdl(generateDocumentation!(IType, name, Member)());
+            rmd(generateMethodDocumentation!(IType, name, Member)());
+            rtd(generateTypesDocumentation!(IType, Member)());
         }
     }
 

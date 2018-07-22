@@ -130,7 +130,7 @@ mixin template GenerateFunctionFromMember(IType, alias Member)
 template GenerateHandlerFromMethod(alias F, string cmd)
 {
     alias ParameterIdents = ParameterIdentifierTuple!F;
-    alias ParameterTypes = ParameterTuple!F;
+    alias ParameterTypes = ParameterTypeTuple!F;
     enum nameFun = __traits(identifier, F);
 
     string generateAssing()
@@ -146,7 +146,7 @@ template GenerateHandlerFromMethod(alias F, string cmd)
 
     enum GenerateHandlerFromMethod = fmt!(q{
         alias ParameterIdents = ParameterIdentifierTuple!%1$s;
-        alias ParameterTypes = ParameterTuple!%1$s;
+        alias ParameterTypes = ParameterTypeTuple!%1$s;
         alias ParameterDefs = ParameterDefaults!%1$s;
         alias RT = ReturnType!%1$s;
         alias PT = Tuple!ParameterTypes;

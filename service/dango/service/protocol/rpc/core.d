@@ -20,14 +20,13 @@ private
 {
     import std.string : strip;
     import std.format : fmt = format;
-    import std.array : appender;
 
     import vibe.core.log;
 
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
-    import dango.service.serialization;
+    import dango.service.serialization : UniNode, marshalObject;
     import dango.service.protocol.core;
     import dango.service.protocol.rpc.controller;
     import dango.service.protocol.rpc.error;
@@ -221,6 +220,7 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             Serializer serializer)
     {
         auto ret = new CType(serializer);
+        auto docHandler = new DocumataionHandler();
 
         foreach (Properties ctrConf; config.getArray("controller"))
         {
@@ -238,17 +238,14 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             if (ctrl.enabled)
             {
                 ctrl.registerHandlers(&ret.registerHandler);
-
-                auto docs = appender!(MethodDoc[]);
-                ctrl.registerDocumentation(&docs.put!MethodDoc);
-
-                ret.registerHandler("__doc", (params) {
-                        return marshalObject(docs.data);
-                        });
-
+                ctrl.registerDocumentation(
+                        &docHandler.registerMethodDoc,
+                        &docHandler.registerTypeDoc);
                 logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
             }
         }
+
+        ret.registerHandler(docHandler.method, &docHandler.handle);
 
         return ret;
     }
