@@ -76,7 +76,8 @@ class PlainRpcClientProtocol : BaseRpcClientProtocol
         UniNode[string] request;
         request["id"] = UniNode(++counterId);
         request["method"] = UniNode(cmd);
-        request["params"] = params;
+        if (params.type != UniNode.Type.nil)
+            request["params"] = params;
         return UniNode(request);
     }
 
