@@ -31,10 +31,10 @@ class JsonRpcServerProtocol : BaseRpcServerProtocol
     {
         UniNode[string] response;
         response["jsonrpc"] = UniNode("2.0");
-        response["id"] = UniNode();
+        response["id"] = (id is null) ? UniNode() : *id;
         UniNode[string] err;
 
-        if (data.type != UniNode.Type.nil)
+        if (data.kind != UniNode.Kind.nil)
             err["data"] = data;
         err["code"] = UniNode(code);
         err["message"] = UniNode(msg);
@@ -80,35 +80,34 @@ class JsonRpcClientProtocol : BaseRpcClientProtocol
         request["jsonrpc"] = UniNode("2.0");
         request["id"] = UniNode(++counterId);
         request["method"] = UniNode(cmd);
-        request["params"] = params;
+        if (params.kind != UniNode.Kind.nil)
+            request["params"] = params;
         return UniNode(request);
     }
 
 
     override UniNode parseResponse(UniNode response)
     {
-        if (response.type != UniNode.Type.object)
+        if (response.kind != UniNode.Kind.object)
             throw new RpcException(ErrorCode.INTERNAL_ERROR, "Error response");
 
-        auto responseMap = response.via.map;
-        if (auto error = "error" in responseMap)
+        if (auto error = "error" in response)
         {
             int errorCode;
             string errorMsg;
-            auto errorMap = (*error).via.map;
 
-            if (auto codePtr = "code" in errorMap)
+            if (auto codePtr = "code" in *error)
                 errorCode = (*codePtr).get!int;
 
-            if (auto msgPtr = "message" in errorMap)
+            if (auto msgPtr = "message" in *error)
                 errorMsg = (*msgPtr).get!string;
 
-            if (auto dataPtr = "data" in errorMap)
+            if (auto dataPtr = "data" in *error)
                 throw new RpcException(errorCode, errorMsg, *dataPtr);
             else
                 throw new RpcException(errorCode, errorMsg);
         }
-        else if (auto result = "result" in responseMap)
+        else if (auto result = "result" in response)
             return *result;
 
         throw new RpcException(ErrorCode.INTERNAL_ERROR,

@@ -162,15 +162,15 @@ private:
         UniNode* id;
         UniNode params;
 
-        if (uniReq.type != UniNode.Type.object)
+        if (uniReq.kind != UniNode.Kind.object)
             return createErrorBody(id, ErrorCode.PARSE_ERROR);
 
-        UniNode[string] uniReqMap = uniReq.via.map;
+        UniNode[string] uniReqMap = uniReq.get!(UniNode[string]);
         try
         {
             auto vMethod = "method" in uniReqMap;
-            if (!vMethod || !(vMethod.type == UniNode.Type.text
-                        || vMethod.type == UniNode.Type.raw))
+            if (!vMethod || !(vMethod.kind == UniNode.Kind.text
+                        || vMethod.kind == UniNode.Kind.raw))
             {
                 logWarn("Not found method");
                 return createErrorBody(id, ErrorCode.INVALID_REQUEST,

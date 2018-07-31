@@ -102,36 +102,36 @@ UniNode toUniNode(Json input)
 
 Json fromUniNode(UniNode input)
 {
-    Json convert(UniNode node)
+    Json convert(UniNode node) @safe
     {
-        switch(node.type) with (UniNode)
+        switch(node.kind) with (UniNode)
         {
-            case Type.nil:
+            case Kind.nil:
                 return Json();
-            case Type.boolean:
+            case Kind.boolean:
                 return Json(node.get!bool);
-            case Type.signed:
+            case Kind.integer:
                 return Json(node.get!long);
-            case Type.unsigned:
+            case Kind.uinteger:
                 return Json(node.get!ulong);
-            case Type.floating:
+            case Kind.floating:
                 return Json(node.get!double);
-            case Type.raw:
+            case Kind.raw:
                 string result = "base64:" ~ Base64.encode(node.get!(ubyte[])).idup;
                 return Json(result);
-            case Type.text:
+            case Kind.text:
                 return Json(node.get!string);
-            case Type.array:
+            case Kind.array:
             {
                 Json arr = Json.emptyArray();
-                foreach(UniNode ch; node.get!(UniNode[]))
+                foreach(ref UniNode ch; node)
                     arr ~= convert(ch);
                 return arr;
             }
-            case Type.object:
+            case Kind.object:
             {
                 Json map = Json.emptyObject();
-                foreach(string key, UniNode ch; node.get!(UniNode[string]))
+                foreach(ref string key, ref UniNode ch; node)
                     map[key] = convert(ch);
                 return map;
             }

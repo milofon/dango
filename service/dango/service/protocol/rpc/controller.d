@@ -255,9 +255,9 @@ template GenerateHandlerFromMethod(alias F)
 
         UniNode fun(UniNode params)
         {
-            if (!(params.type == UniNode.Type.object
-                        || params.type == UniNode.Type.array
-                        || params.type == UniNode.Type.nil))
+            if (!(params.kind == UniNode.Kind.object
+                        || params.kind == UniNode.Kind.array
+                        || params.kind == UniNode.Kind.nil))
                 throw new RpcException(ErrorCode.INVALID_PARAMS);
 
             string[][string] paramErrors;
@@ -279,17 +279,16 @@ template GenerateHandlerFromMethod(alias F)
                     args[idx] = unmarshalObject!(PType)(value);
                 catch (Exception e)
                     paramErrors[key] ~= "Got type %s, expected %s".fmt(
-                            value.type, typeid(PType));
+                            value.kind, typeid(PType));
             }
 
             // заполняем аргументы
             foreach(i, key; ParameterIdents)
             {
                 alias PType = ParameterTypes[i];
-                if (params.type == UniNode.Type.object)
+                if (params.kind == UniNode.Kind.object)
                 {
-                    auto pObj = params.via.map;
-                    if (auto v = key in pObj)
+                    if (auto v = key in params)
                     {
                         fillArg!(i, PType)(key, *v);
                         requires[key] = true;
@@ -303,7 +302,7 @@ template GenerateHandlerFromMethod(alias F)
                         }
                     }
                 }
-                else if (params.type == UniNode.Type.array)
+                else if (params.kind == UniNode.Kind.array)
                 {
                     UniNode[] aParams = params.get!(UniNode[]);
                     if (isArray!PType && ParameterIdents.length == 1)

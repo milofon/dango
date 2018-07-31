@@ -37,7 +37,8 @@ class DocumataionHandler
 
     UniNode handle(UniNode params)
     {
-        return marshalObject(_methods.data);
+        // return marshalObject(_methods.data);
+        return UniNode();
     }
 
 

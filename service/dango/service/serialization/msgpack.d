@@ -123,35 +123,35 @@ UniNode toUniNode(Value input)
 
 Value fromUniNode(UniNode input)
 {
-    Value convert(UniNode node)
+    Value convert(UniNode node) @safe
     {
-        switch(node.type) with (UniNode)
+        switch(node.kind) with (UniNode)
         {
-            case Type.nil:
+            case Kind.nil:
                 return Value();
-            case Type.boolean:
+            case Kind.boolean:
                 return Value(node.get!bool);
-            case Type.signed:
+            case Kind.integer:
                 return Value(node.get!long);
-            case Type.unsigned:
+            case Kind.uinteger:
                 return Value(node.get!ulong);
-            case Type.floating:
+            case Kind.floating:
                 return Value(node.get!double);
-            case Type.raw:
+            case Kind.raw:
                 return Value(node.get!(ubyte[]));
-            case Type.text:
+            case Kind.text:
                 return Value(node.get!(string));
-            case Type.array:
+            case Kind.array:
             {
                 Value[] arr;
-                foreach(UniNode ch; node.get!(UniNode[]))
+                foreach(ref UniNode ch; node)
                     arr ~= convert(ch);
                 return Value(arr);
             }
-            case Type.object:
+            case Kind.object:
             {
                 Value[Value] map;
-                foreach(string key, UniNode ch; node.get!(UniNode[string]))
+                foreach(string key, ref UniNode ch; node)
                     map[Value(key)] = convert(ch);
                 return Value(map);
             }
