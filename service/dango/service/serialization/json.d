@@ -23,7 +23,7 @@ private
 
 
 
-class JsonSerializer : Serializer
+class JsonSerializer : BaseSerializer!"JSON"
 {
     UniNode deserialize(Bytes bytes)
     {

@@ -2,15 +2,13 @@
  * Copyright: (c) 2015-2017, Milofon Project.
  * License: Subject to the terms of the BSD license, as written in the included LICENSE.txt file.
  * Author: <m.galanin@milofon.org> Maksim Galanin
- * Date: 2018-07-05
+ * Date: 2018-07-12
  */
 
-module dango.service.protocol.rpc;
+module dango.service.protocol.rpc.schema;
 
 public
 {
-    import dango.service.protocol.rpc.schema;
-    import dango.service.protocol.rpc.controller;
-    import dango.service.protocol.rpc.error : RpcException;
+    import dango.service.protocol.rpc.schema.types : Doc;
 }
 

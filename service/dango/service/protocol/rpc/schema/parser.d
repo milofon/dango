@@ -7,19 +7,18 @@
  * Date: 2018-07-12
  */
 
-module dango.service.protocol.rpc.doc.parser;
+module dango.service.protocol.rpc.schema.parser;
 
 private
 {
     import std.string : outdent;
-    import dango.service.protocol.rpc.doc;
+    import dango.service.protocol.rpc.schema.types;
 }
 
 
 
-void parseDocumentation(ref MethodDoc md, string method, string comment)
+void parseDocumentationContent(ref MethodDoc md, string comment)
 {
-    md.method = method;
-    md.content = comment;
+    md.note = "not implemented parse content";
 }
 

@@ -21,7 +21,7 @@ private
     import dango.service.protocol.rpc.plain;
     import dango.service.protocol.rpc.jsonrpc;
 
-    import dango.service.protocol.rpc.doc.web;
+    import dango.service.protocol.rpc.schema.web;
 }
 
 

@@ -11,7 +11,8 @@ private
 {
     import dango.system.container;
 
-    import dango.web.server : WebApplicationServerFactory, WebApplicationServer;
+    import dango.web.server : RouterWebApplicationServerFactory,
+           RouterWebApplicationServer;
     import dango.web.middlewares;
     import dango.web.controllers;
 
@@ -26,7 +27,8 @@ class WebTransportContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(WebApplicationServerFactory, WebApplicationServer);
+        container.registerFactory!(RouterWebApplicationServerFactory,
+                RouterWebApplicationServer);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
 

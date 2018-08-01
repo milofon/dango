@@ -36,18 +36,29 @@ interface ServerProtocol
      * Return: Ответ в бинарном виде
      */
     Bytes handle(Bytes data);
+
+    /**
+     * Возвращает сериализатор
+     */
+    Serializer serializer() @property;
 }
 
 
 
 abstract class BaseServerProtocol : ServerProtocol
 {
-    protected Serializer serializer;
+    private Serializer _serializer;
 
 
     this(Serializer serializer)
     {
-        this.serializer = serializer;
+        this._serializer = serializer;
+    }
+
+
+    Serializer serializer() @property
+    {
+        return _serializer;
     }
 }
 

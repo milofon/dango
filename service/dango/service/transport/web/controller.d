@@ -61,10 +61,24 @@ class RpcChain : BaseChain
     {
         this._entrypoint = entrypoint;
 
+        string contentType;
+        switch (protocol.serializer.name)
+        {
+            case "JSON":
+                contentType = "application/json; charset=UTF-8";
+                break;
+            case "MSGPACK":
+                contentType = "application/msgpack";
+                break;
+            default:
+                contentType = "application/octet-stream";
+                break;
+        }
+
         super((HTTPServerRequest req, HTTPServerResponse res) {
                 () @trusted {
                     auto data = protocol.handle(cast(immutable)req.bodyReader.readAll());
-                    res.writeBody(data);
+                    res.writeBody(data, contentType);
                 } ();
             });
     }

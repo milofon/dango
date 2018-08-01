@@ -40,10 +40,49 @@ alias MiddlewareConfig = Tuple!(
         string, "label");
 
 
+
+interface WebApplicationServer
+{
+    /**
+     * Запуск сервера
+     */
+    void listen();
+
+
+    /**
+     * Остановка сервера
+     */
+    void shutdown();
+}
+
+
+/**
+ * Класс фабрики веб сервера
+ */
+abstract class WebApplicationServerFactory : ComponentFactory!(WebApplicationServer,
+        ApplicationContainer)
+{
+    /**
+     * Конструирует объект сервера
+     */
+    WebApplicationServer createServer(Properties webConf, HTTPServerSettings settings,
+            ApplicationContainer container);
+
+
+    WebApplicationServer createComponent(Properties webConf,
+            ApplicationContainer container)
+    {
+        HTTPServerSettings settings = loadServiceSettings(webConf);
+        return createServer(webConf, settings, container);
+
+    }
+}
+
+
 /**
  * Класс веб сервера
  */
-class WebApplicationServer
+class RouterWebApplicationServer : WebApplicationServer
 {
     private
     {
@@ -82,16 +121,14 @@ class WebApplicationServer
 
 
 /**
- * Класс фабрики веб сервера
+ * Фабрика сервера с роутингом
  */
-class WebApplicationServerFactory : ComponentFactory!(WebApplicationServer,
-        ApplicationContainer)
+class RouterWebApplicationServerFactory : WebApplicationServerFactory
 {
-    WebApplicationServer createComponent(Properties webConf,
+    override WebApplicationServer createServer(Properties webConf, HTTPServerSettings settings,
             ApplicationContainer container)
     {
-        HTTPServerSettings settings = loadServiceSettings(webConf);
-        auto server = new WebApplicationServer(settings);
+        auto server = new RouterWebApplicationServer(settings);
 
         string webName = webConf.getOrElse!string("name", "Undefined");
         logInfo("Configuring web application %s", webName);

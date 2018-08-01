@@ -23,7 +23,7 @@ private
 
 
 
-class MsgPackSerializer : Serializer
+class MsgPackSerializer : BaseSerializer!"MSGPACK"
 {
     private bool _withFieldName;
 

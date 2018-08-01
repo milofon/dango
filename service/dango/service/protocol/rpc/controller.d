@@ -12,6 +12,7 @@ module dango.service.protocol.rpc.controller;
 public
 {
     import proped : Properties;
+    import dango.service.protocol.rpc.schema.types : RegisterMethodDoc, RegisterModelDoc;
 }
 
 private
@@ -27,8 +28,8 @@ private
     import dango.system.container;
     import dango.system.traits;
 
-    import dango.service.protocol.rpc.doc;
     import dango.service.protocol.rpc.error;
+    import dango.service.protocol.rpc.schema.traits;
     import dango.service.serialization : UniNode,
            marshalObject, unmarshalObject;
 }
@@ -116,7 +117,7 @@ interface RpcController : Activated
      * Params:
      * dg = Функция обработки документации
      */
-    void registerDocumentation(RegisterMethodDoc rmd, RegisterTypeDoc rtd);
+    void registerDocumentation(RegisterMethodDoc rmd, RegisterModelDoc rtd);
 }
 
 
@@ -163,7 +164,7 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
     }
 
 
-    void registerDocumentation(RegisterMethodDoc rmd, RegisterTypeDoc rtd)
+    void registerDocumentation(RegisterMethodDoc rmd, RegisterModelDoc rtd)
     {
         foreach(Member; Handlers)
         {

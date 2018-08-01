@@ -38,7 +38,7 @@ private
 /**
  * Основной интерфейс сериализатор
  */
-interface Serializer
+interface Serializer : Named
 {
     /**
      * Сериализация объекта языка в массив байт
@@ -77,6 +77,15 @@ interface Serializer
      * Return: массив байт
      */
     Bytes serialize(UniNode node);
+}
+
+
+/**
+ * Базовый сериализатор
+ */
+abstract class BaseSerializer(string N) : Serializer
+{
+    mixin NamedMixin!N;
 }
 
 

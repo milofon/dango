@@ -7,7 +7,7 @@
  * Date: 2018-07-12
  */
 
-module dango.service.protocol.rpc.doc.web;
+module dango.service.protocol.rpc.schema.web;
 
 private
 {
