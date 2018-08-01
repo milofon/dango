@@ -52,10 +52,18 @@ protected:
     override void doInitializeDependencies(Properties config)
     {
         super.doInitializeDependencies(config);
-        container.registerFactory!(RouterWebApplicationServerFactory,
-                RouterWebApplicationServer);
+        doRegisterServerDependencies(config);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
+    }
+
+    /**
+     * Регистрация сервера
+     */
+    void doRegisterServerDependencies(Properties config)
+    {
+        container.registerFactory!(RouterWebApplicationServerFactory,
+                RouterWebApplicationServer);
     }
 
     /**
