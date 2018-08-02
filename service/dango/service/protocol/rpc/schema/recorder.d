@@ -182,9 +182,6 @@ void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESin
             static if (annotations.length)
                 ms.note = annotations[0].content;
 
-                // static if (isCompositeType!MemberType)
-//                     fd.typeLink = getFieldModelDocLink!MemberType;
-
             ret.members[name] = ms;
         }
     }
@@ -231,13 +228,21 @@ TypeSchema getTypeSchema(T)()
     ret.original = TypeSchemaReal!T;
     ret.input = TypeSchemaInput!T;
 
-    foreach(IT; InternalTypes!T)
+    static if (isSomeString!T)
     {
         TypeSchemaDetail dt;
-        dt.kind = TypeSchemaDetailType!IT;
-        dt.name = TypeSchemaReal!IT;
+        dt.kind = TypeSchemaDetailType!T;
+        dt.name = TypeSchemaReal!T;
         ret.details ~= dt;
     }
+    else
+        foreach(IT; InternalTypes!T)
+        {
+            TypeSchemaDetail dt;
+            dt.kind = TypeSchemaDetailType!IT;
+            dt.name = TypeSchemaReal!IT;
+            ret.details ~= dt;
+        }
 
     return ret;
 }
