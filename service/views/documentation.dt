@@ -21,15 +21,21 @@ html
                     md-app-drawer(md-permanent="full")
                         md-toolbar.md-transparent(md-elevation="0")
                             | Методы
-                        md-list
-                            item.item(:model="treeData")
+                        div.full-control
+                            div.list
+                                md-list(:md-expand-single="expandSingle")
+                                    item.item(:indent="20", :key="index", :model="method", v-for="(method, index) in treeMethods")
 
                     md-app-content
-                        | content
+                        router-view
 
-
+        script(src="https://unpkg.com/axios/dist/axios.min.js", crossorigin="anonymous")
         script(src="https://unpkg.com/vue")
         script(src="https://unpkg.com/vue-material@beta")
+        script(src="https://unpkg.com/vue-router/dist/vue-router.js")
 
         script(src="/static/app.js")
+
+        :javascript
+            var app = runApplication("!{entrypoint}");
 

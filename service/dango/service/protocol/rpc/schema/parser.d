@@ -16,8 +16,10 @@ private
 }
 
 
-
-void parseDocumentationContent(ref MethodDoc md, string comment)
+/**
+ * Парсер документации метода
+ */
+void parseDocumentationContent(ref MethodSchema md, string comment)
 {
     md.note = "not implemented parse content";
 }

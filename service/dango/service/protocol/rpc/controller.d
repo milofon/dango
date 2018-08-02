@@ -12,7 +12,6 @@ module dango.service.protocol.rpc.controller;
 public
 {
     import proped : Properties;
-    import dango.service.protocol.rpc.schema.types : RegisterMethodDoc, RegisterModelDoc;
 }
 
 private
@@ -29,7 +28,7 @@ private
     import dango.system.traits;
 
     import dango.service.protocol.rpc.error;
-    import dango.service.protocol.rpc.schema.traits;
+    import dango.service.protocol.rpc.schema.recorder;
     import dango.service.serialization : UniNode,
            marshalObject, unmarshalObject;
 }
@@ -117,7 +116,7 @@ interface RpcController : Activated
      * Params:
      * dg = Функция обработки документации
      */
-    void registerDocumentation(RegisterMethodDoc rmd, RegisterModelDoc rtd);
+    void registerSchema(SchemaRecorder recorder);
 }
 
 
@@ -164,14 +163,13 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
     }
 
 
-    void registerDocumentation(RegisterMethodDoc rmd, RegisterModelDoc rtd)
+    void registerSchema(SchemaRecorder recorder)
     {
         foreach(Member; Handlers)
         {
             enum udas = getUDAs!(Member, Method);
             enum name = FullMethodName!(IType, udas[0].method);
-            rmd(generateMethodDocumentation!(IType, name, Member)());
-            rtd(generateTypesDocumentation!(IType, Member)());
+            recorder.registerSchema!(IType, name, Member)();
         }
     }
 
@@ -279,8 +277,7 @@ template GenerateHandlerFromMethod(alias F)
                 try
                     args[idx] = unmarshalObject!(PType)(value);
                 catch (Exception e)
-                    paramErrors[key] ~= "Got type %s, expected %s".fmt(
-                            value.kind, typeid(PType));
+                    paramErrors[key] ~= e.msg;
             }
 
             // заполняем аргументы

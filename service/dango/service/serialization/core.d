@@ -16,6 +16,8 @@ public
 
 private
 {
+    import core.exception : AssertError;
+
     import std.algorithm.comparison : max;
     import std.traits : isSigned, isUnsigned, isBoolean,
            isNumeric, isFloatingPoint, isArray, ForeachType,
@@ -350,31 +352,35 @@ struct UniNode
 
     inout(T) get(T)() @property inout @trusted
     {
-        static if (isSignedNumeric!T)
-            return cast(T)(u.get!long);
-        else static if (isUnsignedNumeric!T)
-            return cast(T)(u.get!ulong);
-        else static if (isFloatingPoint!T)
-            return cast(T)(u.get!real);
-        else static if (isRawData!T)
-        {
-            if (u.kind == TAU.Kind.nil)
-                return inout(T).init;
+        try {
+            static if (isSignedNumeric!T)
+                return cast(T)(u.get!long);
+            else static if (isUnsignedNumeric!T)
+                return cast(T)(u.get!ulong);
+            else static if (isFloatingPoint!T)
+                return cast(T)(u.get!real);
+            else static if (isRawData!T)
+            {
+                if (u.kind == TAU.Kind.nil)
+                    return inout(T).init;
 
-            static if (isStaticArray!T)
-                return (u.get!(ubyte[]))[0..T.length];
+                static if (isStaticArray!T)
+                    return (u.get!(ubyte[]))[0..T.length];
+                else
+                    return u.get!(ubyte[]);
+            }
+            else static if (isSomeString!T)
+            {
+                if (u.kind == TAU.Kind.nil)
+                    return "";
+                else
+                    return u.get!string;
+            }
             else
-                return u.get!(ubyte[]);
+                return u.get!T;
         }
-        else static if (isSomeString!T)
-        {
-            if (u.kind == TAU.Kind.nil)
-                return "";
-            else
-                return u.get!string;
-        }
-        else
-            return u.get!T;
+        catch (AssertError e)
+            throw new UniNodeException(e.msg, e.file, e.line, e.next);
     }
 
 

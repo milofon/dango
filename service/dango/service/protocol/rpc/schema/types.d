@@ -33,51 +33,82 @@ struct Doc
 /**
  * Документация метода
  */
-struct MethodDoc
+struct MethodSchema
 {
-    @Doc("Наименование метода")
-    string method;
     @Doc("Описание метода")
     string note;
+    @Doc("Наименование метода")
+    string name;
     @Doc("Информация о возвращаемом типе")
-    FieldDoc retDoc;
+    MemberSchema retType;
     @Doc("Принимаемые параметры")
-    FieldDoc[string] params;
+    MemberSchema[string] params;
 }
 
 
 /**
- * Документация типа
+ * Описание модели
  */
-struct ModelDoc
+struct ModelSchema
 {
     @Doc("Наименование модели")
     string name;
     @Doc("Поля модели")
-    FieldDoc[string] members;
+    MemberSchema[string] members;
 }
 
 
 /**
- * Документация поля
+ * Описание перечисления
  */
-struct FieldDoc
+struct EnumSchema
 {
-    @Doc("Описание поля")
-    string note; // примечание
-    @Doc("Тип поля")
-    string typeDoc; // наименование типа
-    @Doc("Значение по умолчанию")
-    @optional
-    UniNode defVal; // значение по умолчанию
-    @Doc("Ссылка на модель")
-    @optional
-    Nullable!string typeLink; // ссылка на составной тип
+    @Doc("Наименование перечисления")
+    string name;
+    @Doc("Информация о базовом типе")
+    TypeSchema type;
+    @Doc("Значения")
+    UniNode[string] values;
 }
 
 
-alias RegisterMethodDoc = void delegate(MethodDoc);
+/**
+ * Описание поля объекта
+ */
+struct MemberSchema
+{
+    @Doc("Описание поля")
+    string note;
+    @Doc("Тип поля")
+    TypeSchema type;
+    @Doc("Значение по умолчанию")
+    @optional
+    UniNode defVal; // значение по умолчанию
+}
 
 
-alias RegisterModelDoc = void delegate(ModelDoc[]);
+/**
+ * Описание типа
+ */
+struct TypeSchema
+{
+    @Doc("Оригинальное представление поля")
+    string original;
+    @Doc("Принимаемый тип")
+    string input;
+    @Doc("Подробное описание составляющих типа")
+    TypeSchemaDetail[] details;
+}
+
+
+/**
+ * Подробное описание составляющей типа
+ */
+struct TypeSchemaDetail
+{
+    @Doc("Вид типа")
+    string kind;
+    @Doc("Наименование типа")
+    string name;
+}
 

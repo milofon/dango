@@ -30,6 +30,7 @@ private
     import dango.service.protocol.core;
     import dango.service.protocol.rpc.controller;
     import dango.service.protocol.rpc.error;
+    import dango.service.protocol.rpc.schema.recorder;
     import dango.service.protocol.rpc.schema.controller;
 }
 
@@ -220,7 +221,7 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             Serializer serializer)
     {
         auto ret = new CType(serializer);
-        auto docCtrl = new DocumataionRpcController();
+        auto schemaRec = new SchemaRecorder();
 
         foreach (Properties ctrConf; config.getArray("controller"))
         {
@@ -238,19 +239,15 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             if (ctrl.enabled)
             {
                 ctrl.registerHandlers(&ret.registerHandler);
-                ctrl.registerDocumentation(
-                        &docCtrl.registerMethod,
-                        &docCtrl.registerModel);
+                ctrl.registerSchema(schemaRec);
                 logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
             }
         }
 
-        docCtrl.registerHandlers(&ret.registerHandler);
-
+        auto docCtrl = new SchemaRpcController(schemaRec);
         if (config.getOrElse("schemaInclude", false))
-            docCtrl.registerDocumentation(
-                            &docCtrl.registerMethod,
-                            &docCtrl.registerModel);
+            docCtrl.registerSchema(schemaRec);
+        docCtrl.registerHandlers(&ret.registerHandler);
 
         return ret;
     }

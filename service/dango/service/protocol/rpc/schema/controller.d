@@ -11,119 +11,135 @@ module dango.service.protocol.rpc.schema.controller;
 
 private
 {
-    import std.algorithm.iteration : uniq, fold, map;
+    import std.algorithm.iteration : map;
     import std.algorithm.searching : find;
-    import std.algorithm.sorting : sort;
-    import std.array : appender, Appender, array, split;
     import std.format : fmt = format;
+    import std.array : split, array;
 
     import dango.service.protocol.rpc.controller;
     import dango.service.protocol.rpc.schema.types;
-    import dango.service.serialization : marshalObject;
+    import dango.service.protocol.rpc.schema.recorder;
 }
 
 
-struct Item
+
+struct MethodName
 {
+    @Doc("Наименование элемента")
+    string name;
     @Doc("Дочерние элементы")
-    Item[string] child;
+    MethodName[] child;
 }
+
 
 
 @Controller("__schema")
-interface IDocumataionRpcController
+interface ISchemaRpcController
 {
-    @Method("method.tree")
-    Item[string] getTreeMethods();
+    @Method("enum.list")
+    EnumSchema[] getAllEnums();
+
+    @Method("enum.get")
+    EnumSchema getEnum(string name);
 
     @Method("method.list")
-    MethodDoc[] getAllMethods();
+    MethodSchema[] getAllMethods();
 
     @Method("method.get")
-    MethodDoc getMethod(string name);
+    MethodSchema getMethod(string name);
 
     @Method("model.list")
-    ModelDoc[] getAllModels();
+    ModelSchema[] getAllModels();
 
     @Method("model.get")
-    ModelDoc getModel(string name);
+    ModelSchema getModel(string name);
+
+    @Method("method.tree")
+    MethodName[] getTreeMethodName();
 }
 
 
 /**
  * Контроллер методов документации
  */
-class DocumataionRpcController : GenericRpcController!IDocumataionRpcController
+class SchemaRpcController : GenericRpcController!ISchemaRpcController
 {
     private
     {
-        Appender!(MethodDoc[]) _methods;
-        Appender!(ModelDoc[]) _allModels;
-
-        bool _initialized;
-        ModelDoc[] _models;
+        MethodSchema[] _methods;
+        ModelSchema[] _models;
+        EnumSchema[] _enums;
     }
 
 
-    void registerMethod(MethodDoc md)
+    this(SchemaRecorder recorder)
     {
-        _methods.put(md);
+        this._methods = recorder.getMethods();
+        this._models = recorder.getModels();
+        this._enums = recorder.getEnums();
     }
 
 
-    void registerModel(ModelDoc[] td)
+    EnumSchema[] getAllEnums()
     {
-        _allModels.put(td);
+        return _enums;
     }
 
 
-    MethodDoc[] getAllMethods()
+    EnumSchema getEnum(string name)
     {
-        return _methods.data;
+        auto fr = _enums.find!((i) => i.name == name);
+        enforceRpc(fr.length, 404, fmt!"Schema for enum '%s' not found"(name));
+        return fr[0];
     }
 
 
-    MethodDoc getMethod(string name)
+    MethodSchema[] getAllMethods()
     {
-        auto md = _methods.data.find!((m) => m.method == name);
-        enforceRpc(md.length, 404, fmt!"Documentation method '%s' not found"(name));
-        return md[0];
+        return _methods;
     }
 
 
-    ModelDoc[] getAllModels()
+    MethodSchema getMethod(string name)
     {
-        initialize();
+        auto fr = _methods.find!((i) => i.name == name);
+        enforceRpc(fr.length, 404, fmt!"Schema for method '%s' not found"(name));
+        return fr[0];
+    }
+
+
+    ModelSchema[] getAllModels()
+    {
         return _models;
     }
 
 
-    ModelDoc getModel(string name)
+    ModelSchema getModel(string name)
     {
-        initialize();
-        auto td = _models.find!((t) => t.name == name);
-        enforceRpc(td.length, 404, fmt!"Documentation type '%s' not found"(name));
-        return td[0];
+        auto fr = _models.find!((i) => i.name == name);
+        enforceRpc(fr.length, 404, fmt!"Schema for model '%s' not found"(name));
+        return fr[0];
     }
 
 
-    Item[string] getTreeMethods()
+    MethodName[] getTreeMethodName()
     {
-        auto methodNodes = _methods.data.map!((m) => m.method.split(".")).array;
-        Item root;
+        MethodName root;
+        auto methodNodes = _methods.map!((m) => m.name.split(".")).array;
 
-        void addNames(ref Item node, string[] names)
+        void addNames(ref MethodName node, string[] names)
         {
             if (names.length == 0)
                 return;
 
-            if (auto p = names[0] in node.child)
-                addNames(*p, names[1..$]);
+            auto p = node.child.find!((c) => c.name == names[0]);
+            if (p.length > 0)
+                addNames(p[0], names[1..$]);
             else
             {
-                auto p = Item();
-                addNames(p, names[1..$]);
-                node.child[names[0]] = p;
+                auto np = MethodName(names[0]);
+                addNames(np, names[1..$]);
+                node.child ~= np;
             }
         }
 
@@ -131,23 +147,6 @@ class DocumataionRpcController : GenericRpcController!IDocumataionRpcController
             addNames(root, names);
 
         return root.child;
-    }
-
-
-private:
-
-
-    void initialize()
-    {
-        if (_initialized)
-            return;
-
-        _models = _allModels.data
-            .sort!((a, b) => a.name > b.name)
-            .uniq!((a, b) => a.name == b.name)
-            .array;
-
-        _initialized = true;
     }
 }
 
