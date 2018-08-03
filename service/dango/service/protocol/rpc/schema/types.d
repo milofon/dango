@@ -81,6 +81,8 @@ struct MemberSchema
     string note;
     @Doc("Тип поля")
     TypeSchema type;
+    @Doc("Обязательный")
+    bool required;
     @Doc("Значение по умолчанию")
     @optional
     UniNode defVal; // значение по умолчанию

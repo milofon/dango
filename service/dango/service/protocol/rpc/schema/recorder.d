@@ -21,7 +21,8 @@ private
     import std.conv : to;
     import std.typecons : Nullable;
 
-    import vibe.data.serialization : isISOExtStringSerializable;
+    import vibe.data.serialization : isISOExtStringSerializable,
+                DefaultPolicy, OptionalAttribute;
     import dango.service.protocol.rpc.schema.parser : parseDocumentationContent;
 
     import dango.system.traits;
@@ -95,7 +96,12 @@ void generateMethodSchema(IType, string name, alias Member, Sink)(ref Sink sink)
 
         alias def = ParameterDefs[i];
         static if (!is(def == void))
+        {
             param.defVal = UniNode(def);
+            param.required = false;
+        }
+        else
+            param.required = true;
 
         ret.params[pName] = param;
     }
@@ -157,6 +163,8 @@ void generateModelEnumSchema(Model, ESink)(ref ESink eSink)
 }
 
 
+alias defOptional = OptionalAttribute!DefaultPolicy;
+
 
 void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESink eSink)
     if (isOutputRange!(MSink, ModelSchema) && isOutputRange!(ESink, EnumSchema))
@@ -181,6 +189,11 @@ void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESin
             enum annotations = getUDAs!(__traits(getMember, Model, name), Doc);
             static if (annotations.length)
                 ms.note = annotations[0].content;
+
+            static if (hasUDA!(__traits(getMember, Model, name), defOptional))
+                ms.required = false;
+            else
+                ms.required = true;
 
             ret.members[name] = ms;
         }
