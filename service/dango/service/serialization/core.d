@@ -286,7 +286,17 @@ struct UniNode
 
     inout(UniNode)* opBinaryRight(string op)(string key) inout if (op == "in")
     {
-        return null;
+        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        return key in _object;
+    }
+
+
+    unittest
+    {
+        auto node = UniNode(1);
+        auto mnode = UniNode(["one": node, "two": node]);
+        assert (mnode.kind == Kind.object);
+        assert("one" in mnode);
     }
 
 
@@ -408,13 +418,6 @@ struct UniNode
     }
 
 
-    // TODO: todo
-    this(ARGS...)(ARGS args)
-    {
-        pragma(msg, "-------------------------- ", ARGS);
-    }
-
-
     unittest
     {
         auto node = UniNode();
@@ -503,8 +506,6 @@ struct UniNode
 
     unittest
     {
-        auto t = UniNode(10, "text");
-
         auto node = UniNode(1);
         auto mnode = UniNode(["one": node, "two": node]);
         assert (mnode.kind == Kind.object);
@@ -614,6 +615,75 @@ struct UniNode
     {
         enforceUniNode(kind == Kind.object, "Expected UniNode object");
         return _object[key] = val;
+    }
+
+
+    string toString()
+    {
+        auto buff = appender!string;
+
+        void fun(ref UniNode node) @safe
+        {
+            switch (node.kind)
+            {
+                case Kind.nil:
+                    buff.put("nil");
+                    break;
+                case Kind.boolean:
+                    buff.put("bool("~node.get!bool.to!string~")");
+                    break;
+                case Kind.uinteger:
+                    buff.put("unsigned("~node.get!ulong.to!string~")");
+                    break;
+                case Kind.integer:
+                    buff.put("signed("~node.get!long.to!string~")");
+                    break;
+                case Kind.floating:
+                    buff.put("floating("~node.get!double.to!string~")");
+                    break;
+                case Kind.text:
+                    buff.put("text("~node.get!string.to!string~")");
+                    break;
+                case Kind.raw:
+                    buff.put("raw("~node.get!(ubyte[]).to!string~")");
+                    break;
+                case Kind.object:
+                {
+                    buff.put("{");
+                    size_t len = node.length;
+                    size_t count;
+                    foreach (ref string k, ref UniNode v; node)
+                    {
+                        count++;
+                        buff.put(k ~ ":");
+                        fun(v);
+                        if (count < len)
+                            buff.put(", ");
+                    }
+                    buff.put("}");
+                    break;
+                }
+                case Kind.array:
+                {
+                    buff.put("[");
+                    size_t len = node.length;
+                    foreach (i, v; node.get!(UniNode[]))
+                    {
+                        fun(v);
+                        if (i < len)
+                            buff.put(", ");
+                    }
+                    buff.put("]");
+                    break;
+                }
+                default:
+                    buff.put("undefined");
+                    break;
+            }
+        }
+
+        fun(this);
+        return buff.data;
     }
 }
 
