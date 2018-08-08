@@ -133,6 +133,21 @@ template GenerateHandlerFromMethod(alias F, string cmd)
     alias ParameterTypes = ParameterTypeTuple!F;
     enum nameFun = __traits(identifier, F);
 
+    string generateParameterTuple()
+    {
+        string ret = "Tuple!(";
+        foreach(i, key; ParameterIdents)
+        {
+            alias PType = ParameterTypes[i];
+            if (i > 0)
+                ret ~= ", ";
+            ret ~= "ParameterTypes[" ~ i.to!string ~ "]";
+            ret ~= ", \"" ~ key ~ "\"";
+        }
+        ret ~= ");";
+        return ret;
+    }
+
     string generateAssing()
     {
         string ret;
@@ -149,7 +164,7 @@ template GenerateHandlerFromMethod(alias F, string cmd)
         alias ParameterTypes = ParameterTypeTuple!%1$s;
         alias ParameterDefs = ParameterDefaults!%1$s;
         alias RT = ReturnType!%1$s;
-        alias PT = Tuple!ParameterTypes;
+        alias PT = %2$s
 
         static if (ParameterIdents.length == 0)
             auto params = UniNode();
@@ -161,13 +176,13 @@ template GenerateHandlerFromMethod(alias F, string cmd)
                 static if (!is(def == void))
                     args[i] = def;
             }
-            %2$s
+            %3$s
             auto params = marshalObject!PT(args);
         }
 
-        auto result = _protocol.request("%3$s", params);
+        auto result = _protocol.request("%4$s", params);
         return unmarshalObject!(RT)(result);
-    })(nameFun, generateAssing(), cmd);
+    })(nameFun, generateParameterTuple(), generateAssing(), cmd);
 }
 
 
