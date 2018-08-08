@@ -195,6 +195,8 @@ struct UniNode
                 void*[size / (void*).sizeof] p;
         }
 
+        Kind _kind;
+
         ref inout(T) getDataAs(T)() inout @trusted {
             static assert(T.sizeof <= _store.sizeof);
             return (cast(inout(T)[1])_store[0 .. T.sizeof])[0];
@@ -241,8 +243,15 @@ struct UniNode
         }
     }
 
+
     alias Kind = TypeEnum!U;
-    Kind kind;
+
+
+    Kind kind() @property
+    {
+        return _kind;
+    }
+
 
     static UniNode emptyObject() @property
     {
@@ -252,7 +261,7 @@ struct UniNode
 
     this(UniNode[string] val)
     {
-        kind = Kind.object;
+        _kind = Kind.object;
         _object = val;
     }
 
@@ -272,7 +281,7 @@ struct UniNode
 
     this(UniNode[] val)
     {
-        kind = Kind.array;
+        _kind = Kind.array;
         _array = val;
     }
 
@@ -286,7 +295,7 @@ struct UniNode
 
     inout(UniNode)* opBinaryRight(string op)(string key) inout if (op == "in")
     {
-        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        enforceUniNode(_kind == Kind.object, "Expected UniNode object");
         return key in _object;
     }
 
@@ -300,9 +309,24 @@ struct UniNode
     }
 
 
+    this(typeof(null))
+    {
+        _kind = Kind.nil;
+    }
+
+
+    unittest
+    {
+        auto node = UniNode(null);
+        assert (node.kind == Kind.nil);
+        auto node2 = UniNode();
+        assert (node2.kind == Kind.nil);
+    }
+
+
     this(T)(T val) if (isBoolean!T)
     {
-        kind = Kind.boolean;
+        _kind = Kind.boolean;
         _bool = val;
     }
 
@@ -320,7 +344,7 @@ struct UniNode
 
     this(T)(T val) if (isUnsignedNumeric!T)
     {
-        kind = Kind.uinteger;
+        _kind = Kind.uinteger;
         _uint = val;
     }
 
@@ -340,7 +364,7 @@ struct UniNode
 
     this(T)(T val) if (isSignedNumeric!T)
     {
-        kind = Kind.integer;
+        _kind = Kind.integer;
         _int = val;
     }
 
@@ -360,7 +384,7 @@ struct UniNode
 
     this(T)(T val) if (isFloatingPoint!T)
     {
-        kind = Kind.floating;
+        _kind = Kind.floating;
         _float = val;
     }
 
@@ -380,7 +404,7 @@ struct UniNode
 
     this(T)(T val) if(isSomeString!T)
     {
-        kind = Kind.text;
+        _kind = Kind.text;
         _string = val;
     }
 
@@ -396,7 +420,7 @@ struct UniNode
 
     this(T)(T val) if (isRawData!T)
     {
-        kind = Kind.raw;
+        _kind = Kind.raw;
         static if (isStaticArray!T)
             _raw = val.dup;
         else
@@ -433,9 +457,9 @@ struct UniNode
 
     void appendArrayElement(UniNode element)
     {
-        enforceUniNode(kind == Kind.array,
+        enforceUniNode(_kind == Kind.array,
                 "'appendArrayElement' only allowed for array types, not "
-                ~.to!string(kind)~".");
+                ~.to!string(_kind)~".");
         _array ~= element;
     }
 
@@ -461,17 +485,17 @@ struct UniNode
                 return cast(T)(_float);
             else static if (isRawData!T)
             {
-                if (kind == Kind.nil)
+                if (_kind == Kind.nil)
                     return inout(T).init;
 
                 static if (isStaticArray!T)
-                    return _raw[0..T.length];
+                    return cast(inout(T))_raw[0..T.length];
                 else
-                    return _raw;
+                    return cast(inout(T))_raw;
             }
             else static if (isSomeString!T)
             {
-                if (kind == Kind.nil)
+                if (_kind == Kind.nil)
                     return "";
                 else
                     return _string;
@@ -485,7 +509,7 @@ struct UniNode
                 return _object;
             else
                 throw new UniNodeException(
-                        fmt!("Trying to get %s but have %s.")(T.stringof, kind));
+                        fmt!("Trying to get %s but have %s.")(T.stringof, _kind));
         }
         catch (Throwable e)
             throw new UniNodeException(e.msg, e.file, e.line, e.next);
@@ -494,7 +518,7 @@ struct UniNode
 
     int opApply(int delegate(ref string idx, ref UniNode obj) @safe dg)
     {
-        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        enforceUniNode(_kind == Kind.object, "Expected UniNode object");
         foreach (idx, ref v; _object)
         {
             if (auto ret = dg(idx, v))
@@ -525,7 +549,7 @@ struct UniNode
 
     int opApply(int delegate(ref UniNode obj) @safe dg)
     {
-        enforceUniNode(kind == Kind.array, "Expected UniNode array");
+        enforceUniNode(_kind == Kind.array, "Expected UniNode array");
         foreach (ref v; _array)
         {
             if (auto ret = dg(v))
@@ -551,7 +575,7 @@ struct UniNode
 
     size_t length() @property
     {
-        switch (kind) with (Kind)
+        switch (_kind) with (Kind)
         {
             case text:
                 return _string.length;
@@ -570,10 +594,10 @@ struct UniNode
 
     bool opEquals(ref UniNode other)
     {
-        if (kind != other.kind)
+        if (_kind != other.kind)
             return false;
 
-        final switch (kind) with (Kind)
+        final switch (_kind) with (Kind)
         {
             case nil:
                 return true;
@@ -599,21 +623,21 @@ struct UniNode
 
     ref inout(UniNode) opIndex(size_t idx) inout
     {
-        enforceUniNode(kind == Kind.array, "Expected UniNode array");
+        enforceUniNode(_kind == Kind.array, "Expected UniNode array");
         return _array[idx];
     }
 
 
     ref UniNode opIndex(string key)
     {
-        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        enforceUniNode(_kind == Kind.object, "Expected UniNode object");
         return _object[key];
     }
 
 
     ref UniNode opIndexAssign(ref UniNode val, string key)
     {
-        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        enforceUniNode(_kind == Kind.object, "Expected UniNode object");
         return _object[key] = val;
     }
 
@@ -693,7 +717,7 @@ struct UniNodeSerializer
 {
     template isUniNodeType(T)
     {
-        enum isUniNodeType = isNumeric!T || isBoolean!T || isSomeString!T  || is(T == typeof(null));
+        enum isUniNodeType = isNumeric!T || isBoolean!T || isSomeString!T  || is(T == typeof(null)) || isRawData!T;
     }
 
     enum isSupportedValueType(T) = isUniNodeType!T || is(T == UniNode);
