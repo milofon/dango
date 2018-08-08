@@ -85,6 +85,12 @@ class CorsWebMiddleware : BaseWebMiddleware
     }
 
 
+    override void registerHandlers(Chain ch, RegisterDelegate dg)
+    {
+        dg(HTTPMethod.OPTIONS, ch.path, this);
+    }
+
+
 private:
 
 

@@ -11,7 +11,9 @@ module dango.web.middleware;
 
 public
 {
-    import vibe.http.server : HTTPServerRequest, HTTPServerResponse;
+    import vibe.http.server : HTTPServerRequest, HTTPServerResponse, HTTPMethod;
+
+    import dango.web.controller : Chain;
 }
 
 private
@@ -25,16 +27,31 @@ private
 }
 
 
+
+alias RegisterDelegate = void delegate(
+        HTTPMethod, string, HTTPServerRequestHandler);
+
+
 /**
  * Интерфейс для Middleware HTTP
  * Позволяет производить предобработку входязих запросов
  */
 interface WebMiddleware : Activated, HTTPServerRequestHandler
 {
+    /**
+     * Установка след. елемента в цепочке
+     */
     WebMiddleware setNext(WebMiddleware);
 
-
+    /**
+     * Передача управления в след. цепочку
+     */
     void next(HTTPServerRequest req, HTTPServerResponse res) @safe;
+
+    /**
+     * Регистрация дополнительных обрпботчиков
+     */
+    void registerHandlers(Chain ch, RegisterDelegate dg);
 }
 
 
@@ -63,6 +80,9 @@ abstract class BaseWebMiddleware : WebMiddleware
         if (_next !is null)
             _next.handleRequest(req, res);
     }
+
+
+    void registerHandlers(Chain ch, RegisterDelegate dg) {}
 }
 
 

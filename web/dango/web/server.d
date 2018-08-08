@@ -182,7 +182,10 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
                     {
                         WebMiddleware mdw = mdwConf.factory.create(mdwConf.config);
                         if (mdw.enabled)
+                        {
                             ch.attachMiddleware(mdw);
+                            mdw.registerHandlers(ch, &server.registerHandler);
+                        }
                     }
 
                     server.registerHandler(ch.method, ch.path, ch);
