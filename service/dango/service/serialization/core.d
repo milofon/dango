@@ -21,13 +21,13 @@ private
     import std.algorithm.comparison : max;
     import std.traits : isSigned, isUnsigned, isBoolean,
            isNumeric, isFloatingPoint, isArray, ForeachType,
-           isStaticArray, Unqual, isSomeString;
+           isStaticArray, Unqual, isSomeString, isAssociativeArray, KeyType;
     import std.format : fmt = format;
     import std.exception : enforce;
     import std.array : appender;
+    import std.variant : maxSize;
     import std.conv : to;
 
-    import taggedalgebraic;
     import vibe.data.serialization :
         vSerialize = serialize,
         vDeserialize = deserialize;
@@ -151,28 +151,98 @@ template isRawData(T)
 }
 
 
+private template TypeEnum(U)
+{
+	import std.array : join;
+	import std.traits : FieldNameTuple;
+	mixin("enum TypeEnum { " ~ [FieldNameTuple!U].join(", ") ~ " }");
+}
+
+
 /**
  * Универсальная структура для хранения данных
  */
 struct UniNode
 {
 @safe:
-    union U {
-        typeof(null) nil;
-        bool boolean;
-        ulong uinteger;
-        long integer;
-        real floating;
-        string text;
-        ubyte[] raw;
-        UniNode[] array;
-        UniNode[string] object;
+    private
+    {
+        union U {
+            typeof(null) nil;
+            bool boolean;
+            ulong uinteger;
+            long integer;
+            real floating;
+            string text;
+            ubyte[] raw;
+            UniNode[] array;
+            UniNode[string] object;
+        }
+
+        struct SizeChecker
+        {
+            int function() fptr;
+            ubyte[maxSize!U] data;
+        }
+
+        enum size = SizeChecker.sizeof - (int function()).sizeof;
+
+        union
+        {
+            ubyte[size] _store;
+            // conservatively mark the region as pointers
+            static if (size >= (void*).sizeof)
+                void*[size / (void*).sizeof] p;
+        }
+
+        ref inout(T) getDataAs(T)() inout @trusted {
+            static assert(T.sizeof <= _store.sizeof);
+            return (cast(inout(T)[1])_store[0 .. T.sizeof])[0];
+        }
+
+        @property ref inout(UniNode[string]) _object() inout
+        {
+            return getDataAs!(UniNode[string])();
+        }
+
+        @property ref inout(UniNode[]) _array() inout
+        {
+            return getDataAs!(UniNode[])();
+        }
+
+        @property ref inout(bool) _bool() inout
+        {
+            return getDataAs!bool();
+        }
+
+        @property ref inout(long) _int() inout
+        {
+            return getDataAs!long();
+        }
+
+        @property ref inout(ulong) _uint() inout
+        {
+            return getDataAs!ulong();
+        }
+
+        @property ref inout(real) _float() inout
+        {
+            return getDataAs!real();
+        }
+
+        @property ref inout(string) _string() inout
+        {
+            return getDataAs!string();
+        }
+
+        @property ref inout(ubyte[]) _raw() inout
+        {
+            return getDataAs!(ubyte[])();
+        }
     }
 
-    TaggedAlgebraic!U u;
-    alias u this;
-    alias TAU = TaggedAlgebraic!U;
-
+    alias Kind = TypeEnum!U;
+    Kind kind;
 
     static UniNode emptyObject() @property
     {
@@ -180,10 +250,17 @@ struct UniNode
     }
 
 
+    this(UniNode[string] val)
+    {
+        kind = Kind.object;
+        _object = val;
+    }
+
+
     unittest
     {
         auto node = UniNode.emptyObject;
-        assert(node.kind == TAU.Kind.object);
+        assert(node.kind == Kind.object);
     }
 
 
@@ -193,33 +270,48 @@ struct UniNode
     }
 
 
+    this(UniNode[] val)
+    {
+        kind = Kind.array;
+        _array = val;
+    }
+
+
     unittest
     {
         auto node = UniNode.emptyArray;
-        assert(node.kind == TAU.Kind.array);
+        assert(node.kind == Kind.array);
+    }
+
+
+    inout(UniNode)* opBinaryRight(string op)(string key) inout if (op == "in")
+    {
+        return null;
     }
 
 
     this(T)(T val) if (isBoolean!T)
     {
-        u = TAU(cast(bool)val);
+        kind = Kind.boolean;
+        _bool = val;
     }
 
 
     unittest
     {
         auto node = UniNode(false);
-        assert (node.kind == TAU.Kind.boolean);
+        assert (node.kind == Kind.boolean);
         assert (node.get!bool == false);
 
         auto nodei = UniNode(0);
-        assert (nodei.kind == TAU.Kind.integer);
+        assert (nodei.kind == Kind.integer);
     }
 
 
     this(T)(T val) if (isUnsignedNumeric!T)
     {
-        u = TAU(cast(ulong)val);
+        kind = Kind.uinteger;
+        _uint = val;
     }
 
 
@@ -230,7 +322,7 @@ struct UniNode
         {
             TT v = cast(TT)11U;
             auto node = UniNode(v);
-            assert (node.kind == TAU.Kind.uinteger);
+            assert (node.kind == Kind.uinteger);
             assert (node.get!TT == cast(TT)11U);
         }
     }
@@ -238,7 +330,8 @@ struct UniNode
 
     this(T)(T val) if (isSignedNumeric!T)
     {
-        u = TAU(cast(long)val);
+        kind = Kind.integer;
+        _int = val;
     }
 
 
@@ -249,7 +342,7 @@ struct UniNode
         {
             TT v = -11;
             auto node = UniNode(v);
-            assert (node.kind == TAU.Kind.integer);
+            assert (node.kind == Kind.integer);
             assert (node.get!TT == cast(TT)-11);
         }
     }
@@ -257,7 +350,8 @@ struct UniNode
 
     this(T)(T val) if (isFloatingPoint!T)
     {
-        u = TAU(cast(real)val);
+        kind = Kind.floating;
+        _float = val;
     }
 
 
@@ -268,7 +362,7 @@ struct UniNode
         {
             TT v = 11.11;
             auto node = UniNode(v);
-            assert (node.kind == TAU.Kind.floating);
+            assert (node.kind == Kind.floating);
             assert (node.get!TT == cast(TT)11.11);
         }
     }
@@ -276,7 +370,8 @@ struct UniNode
 
     this(T)(T val) if(isSomeString!T)
     {
-        u = TAU(cast(string)val);
+        kind = Kind.text;
+        _string = val;
     }
 
 
@@ -284,17 +379,18 @@ struct UniNode
     {
         string str = "hello";
         auto node = UniNode(str);
-        assert(node.kind == TAU.Kind.text);
+        assert(node.kind == Kind.text);
         assert (node.get!(string) == "hello");
     }
 
 
     this(T)(T val) if (isRawData!T)
     {
+        kind = Kind.raw;
         static if (isStaticArray!T)
-            u = TAU(val.dup);
+            _raw = val.dup;
         else
-            u = TAU(val);
+            _raw = val;
     }
 
 
@@ -302,41 +398,42 @@ struct UniNode
     {
         ubyte[] dynArr = [1, 2, 3];
         auto node = UniNode(dynArr);
-        assert (node.kind == TAU.Kind.raw);
+        assert (node.kind == Kind.raw);
         assert (node.get!(ubyte[]) == [1, 2, 3]);
 
         ubyte[3] stArr = [1, 2, 3];
         node = UniNode(stArr);
-        assert (node.kind == TAU.Kind.raw);
+        assert (node.kind == Kind.raw);
         assert (node.get!(ubyte[3]) == [1, 2, 3]);
     }
 
 
+    // TODO: todo
     this(ARGS...)(ARGS args)
     {
-        u = TaggedAlgebraic!U(args);
+        pragma(msg, "-------------------------- ", ARGS);
     }
 
 
     unittest
     {
         auto node = UniNode();
-        assert (node.kind == TAU.Kind.nil);
+        assert (node.kind == Kind.nil);
 
         auto anode = UniNode([node, node]);
-        assert (anode.kind == TAU.Kind.array);
+        assert (anode.kind == Kind.array);
 
         auto mnode = UniNode(["one": node, "two": node]);
-        assert (mnode.kind == TAU.Kind.object);
+        assert (mnode.kind == Kind.object);
     }
 
 
     void appendArrayElement(UniNode element)
     {
-        enforceUniNode(u.kind == Kind.array,
+        enforceUniNode(kind == Kind.array,
                 "'appendArrayElement' only allowed for array types, not "
-                ~.to!string(u.kind)~".");
-        u ~= element;
+                ~.to!string(kind)~".");
+        _array ~= element;
     }
 
 
@@ -354,40 +451,48 @@ struct UniNode
     {
         try {
             static if (isSignedNumeric!T)
-                return cast(T)(u.get!long);
+                return cast(T)(_int);
             else static if (isUnsignedNumeric!T)
-                return cast(T)(u.get!ulong);
+                return cast(T)(_uint);
             else static if (isFloatingPoint!T)
-                return cast(T)(u.get!real);
+                return cast(T)(_float);
             else static if (isRawData!T)
             {
-                if (u.kind == TAU.Kind.nil)
+                if (kind == Kind.nil)
                     return inout(T).init;
 
                 static if (isStaticArray!T)
-                    return (u.get!(ubyte[]))[0..T.length];
+                    return _raw[0..T.length];
                 else
-                    return u.get!(ubyte[]);
+                    return _raw;
             }
             else static if (isSomeString!T)
             {
-                if (u.kind == TAU.Kind.nil)
+                if (kind == Kind.nil)
                     return "";
                 else
-                    return u.get!string;
+                    return _string;
             }
+            else static if (isBoolean!T)
+                return _bool;
+            else static if (isArray!T && is(ForeachType!T == UniNode))
+                return _array;
+            else static if (isAssociativeArray!T
+                    && is(ForeachType!T == UniNode) && is(KeyType!T == string))
+                return _object;
             else
-                return u.get!T;
+                throw new UniNodeException(
+                        fmt!("Trying to get %s but have %s.")(T.stringof, kind));
         }
-        catch (AssertError e)
+        catch (Throwable e)
             throw new UniNodeException(e.msg, e.file, e.line, e.next);
     }
 
 
     int opApply(int delegate(ref string idx, ref UniNode obj) @safe dg)
     {
-        enforceUniNode(u.kind == UniNode.Kind.object, "Expected UniNode object");
-        foreach (idx, ref v; get!(UniNode[string]))
+        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        foreach (idx, ref v; _object)
         {
             if (auto ret = dg(idx, v))
                 return ret;
@@ -398,9 +503,11 @@ struct UniNode
 
     unittest
     {
+        auto t = UniNode(10, "text");
+
         auto node = UniNode(1);
         auto mnode = UniNode(["one": node, "two": node]);
-        assert (mnode.kind == TAU.Kind.object);
+        assert (mnode.kind == Kind.object);
 
         string[] keys;
         UniNode[] nodes;
@@ -417,8 +524,8 @@ struct UniNode
 
     int opApply(int delegate(ref UniNode obj) @safe dg)
     {
-        enforceUniNode(u.kind == UniNode.Kind.array, "Expected UniNode array");
-        foreach (ref v; get!(UniNode[]))
+        enforceUniNode(kind == Kind.array, "Expected UniNode array");
+        foreach (ref v; _array)
         {
             if (auto ret = dg(v))
                 return ret;
@@ -431,13 +538,11 @@ struct UniNode
     {
         auto node = UniNode(1);
         auto mnode = UniNode([node, node]);
-        assert (mnode.kind == TAU.Kind.array);
+        assert (mnode.kind == Kind.array);
 
         UniNode[] nodes;
         foreach (ref UniNode node; mnode)
-        {
             nodes ~= node;
-        }
 
         assert(nodes.length == 2);
     }
@@ -445,26 +550,70 @@ struct UniNode
 
     size_t length() @property
     {
-        switch (u.kind) with (TAU.Kind)
+        switch (kind) with (Kind)
         {
             case text:
-                return u.length;
+                return _string.length;
             case raw:
-                return u.length;
+                return _raw.length;
             case array:
-                return u.length;
+                return _array.length;
             case object:
-                return u.length;
+                return _object.length;
             default:
                 enforceUniNode(false, "Expected UniNode not length");
-                return 0;
         }
+        return 0;
     }
 
 
     bool opEquals(ref UniNode other)
     {
-        return u == other.u;
+        if (kind != other.kind)
+            return false;
+
+        final switch (kind) with (Kind)
+        {
+            case nil:
+                return true;
+            case boolean:
+                return _bool == other._bool;
+            case uinteger:
+                return _uint == other._uint;
+            case integer:
+                return _int == other._int;
+            case floating:
+                return _float == other._float;
+            case text:
+                return _string == other._string;
+            case raw:
+                return _raw == other._raw;
+            case array:
+                return _array == other._array;
+            case object:
+                return _object == other._object;
+        }
+    }
+
+
+    ref inout(UniNode) opIndex(size_t idx) inout
+    {
+        enforceUniNode(kind == Kind.array, "Expected UniNode array");
+        return _array[idx];
+    }
+
+
+    ref UniNode opIndex(string key)
+    {
+        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        return _object[key];
+    }
+
+
+    ref UniNode opIndexAssign(ref UniNode val, string key)
+    {
+        enforceUniNode(kind == Kind.object, "Expected UniNode object");
+        return _object[key] = val;
     }
 }
 
@@ -608,9 +757,9 @@ struct UniNodeSerializer
             {
                 default:
                     return cast(T)_current.get!T;
-                case UniNode.Type.nil:
+                case UniNode.Kind.nil:
                     return T.nan;
-                case UniNode.Type.floating:
+                case UniNode.Kind.floating:
                     return _current.get!T;
             }
         }

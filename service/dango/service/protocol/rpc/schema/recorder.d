@@ -24,6 +24,7 @@ private
     import vibe.data.serialization : isISOExtStringSerializable,
                 DefaultPolicy, OptionalAttribute;
     import dango.service.protocol.rpc.schema.parser : parseDocumentationContent;
+    import dango.service.serialization : marshalObject;
 
     import dango.system.traits;
     import dango.service.protocol.rpc.schema.types;
@@ -97,7 +98,7 @@ void generateMethodSchema(IType, string name, alias Member, Sink)(ref Sink sink)
         alias def = ParameterDefs[i];
         static if (!is(def == void))
         {
-            param.defVal = UniNode(def);
+            param.defVal = marshalObject(def);
             param.required = false;
         }
         else
