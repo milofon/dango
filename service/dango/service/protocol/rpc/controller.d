@@ -339,8 +339,16 @@ template GenerateHandlerFromMethod(alias F)
                 throw new RpcException(ErrorCode.INVALID_PARAMS, UniNode(errObj));
             }
 
-            RT ret = hdl(args.expand);
-            return marshalObject!RT(ret);
+            static if (is(RT == void))
+            {
+                hdl(args.expand);
+                return UniNode();
+            }
+            else
+            {
+                RT ret = hdl(args.expand);
+                return marshalObject!RT(ret);
+            }
         }
 
         return &fun;
