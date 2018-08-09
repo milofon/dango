@@ -117,6 +117,12 @@ class RouterWebApplicationServer : WebApplicationServer
     {
         _router.match(method, path, hdl);
     }
+
+
+    void registerDelegate(HTTPMethod method, string path, HTTPServerRequestDelegate dg)
+    {
+        _router.match(method, path, dg);
+    }
 }
 
 
@@ -184,7 +190,7 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
                         if (mdw.enabled)
                         {
                             ch.attachMiddleware(mdw);
-                            mdw.registerHandlers(ch, &server.registerHandler);
+                            mdw.registerDelegates(ch, &server.registerDelegate);
                         }
                     }
 

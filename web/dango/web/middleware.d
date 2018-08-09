@@ -21,7 +21,7 @@ private
     import std.traits;
     import std.meta : Alias;
 
-    import vibe.http.server : HTTPServerRequestHandler;
+    import vibe.http.server : HTTPServerRequestDelegate, HTTPServerRequestHandler;
 
     import dango.system.container;
 }
@@ -29,7 +29,7 @@ private
 
 
 alias RegisterDelegate = void delegate(
-        HTTPMethod, string, HTTPServerRequestHandler);
+        HTTPMethod, string, HTTPServerRequestDelegate);
 
 
 /**
@@ -51,7 +51,7 @@ interface WebMiddleware : Activated, HTTPServerRequestHandler
     /**
      * Регистрация дополнительных обрпботчиков
      */
-    void registerHandlers(Chain ch, RegisterDelegate dg);
+    void registerDelegates(Chain ch, RegisterDelegate dg);
 }
 
 
@@ -82,7 +82,7 @@ abstract class BaseWebMiddleware : WebMiddleware
     }
 
 
-    void registerHandlers(Chain ch, RegisterDelegate dg) {}
+    void registerDelegates(Chain ch, RegisterDelegate dg) {}
 }
 
 

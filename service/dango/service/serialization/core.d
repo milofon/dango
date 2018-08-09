@@ -478,13 +478,23 @@ struct UniNode
     {
         try {
             static if (isSignedNumeric!T)
+            {
+                checkType!T(Kind.integer);
                 return cast(T)(_int);
+            }
             else static if (isUnsignedNumeric!T)
+            {
+                checkType!T(Kind.uinteger);
                 return cast(T)(_uint);
+            }
             else static if (isFloatingPoint!T)
+            {
+                checkType!T(Kind.floating);
                 return cast(T)(_float);
+            }
             else static if (isRawData!T)
             {
+                checkType!T(Kind.raw);
                 if (_kind == Kind.nil)
                     return inout(T).init;
 
@@ -495,18 +505,28 @@ struct UniNode
             }
             else static if (isSomeString!T)
             {
+                checkType!T(Kind.text);
                 if (_kind == Kind.nil)
                     return "";
                 else
                     return _string;
             }
             else static if (isBoolean!T)
+            {
+                checkType!T(Kind.boolean);
                 return _bool;
+            }
             else static if (isArray!T && is(ForeachType!T == UniNode))
+            {
+                checkType!T(Kind.array);
                 return _array;
+            }
             else static if (isAssociativeArray!T
                     && is(ForeachType!T == UniNode) && is(KeyType!T == string))
+            {
+                checkType!T(Kind.object);
                 return _object;
+            }
             else
                 throw new UniNodeException(
                         fmt!("Trying to get %s but have %s.")(T.stringof, _kind));
@@ -708,6 +728,16 @@ struct UniNode
 
         fun(this);
         return buff.data;
+    }
+
+
+private:
+
+
+    void checkType(T)(Kind target) inout
+    {
+        enforceUniNode(_kind == target,
+                fmt!("Trying to get %s but have %s.")(T.stringof, _kind));
     }
 }
 
