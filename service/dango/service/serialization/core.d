@@ -505,11 +505,15 @@ struct UniNode
             }
             else static if (isSomeString!T)
             {
-                checkType!T(Kind.text);
-                if (_kind == Kind.nil)
-                    return "";
-                else
+                if (_kind == Kind.raw)
+                    return cast(T)_raw;
+                else if (_kind == Kind.text)
                     return _string;
+                else
+                {
+                    checkType!T(Kind.text);
+                    return "";
+                }
             }
             else static if (isBoolean!T)
             {

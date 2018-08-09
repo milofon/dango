@@ -54,6 +54,8 @@ package LogLevel matchLogLevel(string level)
     {
         case "TRACE":
             return trace;
+        case "DEBUGV":
+            return debugV;
         case "DEBUG":
             return debug_;
         case "INFO":

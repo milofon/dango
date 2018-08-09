@@ -127,22 +127,22 @@ private:
         auto serFactory = container.resolveFactory!Serializer(serializerName);
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
-        Serializer serializer = serFactory.create(serConf);
         logInfo("Use serializer '%s'", serializerName);
+        Serializer serializer = serFactory.create(serConf);
 
         auto protoFactory = container.resolveFactory!(ServerProtocol,
                 ApplicationContainer, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
-        ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
         logInfo("Use protocol '%s'", protoName);
+        ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
 
         auto trFactory = container.resolveFactory!(ServerTransport,
                 ApplicationContainer, ServerProtocol)(transportName);
         configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
-        ServerTransport transport = trFactory.create(trConf, container, protocol);
         logInfo("Use transport '%s'", transportName);
+        ServerTransport transport = trFactory.create(trConf, container, protocol);
 
         return transport;
     }

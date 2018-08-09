@@ -78,6 +78,8 @@ abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
             return serializer.serialize(createErrorBody(null, ErrorCode.PARSE_ERROR, e.msg));
         }
 
+        logDebugV("Request: %s", uniReq);
+
         return serializer.serialize(handleImpl(uniReq));
     }
 
@@ -101,7 +103,7 @@ abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
     void registerHandler(string cmd, Handler hdl)
     {
         _handlers[cmd] = hdl;
-        logInfo("Register method (%s)", cmd);
+        logInfo("  Register method (%s)", cmd);
     }
 
 
@@ -238,15 +240,16 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
 
             if (ctrl.enabled)
             {
+                logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
                 ctrl.registerHandlers(&ret.registerHandler);
                 ctrl.registerSchema(schemaRec);
-                logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
             }
         }
 
         auto docCtrl = new SchemaRpcController(schemaRec);
         if (config.getOrElse("schemaInclude", false))
             docCtrl.registerSchema(schemaRec);
+        logInfo("Register controller '%s' from '%s'", "rpcdoc", docCtrl);
         docCtrl.registerHandlers(&ret.registerHandler);
 
         return ret;

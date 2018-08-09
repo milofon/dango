@@ -183,6 +183,10 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             WebController ctrl = ctrlFactory.create(ctrConf);
             if (ctrl.enabled)
             {
+                logInfo("Register controller: %s", ctrName);
+                logInfo("  Activated middlewares: %s", activeMiddlewares
+                        .map!(m => m.label));
+
                 ctrl.registerChains((Chain ch) {
                     foreach (mdwConf; activeMiddlewares)
                     {
