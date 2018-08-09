@@ -12,9 +12,9 @@ module dango.service.protocol.rpc.schema.parser;
 private
 {
     import std.array : array;
-    import std.algorithm;
-    import std.string : outdent;
-    import std.traits : EnumMembers;
+    import std.algorithm.comparison : among;
+    import std.algorithm.sorting : sort;
+    import std.algorithm.iteration : map, uniq;
 
     import vibe.core.log : logWarn;
 
@@ -23,7 +23,6 @@ private
 
     import dango.service.protocol.rpc.schema.types;
 }
-
 
 
 /**
@@ -43,11 +42,6 @@ void parseDocumentationContent(ref MethodSchema md, string comment)
     {
         switch(lexer.front.type)
         {
-            case tok!"whitespace":
-            case tok!"emptyline":
-                lexer.skipWhitespaces();
-                break;
-
             case tok!"Params:":
                 auto params = lexer.parseParamsBlock();
 
@@ -65,6 +59,8 @@ void parseDocumentationContent(ref MethodSchema md, string comment)
                 md.retType.note = lexer.parseTextBlock();
                 break;
 
+            case tok!"whitespace":
+            case tok!"emptyline":
             default:
                 lexer.popFront();
         }
@@ -72,16 +68,52 @@ void parseDocumentationContent(ref MethodSchema md, string comment)
 }
 
 
+private:
+
 
 /**
- * Пропуск пробельных символов
- */
-void skipWhitespaces(ref DocLexer lexer)
+  * Пропуск всех указанных токенов
+  */
+void skipAll(T...)(ref DocLexer lexer)
 {
-    while (!lexer.empty && (lexer.front.type == tok!"whitespace" || lexer.front.type == tok!"emptyline"))
-        lexer.popFront();
+    while (!lexer.empty)
+    {
+        switch (lexer.front.type)
+        {
+            static foreach(t; T)
+            {
+                case t:
+            }
+                lexer.popFront();
+                break;
+
+            default:
+                return;
+        }
+    }
 }
 
+
+/**
+  * Пропуск всех токенов кроме переданных
+  */
+void skipUntil(T...)(ref DocLexer lexer)
+{
+    while (!lexer.empty)
+    {
+        switch (lexer.front.type)
+        {
+            static foreach(t; T)
+            {
+                case t:
+            }
+                return;
+
+            default:
+                lexer.popFront();
+        }
+    }
+}
 
 
 /**
@@ -91,9 +123,9 @@ string parseSingleLine(ref DocLexer lexer)
 {
     string line = "";
 
-    lexer.skipWhitespaces();
+    lexer.skipUntil!(tok!"string", toks!keywords);
 
-    while (!lexer.empty && (lexer.front.type == tok!"string" || lexer.front.type == tok!"whitespace"))
+    while (!lexer.empty && lexer.front.type.among(tok!"string", tok!"whitespace"))
     {
         if (lexer.front.type == tok!"string")
         {
@@ -108,7 +140,6 @@ string parseSingleLine(ref DocLexer lexer)
 }
 
 
-
 /**
  * Спарсить блок текста
  */
@@ -117,7 +148,7 @@ string parseTextBlock(ref DocLexer lexer)
     string text = "";
     bool newlined = true;
 
-    lexer.skipWhitespaces();
+    lexer.skipUntil!(tok!"string", toks!keywords);
 
     while (!lexer.empty && !isKeyword(lexer.front))
     {
@@ -142,7 +173,6 @@ string parseTextBlock(ref DocLexer lexer)
 }
 
 
-
 /**
  * Спарсить блок описания параметров
  */
@@ -154,8 +184,6 @@ string[string] parseParamsBlock(ref DocLexer lexer)
 
     // Skip 'Params:'
     lexer.popFront();
-
-    lexer.skipWhitespaces();
 
     while (!lexer.empty && !isKeyword(lexer.front))
     {
@@ -180,6 +208,19 @@ string[string] parseParamsBlock(ref DocLexer lexer)
 
 
 
+bool isKeyword(Token token)
+{
+    switch(token.type)
+    {
+        static foreach(key; keywords)
+        case tok!key:
+            return true;
+        default:
+            return false;
+    }
+}
+
+
 /**
  * Создание лексера языка документации
  */
@@ -190,12 +231,10 @@ DocLexer makeLexer(string comment)
 }
 
 
-
 /**
  * Фиксированные токены языка документации
  */
-private enum fixedTokens = cast(string[])[
-];
+private enum fixedTokens = cast(string[]) [];
 
 
 /**
@@ -239,13 +278,23 @@ template tok(string token)
 }
 
 
+template toks(tokens...)
+{
+    import std.meta : aliasSeqOf, staticMap;
+
+    alias toks = staticMap!(tok, aliasSeqOf!(tokens));
+}
+
+
 enum extraFields = "";
 
 
 alias Token = TokenStructure!(IdType, extraFields);
 
 
-
+/**
+  * Лексер языка документации
+  */
 struct DocLexer
 {
     mixin Lexer!(Token, lexString, isSeparating, fixedTokens,
@@ -271,15 +320,13 @@ private:
 
     bool isSpace(dchar c) pure nothrow @safe
     {
-        import std.ascii : isWhite;
+        import std.uni : isWhite;
         return isWhite(c) && c != '\r' && c != '\n';
     }
 
 
     void lexWhitespace(ref Token token) pure nothrow @safe
     {
-        import std.ascii;
-
         mixin (tokenStart);
 
         while (!range.empty && isSpace(range.front))
@@ -366,18 +413,4 @@ private:
 
 
     StringCache* cache;
-}
-
-
-
-bool isKeyword(Token token)
-{
-    switch(token.type)
-    {
-        static foreach(key; keywords)
-        case tok!key:
-            return true;
-        default:
-            return false;
-    }
 }
