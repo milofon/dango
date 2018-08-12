@@ -35,10 +35,12 @@ struct Doc
  */
 struct MethodSchema
 {
-    @Doc("Описание метода")
-    string note;
     @Doc("Наименование метода")
     string name;
+    @Doc("Краткое описание метода")
+    string summary;
+    @Doc("Полное описание метода")
+    string description;
     @Doc("Информация о возвращаемом типе")
     MemberSchema retType;
     @Doc("Принимаемые параметры")
