@@ -141,6 +141,18 @@ interface WebController : Activated
      * dg = Функция регистрации цепочки
      */
     void registerChains(ChainRegister dg);
+
+    /**
+     * Возвращает префикс контроллера
+     */
+    string prefix() @property;
+
+    /**
+     * Устанавливает префикс контроллера
+     * Params:
+     * val = Новое значение
+     */
+    void prefix(string val) @property;
 }
 
 
@@ -151,6 +163,20 @@ interface WebController : Activated
 abstract class BaseWebController : WebController
 {
     mixin ActivatedMixin!();
+
+    private string _prefix;
+
+
+    string prefix() @property
+    {
+        return _prefix;
+    }
+
+
+    void prefix(string val) @property
+    {
+        _prefix = val;
+    }
 }
 
 
@@ -168,6 +194,7 @@ abstract class BaseWebControllerFactory(string N)
     WebController initializeComponent(WebController component, Properties config)
     {
         component.enabled = config.getOrElse!bool("enabled", false);
+        component.prefix = config.getOrElse!string("prefix", "");
         return component;
     }
 }

@@ -144,12 +144,14 @@ class ChainHandler(CType, IType, alias Member) : BaseChain
     private
     {
         Handler _udaHandler;
+        CType _controller;
     }
 
 
     this(CType controller, Handler uda, MemberType hdl)
     {
         this._udaHandler = uda;
+        this._controller = controller;
         super(controller.createHandler!(MemberType, Member)(hdl));
     }
 
@@ -191,27 +193,35 @@ private:
 
         enum udas = getUDAs!(IType, Controller);
         static if (udas.length > 0)
-        {
-            auto parent = InetPath(udas[0].prefix);
-            auto child = InetPath(path);
-
-            if (!parent.absolute)
-                parent = InetPath("/") ~ parent;
-
-            if (child.absolute)
-            {
-                auto childSegments = child.bySegment();
-                childSegments.popFront();
-                child = InetPath(childSegments);
-            }
-
-            if (!child.empty)
-                parent ~= child;
-
-            return parent.toString;
-        }
+            string ctrlPath = joinPath(udas[0].prefix, path);
         else
-            return path;
+            string ctrlPath = path;
+
+        return joinPath(_controller.prefix, ctrlPath);
+    }
+
+
+    string joinPath(string prefix, string path)
+    {
+        import vibe.core.path : InetPath;
+
+        auto parent = InetPath(prefix);
+        auto child = InetPath(path);
+
+        if (!parent.absolute)
+            parent = InetPath("/") ~ parent;
+
+        if (child.absolute)
+        {
+            auto childSegments = child.bySegment();
+            childSegments.popFront();
+            child = InetPath(childSegments);
+        }
+
+        if (!child.empty)
+            parent ~= child;
+
+        return parent.toString;
     }
 }
 

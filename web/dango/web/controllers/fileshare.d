@@ -7,7 +7,7 @@
  * Date: 2018-07-03
  */
 
-module dango.web.controllers.files;
+module dango.web.controllers.fileshare;
 
 private
 {
@@ -25,25 +25,23 @@ private
 /**
  * Класс контроллера позволяющий раздавать статику из директории
  */
-class FilesWebController : BaseWebController
+class FileShareWebController : BaseWebController
 {
     private
     {
         string _path;
-        string _prefix;
     }
 
 
-    this(string path, string prefix)
+    this(string path)
     {
         this._path = path;
-        this._prefix = prefix;
     }
 
 
     void registerChains(ChainRegister dg)
     {
-        dg(new FilesChain(_path, _prefix));
+        dg(new FilesChain(_path, prefix));
     }
 }
 
@@ -92,16 +90,13 @@ class FilesChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class FilesWebControllerFactory : BaseWebControllerFactory!("FILES")
+class FileShareWebControllerFactory : BaseWebControllerFactory!("SHARE")
 {
     WebController createComponent(Properties config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");
-        string prefix = config.getOrEnforce!string("prefix",
-                "Not defined prefix parameter");
-
-        return new FilesWebController(path, prefix);
+        return new FileShareWebController(path);
     }
 }
 
