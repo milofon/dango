@@ -152,7 +152,7 @@ class ChainHandler(CType, IType, alias Member) : BaseChain
     {
         this._udaHandler = uda;
         this._controller = controller;
-        super(controller.createHandler!(MemberType, Member)(hdl));
+        pushHandler(controller.createHandler!(MemberType, Member)(hdl));
     }
 
 

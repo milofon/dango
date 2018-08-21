@@ -75,7 +75,7 @@ class RpcChain : BaseChain
                 break;
         }
 
-        super((HTTPServerRequest req, HTTPServerResponse res) {
+        pushHandler((HTTPServerRequest req, HTTPServerResponse res) {
                 () @trusted {
                     auto data = protocol.handle(cast(immutable)req.bodyReader.readAll());
                     res.writeBody(data, contentType);

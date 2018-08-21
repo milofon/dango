@@ -90,12 +90,12 @@ abstract class BaseChain : Chain
     }
 
 
-    this(HTTPServerRequestDelegate memberHandler)
+    void pushHandler(HTTPServerRequestDelegate dg)
     {
         pushMiddleware(new class BaseWebMiddleware {
             void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
             {
-                memberHandler(req, res);
+                dg(req, res);
             }
         });
     }

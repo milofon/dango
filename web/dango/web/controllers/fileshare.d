@@ -64,7 +64,7 @@ class FilesChain : BaseChain
         auto fsettings = new HTTPFileServerSettings;
         fsettings.serverPathPrefix = _prefix;
 
-        super(serveStaticFiles(path, fsettings));
+        pushHandler(serveStaticFiles(path, fsettings));
     }
 
 

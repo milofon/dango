@@ -60,7 +60,7 @@ class RpcDocChain : BaseChain
     {
         this._path = path;
 
-        super((scope HTTPServerRequest req, scope HTTPServerResponse res){
+        pushHandler((scope HTTPServerRequest req, scope HTTPServerResponse res){
 		    res.render!("documentation.dt", req, entrypoint);
         });
     }
