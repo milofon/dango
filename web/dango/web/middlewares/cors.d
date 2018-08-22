@@ -21,9 +21,9 @@ private
     import vibe.http.server : HTTPMethod;
     import vibe.inet.url : URL;
 
+    import proped : Properties;
     import dango.system.exception : configEnforce, ConfigException;
     import dango.system.properties : getOrEnforce;
-    import dango.system.container;
 
     import dango.web.middleware;
 }
@@ -33,24 +33,28 @@ private
 alias AllowChecker = bool delegate(string val) @safe;
 
 
-
-class CorsWebMiddleware : BaseWebMiddleware
+/**
+ * Middleware позволяет реализовать CORS доступ
+ */
+class CorsWebMiddleware : NamedWebMiddleware!("CORS")
 {
     private
     {
         AllowChecker _originChecker;
         AllowChecker _methodChecker;
         AllowChecker _headerChecker;
+        Chain _chain;
         ulong _maxAge;
     }
 
 
-    this(AllowChecker oCk, AllowChecker mCk, AllowChecker hCk, long maxAge)
+    this(Chain chain, AllowChecker oCk, AllowChecker mCk, AllowChecker hCk, long maxAge)
     {
         this._originChecker = oCk;
         this._methodChecker = mCk;
         this._headerChecker = hCk;
         this._maxAge = maxAge;
+        this._chain = chain;
     }
 
 
@@ -68,9 +72,9 @@ class CorsWebMiddleware : BaseWebMiddleware
     }
 
 
-    override void registerDelegates(Chain ch, RegisterDelegate dg)
+    override void registerAdditionalHandlers(RegisterHandlerCallback dg)
     {
-        dg(HTTPMethod.OPTIONS, ch.path, &handleOptionsRequest);
+        dg(HTTPMethod.OPTIONS, _chain.path, &handleOptionsRequest);
     }
 
 
@@ -105,15 +109,15 @@ private:
 
 
 
-class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory!("CORS")
+class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    WebMiddleware createComponent(Properties config)
+    override WebMiddleware createMiddleware(Properties config, Chain chain)
     {
         AllowChecker oCk = createOriginChecker(config.getArray("origin"));
         AllowChecker mCk = createMethodChecker(config.getArray("method"));
         AllowChecker hCk = createHeaderChecker(config.getArray("header"));
         long maxAge = config.getOrElse!long("maxAge", 300);
-        return new CorsWebMiddleware(oCk, mCk, hCk, maxAge);
+        return new CorsWebMiddleware(chain, oCk, mCk, hCk, maxAge);
     }
 
 

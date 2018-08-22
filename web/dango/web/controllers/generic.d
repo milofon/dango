@@ -71,7 +71,7 @@ template GetWebControllerHandlers(C)
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(CType, IType) : BaseWebController, IType
+abstract class GenericWebController(CType, IType, string N) : NamedWebController!N, IType
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -117,7 +117,7 @@ abstract class GenericWebController(CType, IType) : BaseWebController, IType
     }
 
 
-    void registerChains(ChainRegister dg)
+    void registerChains(ChainRegisterCallback dg)
     {
         CType controller = cast(CType)this;
         foreach(Member; Handlers)
@@ -152,7 +152,7 @@ class ChainHandler(CType, IType, alias Member) : BaseChain
     {
         this._udaHandler = uda;
         this._controller = controller;
-        pushHandler(controller.createHandler!(MemberType, Member)(hdl));
+        registerChainHandler(controller.createHandler!(MemberType, Member)(hdl));
     }
 
 

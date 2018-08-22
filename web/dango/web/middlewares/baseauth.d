@@ -19,13 +19,14 @@ private
     import proped : Properties;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.container;
     import dango.web.middleware;
 }
 
 
-
-class BaseAuthWebMiddleware : BaseWebMiddleware
+/**
+ * Middleware позволяет реализовать аутентификацию baseauth
+ */
+class BaseAuthWebMiddleware : NamedWebMiddleware!("BASEAUTH")
 {
     private
     {
@@ -66,9 +67,9 @@ private:
 
 
 
-class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("BASEAUTH")
+class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    WebMiddleware createComponent(Properties config)
+    override WebMiddleware createMiddleware(Properties config, Chain chain)
     {
         string username = config.getOrEnforce!string("username",
                 "Not defined username parameter").strip;

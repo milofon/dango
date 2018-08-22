@@ -7,12 +7,16 @@
  */
 module dango.system.properties;
 
+public
+{
+    import dango.system.exception : configEnforce;
+}
+
 private
 {
     import proped;
     import poodinis : ApplicationContext;
 
-    import dango.system.exception : configEnforce;
     import dango.system.container : ApplicationContainer;
 }
 

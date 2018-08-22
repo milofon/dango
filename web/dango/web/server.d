@@ -17,6 +17,8 @@ private
     import std.typecons : Tuple;
     import std.algorithm.iteration : filter, map;
     import std.algorithm.searching : canFind;
+    import std.algorithm.sorting : sort;
+    import std.array : array;
 
     import proped : PropertiesNotFoundException;
 
@@ -35,8 +37,9 @@ private
 
 
 alias MiddlewareConfig = Tuple!(
+        long, "ordering",
         Properties, "config",
-        PostComponentFactory!WebMiddleware, "factory",
+        PostComponentFactory!(WebMiddleware, Properties, Chain), "factory",
         string, "label");
 
 
@@ -60,7 +63,7 @@ interface WebApplicationServer
  * Класс фабрики веб сервера
  */
 abstract class WebApplicationServerFactory : ComponentFactory!(WebApplicationServer,
-        ApplicationContainer)
+        Properties, ApplicationContainer)
 {
     /**
      * Конструирует объект сервера
@@ -119,7 +122,7 @@ class RouterWebApplicationServer : WebApplicationServer
     }
 
 
-    void registerDelegate(HTTPMethod method, string path, HTTPServerRequestDelegate dg)
+    void registerHandler(HTTPMethod method, string path, HTTPServerRequestDelegate dg)
     {
         _router.match(method, path, dg);
     }
@@ -131,21 +134,22 @@ class RouterWebApplicationServer : WebApplicationServer
  */
 class RouterWebApplicationServerFactory : WebApplicationServerFactory
 {
-    override WebApplicationServer createServer(Properties webConf, HTTPServerSettings settings,
+    override WebApplicationServer createServer(Properties config, HTTPServerSettings settings,
             ApplicationContainer container)
     {
         auto server = new RouterWebApplicationServer(settings);
 
-        string webName = webConf.getOrElse!string("name", "Undefined");
-        logInfo("Configuring web application %s", webName);
+        string webName = config.getOrElse!string("name", "Undefined");
+        logInfo("Configuring web application '%s'", webName);
         MiddlewareConfig[] middlewares;
 
-        foreach (Properties mdwConf; webConf.getArray("middleware"))
+        foreach (Properties mdwConf; config.getArray("middleware"))
         {
             string mdwName = mdwConf.getNameOrEnforce(
                     "Not defined middleware name");
 
-            auto mdwFactory = container.resolveFactory!WebMiddleware(mdwName);
+            auto mdwFactory = container.resolveFactory!(WebMiddleware,
+                    Properties, Chain)(mdwName);
             configEnforce(mdwFactory !is null,
                     fmt!"Middleware '%s' not register"(mdwName));
 
@@ -154,21 +158,25 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
                         return m.label == label;
                     }), fmt!"Middleware %s already registered"(label));
 
-            middlewares ~= MiddlewareConfig(mdwConf, mdwFactory, label);
+            long ordering = mdwConf.getOrElse!long("order", 0);
+
+            middlewares ~= MiddlewareConfig(ordering, mdwConf, mdwFactory, label);
         }
 
-        foreach (Properties ctrConf; webConf.getArray("controller"))
+        foreach (Properties ctrConf; config.getArray("controller"))
         {
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            auto ctrlFactory = container.resolveFactory!WebController(ctrName);
+            auto ctrlFactory = container.resolveFactory!(WebController,
+                    Properties)(ctrName);
             configEnforce(ctrlFactory !is null,
                     fmt!"Controller '%s' not register"(ctrName));
 
             auto ctrlMiddlewares = ctrConf.getArray("middlewares")
                 .map!(pm => pm.get!string);
 
+            // проверка на наличие конфигураций
             foreach (string mdwLabel; ctrlMiddlewares)
             {
                 configEnforce(middlewares.canFind!((m) => m.label == mdwLabel),
@@ -176,9 +184,11 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             }
 
             auto activeMiddlewares = middlewares.filter!((mdwConf) {
-                    bool def = mdwConf.config.getOrElse!bool("default", false);
-                    return def || ctrlMiddlewares.canFind(mdwConf.label);
-                });
+                        bool def = mdwConf.config.getOrElse!bool("default", false);
+                        return def || ctrlMiddlewares.canFind(mdwConf.label);
+                    }).array;
+
+            activeMiddlewares.sort!((a, b) => a.ordering > b.ordering);
 
             WebController ctrl = ctrlFactory.create(ctrConf);
             if (ctrl.enabled)
@@ -190,11 +200,11 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
                 ctrl.registerChains((Chain ch) {
                     foreach (mdwConf; activeMiddlewares)
                     {
-                        WebMiddleware mdw = mdwConf.factory.create(mdwConf.config);
+                        WebMiddleware mdw = mdwConf.factory.create(mdwConf.config, ch);
                         if (mdw.enabled)
                         {
                             ch.attachMiddleware(mdw);
-                            mdw.registerDelegates(ch, &server.registerDelegate);
+                            mdw.registerAdditionalHandlers(&server.registerHandler);
                         }
                     }
 

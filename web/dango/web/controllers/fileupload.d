@@ -9,6 +9,7 @@
 
 module dango.web.controllers.fileupload;
 
+/+
 private
 {
     import std.uuid : randomUUID;
@@ -98,4 +99,5 @@ class FileUploadWebControllerFactory : BaseWebControllerFactory!("UPLOAD")
         return new FileUploadWebController(path);
     }
 }
++/
 

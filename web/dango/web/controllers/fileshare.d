@@ -25,7 +25,7 @@ private
 /**
  * Класс контроллера позволяющий раздавать статику из директории
  */
-class FileShareWebController : BaseWebController
+class FileShareWebController : NamedWebController!("SHARE")
 {
     private
     {
@@ -39,7 +39,7 @@ class FileShareWebController : BaseWebController
     }
 
 
-    void registerChains(ChainRegister dg)
+    void registerChains(ChainRegisterCallback dg)
     {
         dg(new FilesChain(_path, prefix));
     }
@@ -62,9 +62,9 @@ class FilesChain : BaseChain
         this._prefix = prefix;
 
         auto fsettings = new HTTPFileServerSettings;
-        fsettings.serverPathPrefix = _prefix;
+        fsettings.serverPathPrefix = prefix;
 
-        pushHandler(serveStaticFiles(path, fsettings));
+        registerChainHandler(serveStaticFiles(path, fsettings));
     }
 
 
@@ -90,9 +90,9 @@ class FilesChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class FileShareWebControllerFactory : BaseWebControllerFactory!("SHARE")
+class FileShareWebControllerFactory : BaseWebControllerFactory
 {
-    WebController createComponent(Properties config)
+    override FileShareWebController createController(Properties config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");

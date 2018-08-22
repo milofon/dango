@@ -57,6 +57,7 @@ struct Handler
 
 /**
  * Интерфейс цепочки обработки запроса
+ * На основе обработчика формируется цепочка обработки вызова
  */
 interface Chain : HTTPServerRequestHandler
 {
@@ -87,17 +88,7 @@ abstract class BaseChain : Chain
     private
     {
         WebMiddleware _headMiddleware;
-    }
 
-
-    void pushHandler(HTTPServerRequestDelegate dg)
-    {
-        pushMiddleware(new class BaseWebMiddleware {
-            void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
-            {
-                dg(req, res);
-            }
-        });
     }
 
 
@@ -108,6 +99,17 @@ abstract class BaseChain : Chain
 
 
 protected:
+
+
+    void registerChainHandler(HTTPServerRequestDelegate dg)
+    {
+        pushMiddleware(new class BaseWebMiddleware {
+            void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
+            {
+                dg(req, res);
+            }
+        });
+    }
 
 
     void pushMiddleware(WebMiddleware next)
@@ -126,13 +128,13 @@ protected:
 /**
  * Функция регистрации цепочки оработки запроса
  */
-alias ChainRegister = void delegate(Chain chain);
+alias ChainRegisterCallback = void delegate(Chain chain);
 
 
 /**
  * Интерфейс для контроллера
  */
-interface WebController : Activated
+interface WebController : ActivatedComponent
 {
     /**
      * Регистрация цепочек маршрутов контроллера
@@ -140,29 +142,21 @@ interface WebController : Activated
      * Params:
      * dg = Функция регистрации цепочки
      */
-    void registerChains(ChainRegister dg);
+    void registerChains(ChainRegisterCallback dg);
 
     /**
      * Возвращает префикс контроллера
      */
     string prefix() @property;
-
-    /**
-     * Устанавливает префикс контроллера
-     * Params:
-     * val = Новое значение
-     */
-    void prefix(string val) @property;
 }
 
 
 /**
  * Базовый класс web контроллера
- * Params:
  */
 abstract class BaseWebController : WebController
 {
-    mixin ActivatedMixin!();
+    mixin ActivatedComponentMixin!();
 
     private string _prefix;
 
@@ -171,13 +165,20 @@ abstract class BaseWebController : WebController
     {
         return _prefix;
     }
-
-
-    void prefix(string val) @property
-    {
-        _prefix = val;
-    }
 }
+
+
+/**
+ * Базовый именованный класс web контроллера
+ */
+abstract class NamedWebController(string N) : BaseWebController, NamedComponent
+{
+    mixin NamedComponentMixin!N;
+}
+
+
+
+alias ControllerFactory = ComponentFactory!(WebController, Properties);
 
 
 /**
@@ -185,17 +186,48 @@ abstract class BaseWebController : WebController
  * Params:
  * CType = Тип контроллера
  */
-abstract class BaseWebControllerFactory(string N)
-    : ComponentFactory!(WebController), InitializingFactory!(WebController), Named
+abstract class BaseWebControllerFactory : ControllerFactory
 {
-    mixin NamedMixin!N;
+    BaseWebController createController(Properties config);
 
 
-    WebController initializeComponent(WebController component, Properties config)
+    WebController createComponent(Properties config)
     {
-        component.enabled = config.getOrElse!bool("enabled", false);
-        component.prefix = config.getOrElse!string("prefix", "");
-        return component;
+        auto ret = createController(config);
+        ret.enabled = config.getOrElse!bool("enabled", false);
+        ret._prefix = config.getOrElse!string("prefix", "");
+        return ret;
     }
+}
+
+
+/**
+ * Урощенная фабрика контроллера
+ */
+class SimpleWebControllerFactory(C : BaseWebController) : BaseWebControllerFactory
+{
+    override BaseWebController createController(Properties config)
+    {
+        return new C();
+    }
+}
+
+
+/**
+ * Регистрация компонента Middleware
+ */
+void registerController(F : ControllerFactory, C : WebController)(
+        ApplicationContainer container)
+{
+    container.registerFactory!(F, C);
+}
+
+
+/**
+ * Регистрация компонента Middleware
+ */
+void registerController(C : WebController)(ApplicationContainer container)
+{
+    container.registerController!(SimpleWebControllerFactory!(C), C);
 }
 

@@ -15,9 +15,10 @@ public
 private
 {
     import dango.system.container;
+    import dango.web.controller : registerController;
 
     import dango.web.controllers.fileshare;
-    import dango.web.controllers.fileupload;
+    // import dango.web.controllers.fileupload;
 }
 
 
@@ -26,8 +27,8 @@ class WebControllersContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(FileShareWebControllerFactory, FileShareWebController);
-        container.registerFactory!(FileUploadWebControllerFactory, FileUploadWebController);
+        container.registerController!(FileShareWebControllerFactory, FileShareWebController);
+        // container.registerFactory!(FileUploadWebControllerFactory, FileUploadWebController);
     }
 }
 

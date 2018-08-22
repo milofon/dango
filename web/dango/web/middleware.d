@@ -21,6 +21,7 @@ private
     import std.traits;
     import std.meta : Alias;
 
+    import proped : Properties;
     import vibe.http.server : HTTPServerRequestDelegate, HTTPServerRequestHandler;
 
     import dango.system.container;
@@ -28,7 +29,7 @@ private
 
 
 
-alias RegisterDelegate = void delegate(
+alias RegisterHandlerCallback = void delegate(
         HTTPMethod, string, HTTPServerRequestDelegate);
 
 
@@ -36,7 +37,7 @@ alias RegisterDelegate = void delegate(
  * Интерфейс для Middleware HTTP
  * Позволяет производить предобработку входязих запросов
  */
-interface WebMiddleware : Activated, HTTPServerRequestHandler
+interface WebMiddleware : ActivatedComponent, HTTPServerRequestHandler
 {
     /**
      * Установка след. елемента в цепочке
@@ -49,9 +50,10 @@ interface WebMiddleware : Activated, HTTPServerRequestHandler
     void next(HTTPServerRequest req, HTTPServerResponse res) @safe;
 
     /**
-     * Регистрация дополнительных обрпботчиков
+     * Регистрация дополнительных обработчиков
+     * Middleware может добавлять свои обработчики в роутер
      */
-    void registerDelegates(Chain ch, RegisterDelegate dg);
+    void registerAdditionalHandlers(RegisterHandlerCallback cb);
 }
 
 
@@ -60,7 +62,7 @@ interface WebMiddleware : Activated, HTTPServerRequestHandler
  */
 abstract class BaseWebMiddleware : WebMiddleware
 {
-    mixin ActivatedMixin!();
+    mixin ActivatedComponentMixin!();
 
     private
     {
@@ -82,24 +84,68 @@ abstract class BaseWebMiddleware : WebMiddleware
     }
 
 
-    void registerDelegates(Chain ch, RegisterDelegate dg) {}
+    void registerAdditionalHandlers(RegisterHandlerCallback cb) {}
 }
+
+
+/**
+ * Базовый именованный класс Middleware
+ */
+abstract class NamedWebMiddleware(string N) : BaseWebMiddleware, NamedComponent
+{
+    mixin NamedComponentMixin!N;
+}
+
+
+
+alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Properties, Chain);
 
 
 /**
  * Базовая фабрика для web контроллеров
  */
-abstract class BaseWebMiddlewareFactory(string N)
-        : ComponentFactory!(WebMiddleware), InitializingFactory!(WebMiddleware), Named
+abstract class BaseWebMiddlewareFactory : MiddlewareFactory
 {
-    mixin NamedMixin!N;
+    WebMiddleware createMiddleware(Properties config, Chain chain);
 
 
-    WebMiddleware initializeComponent(WebMiddleware component, Properties config)
+    WebMiddleware createComponent(Properties config, Chain chain)
     {
-        component.enabled = config.getOrElse!bool("enabled", false);
-        return component;
+        auto ret = createMiddleware(config, chain);
+        ret.enabled = config.getOrElse!bool("enabled", false);
+        return ret;
     }
+}
+
+
+/**
+ * Урощенная фабрика middleware
+ */
+class SimpleWebMiddlewareFactory(M : BaseWebMiddleware) : BaseWebMiddlewareFactory
+{
+    WebMiddleware createMiddleware(Properties config, Chain chain)
+    {
+        return new M();
+    }
+}
+
+
+/**
+ * Регистрация компонента Middleware
+ */
+void registerMiddleware(F : MiddlewareFactory, M : WebMiddleware)(
+        ApplicationContainer container)
+{
+    container.registerFactory!(F, M);
+}
+
+
+/**
+ * Регистрация компонента Middleware
+ */
+void registerMiddleware(M : WebMiddleware)(ApplicationContainer container)
+{
+    container.registerMiddleware!(SimpleWebMiddlewareFactory!M, M);
 }
 
 

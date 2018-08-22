@@ -93,7 +93,7 @@ protected:
             if (webConf.getOrElse("enabled", false))
             {
                 auto serverFactory = container.resolveFactory!(WebApplicationServer,
-                        ApplicationContainer);
+                        Properties, ApplicationContainer);
                 auto server = serverFactory.create(webConf, container);
                 server.listen();
                 _servers ~= server;

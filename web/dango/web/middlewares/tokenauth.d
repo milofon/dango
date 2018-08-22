@@ -14,14 +14,14 @@ private
     import proped : Properties;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.container;
-
     import dango.web.middleware;
 }
 
 
-
-class TokenAuthWebMiddleware : BaseWebMiddleware
+/**
+ * Middleware позволяет реализовать авторизацию по токену
+ */
+class TokenAuthWebMiddleware : NamedWebMiddleware!("TOKENAUTH")
 {
     private string _token;
 
@@ -47,9 +47,9 @@ class TokenAuthWebMiddleware : BaseWebMiddleware
 
 
 
-class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory!("TOKENAUTH")
+class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    WebMiddleware createComponent(Properties config)
+    override WebMiddleware createMiddleware(Properties config, Chain chain)
     {
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");
