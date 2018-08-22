@@ -11,7 +11,7 @@ module dango.system.exception;
 
 private
 {
-    import std.exception : enforceEx, enforce;
+    import std.exception : enforce;
 
     import proped : Properties;
 }
@@ -37,5 +37,5 @@ class ConfigException : Exception
 }
 
 
-alias configEnforce = enforceEx!(ConfigException);
+alias configEnforce = enforce!(ConfigException);
 

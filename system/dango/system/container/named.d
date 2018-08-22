@@ -20,47 +20,6 @@ private
 
 
 /**
- * Тип обертка над именованными
- */
-interface Named(T)
-{
-    string name() @property;
-
-    T value() @property;
-}
-
-
-/**
- * Контейнер для управления именованных зависимостей
- *
- * При помощи данного контейнера можно зарегистрировать именованную зависимось
- * определенного типа.
- *
- * Имена уникальны в рамках одного типа
- */
-template NamedWrapper(ConcreteType, string NAME)
-{
-    class Wrapper(SuperType) : Named!SuperType
-    {
-        @Autowire
-        private ConcreteType _registrationType;
-
-
-        string name() @property
-        {
-            return NAME;
-        }
-
-
-        ConcreteType value() @property
-        {
-            return this._registrationType;
-        }
-    }
-}
-
-
-/**
  * Метод добавляет возможность регистрировать именованные зависимости
  *
  * Params:
@@ -76,7 +35,7 @@ Registration registerNamed(SuperType, ConcreteType : SuperType, string Name)(
             RegistrationOption options = RegistrationOption.none)
 {
     auto ret = container.register!(SuperType, ConcreteType)(options);
-    alias W = NamedWrapper!(ConcreteType, Name).Wrapper!SuperType;
+    alias W = NamedWrapper!(ConcreteType, Name.toUpper).Wrapper!SuperType;
     container.register!(Named!SuperType, W)(options);
     return ret;
 }
@@ -125,5 +84,49 @@ QualifierType resolveNamed(RegistrationType, QualifierType : RegistrationType)(
                 resolveType);
 
     return findResult[0].value;
+}
+
+
+private:
+
+
+/**
+ * Тип обертка над именованными
+ */
+interface Named(T)
+{
+    string name() @property;
+
+    T value() @property;
+}
+
+
+/**
+ * Контейнер для управления именованных зависимостей
+ *
+ * При помощи данного контейнера можно зарегистрировать именованную зависимось
+ * определенного типа.
+ *
+ * Имена уникальны в рамках одного типа
+ */
+template NamedWrapper(ConcreteType, string NAME)
+{
+    class Wrapper(SuperType) : Named!SuperType
+    {
+        @Autowire
+        private ConcreteType _registrationType;
+
+
+        string name() @property
+        {
+            return NAME;
+        }
+
+
+        ConcreteType value() @property
+        {
+            return this._registrationType;
+        }
+    }
 }
 

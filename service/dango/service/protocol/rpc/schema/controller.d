@@ -33,6 +33,14 @@ struct MethodName
 
 
 
+struct VersionAPI
+{
+    string title;
+    string entrypoint;
+}
+
+
+
 @Controller("__schema")
 interface ISchemaRpcController
 {
@@ -56,6 +64,9 @@ interface ISchemaRpcController
 
     @Method("method.tree")
     MethodName[] getTreeMethodName();
+
+    @Method("version.list")
+    VersionAPI[] getVersions();
 }
 
 
@@ -147,6 +158,12 @@ class SchemaRpcController : GenericRpcController!ISchemaRpcController
             addNames(root, names);
 
         return root.child;
+    }
+
+
+    VersionAPI[] getVersions()
+    {
+        return [];
     }
 }
 

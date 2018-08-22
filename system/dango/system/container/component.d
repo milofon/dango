@@ -11,14 +11,13 @@ module dango.system.container.component;
 
 public
 {
-    import proped : Properties;
-
     import dango.system.container : ApplicationContainer;
 }
 
 private
 {
-    import std.traits : Parameters;
+    import std.traits : TemplateArgsOf;
+    import std.format : fmt = format;
     import std.meta : AliasSeq;
 
     import poodinis;
@@ -30,7 +29,7 @@ private
 /**
  * Компонент системы, который ассоциирован с именем
  */
-interface Named
+interface NamedComponent
 {
     /**
      * Возвращает имя компонента
@@ -42,7 +41,7 @@ interface Named
 /**
  * Компонент системы, который содержит состояние активности
  */
-interface Activated
+interface ActivatedComponent
 {
     /**
      * Возвращает активность компонента
@@ -61,7 +60,7 @@ interface Activated
  * Params:
  * N = Наименование компонента
  */
-mixin template NamedMixin(string N)
+mixin template NamedComponentMixin(string N)
 {
     enum NAME = N;
 
@@ -75,9 +74,10 @@ mixin template NamedMixin(string N)
 /**
  * Миксин для добавления простого функционала активации компонента
  */
-mixin template ActivatedMixin()
+mixin template ActivatedComponentMixin()
 {
     private bool _enabled;
+
 
     bool enabled() @property
     {
@@ -92,6 +92,23 @@ mixin template ActivatedMixin()
 }
 
 
+
+unittest
+{
+    class Component : NamedComponent, ActivatedComponent
+    {
+        mixin NamedComponentMixin!"TEST";
+        mixin ActivatedComponentMixin!();
+    }
+
+    auto c = new Component();
+    assert(c.name == "TEST");
+    assert(c.enabled == false);
+    c.enabled = true;
+    assert(c.enabled == true);
+}
+
+
 /**
  * Интерфейс фабрики для создания компонентов системы
  * Params:
@@ -103,23 +120,7 @@ interface ComponentFactory(I, A...)
     /**
      * Создает компонент на основе конфигов
      */
-    I createComponent(Properties config, A args);
-}
-
-
-/**
- * Интерфейс фабрики для создания компонентов системы
- * с возможностью пост иниуиализации
- * Params:
- * I - Конструируемый тип
- * A - Типы аргументов
- */
-interface InitializingFactory(I, A...)
-{
-    /**
-     * Позволяет провести пост инициализаяю комопнента
-     */
-    I initializeComponent(I component, Properties config, A args);
+    I createComponent(A args);
 }
 
 
@@ -140,40 +141,6 @@ interface PreComponentFactory(I, A...)
 
 
 /**
- * Класс простой фабрики с возможностью создать объект
- * на основе преинициализированных данных.
- * Используется в DI
- * Params:
- * I - Конструируемый тип
- * A - Типы аргументов
- */
-class SimplePreComponentFactory(F : ComponentFactory!(I, A), I, A...)
-    : PreComponentFactory!(I, A)
-{
-    private
-    {
-        F _factory;
-        Properties _config;
-        A _args;
-    }
-
-
-    this(F factory, Properties config, A args)
-    {
-        this._factory = factory;
-        this._config = config;
-        this._args = args;
-    }
-
-
-    I create()
-    {
-        return _factory.createComponent(_config, _args);
-    }
-}
-
-
-/**
  * Модификация регистрации компонента в DI
  * Добавление возможности создавать компоненты при помощи фабрики
  * Params:
@@ -181,7 +148,8 @@ class SimplePreComponentFactory(F : ComponentFactory!(I, A), I, A...)
  * F = Фабрика компонента
  */
 Registration factoryInstance(F : PreComponentFactory!(I, A), I, A...)(
-        Registration registration, CreatesSingleton createSingleton, F factory)
+        Registration registration, F factory,
+        CreatesSingleton createSingleton = CreatesSingleton.yes)
 {
     InstanceFactoryMethod method = () {
         return cast(Object)factory.create();
@@ -189,6 +157,155 @@ Registration factoryInstance(F : PreComponentFactory!(I, A), I, A...)(
     registration.instanceFactory = new InstanceFactory(registration.instanceType,
             createSingleton, null, method);
     return registration;
+}
+
+
+
+version(unittest)
+{
+    class Config
+    {
+        string host = "localhost";
+    }
+
+
+    interface IItem : NamedComponent
+    {
+        int val() @property;
+
+        void val(int val) @property;
+
+        string host() @property;
+    }
+
+
+    class Item : IItem
+    {
+        mixin NamedComponentMixin!"ITEM";
+        @Autowire Config conf;
+        private int _a;
+
+        this(int a)
+        {
+            this._a = a;
+        }
+
+        int val() @property
+        {
+            return _a;
+        }
+
+        void val(int val) @property
+        {
+            _a = val;
+        }
+
+        string host() @property
+        {
+            return conf.host;
+        }
+    }
+
+
+    class ItemFactory : ComponentFactory!(IItem, int)
+    {
+        IItem createComponent(int a)
+        {
+            return new Item(a);
+        }
+    }
+
+
+    ApplicationContainer createContainer()
+    {
+        auto cnt = new ApplicationContainer();
+        cnt.register!Config;
+        return cnt;
+    }
+}
+
+
+unittest
+{
+    class PreItemFactory : PreComponentFactory!(IItem, int)
+    {
+        private
+        {
+            ComponentFactory!(IItem, int) _factory;
+            int _a;
+        }
+
+
+        this(ComponentFactory!(IItem, int) factory, int a)
+        {
+            this._factory = factory;
+            this._a = a;
+        }
+
+
+        IItem create()
+        {
+            return _factory.createComponent(_a);
+        }
+    }
+
+
+    auto cnt = createContainer();
+    auto factory = new ItemFactory();
+    cnt.register!(IItem, Item)
+        .factoryInstance!PreItemFactory(new PreItemFactory(factory, 1));
+
+    auto item = cnt.resolve!IItem;
+    assert(item.name == "ITEM");
+    assert(item.val == 1);
+}
+
+
+/**
+ * Класс простой фабрики с возможностью создать объект
+ * на основе преинициализированных данных.
+ * Используется в DI
+ * Params:
+ * I - Конструируемый тип
+ * A - Типы аргументов
+ */
+class SimplePreComponentFactory(I, A...)
+        : PreComponentFactory!(I, A)
+{
+    private
+    {
+        ComponentFactory!(I, A) _factory;
+        A _args;
+    }
+
+
+    this(ComponentFactory!(I, A) factory, A args)
+    {
+        this._factory = factory;
+        this._args = args;
+    }
+
+
+    I create()
+    {
+        return _factory.createComponent(_args);
+    }
+}
+
+
+
+unittest
+{
+    alias SF = SimplePreComponentFactory!(IItem, int);
+    auto cnt = createContainer();
+    auto factory = new ItemFactory();
+    cnt.register!(IItem, Item)
+        .factoryInstance!SF(new SF(factory, 1));
+
+    auto item = cnt.resolve!IItem;
+    assert(item.name == "ITEM");
+    assert(item.val == 1);
+    assert(item.host == "localhost");
 }
 
 
@@ -200,14 +317,53 @@ Registration factoryInstance(F : PreComponentFactory!(I, A), I, A...)(
  * F = Фабрика компонента
  * A = Типы аргументов
  */
-Registration factoryInstance(F : ComponentFactory!(I, A), I, A...)(
-        Registration registration, CreatesSingleton createSingleton, Properties config, A args)
+Registration factoryInstance(F : ComponentFactory!(I), I, A...)(
+        Registration registration, A args)
 {
     auto factoryFunctor = new F();
-    auto factory = new SimplePreComponentFactory!(F, I, A)(factoryFunctor, config, args);
 
-    return registration.factoryInstance!(PreComponentFactory!(I, A), I)(
-            createSingleton, factory);
+    static if (A.length && is(A[0] == CreatesSingleton))
+    {
+        CreatesSingleton createSingleton = args[0];
+        alias AR = A[1..$];
+        AR arguments = args[1..$];
+    }
+    else
+    {
+        CreatesSingleton createSingleton = CreatesSingleton.yes;
+        alias AR = A;
+        AR arguments = args;
+    }
+
+    alias SF = SimplePreComponentFactory!(I, AR);
+    alias FA = TemplateArgsOf!F;
+
+    static assert(is(FA[0] == I), "Component factory not " ~ FA[0].stringof);
+    static foreach(i, TT; AR)
+        static assert(is(FA[i+1] == TT),
+            fmt!("Trying to factory %s but have %s.")(AR.stringof, FA[1..$].stringof));
+
+    auto factory = new SF(factoryFunctor, arguments);
+    return factoryInstance!SF(registration, factory, createSingleton);
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+
+    cnt.register!(IItem, Item)
+        .factoryInstance!ItemFactory(3);
+
+    auto item = cnt.resolve!IItem;
+    assert(item.name == "ITEM");
+    assert(item.val == 3);
+
+    item.val = 4;
+    auto item2 = cnt.resolve!IItem;
+    assert(item2.name == "ITEM");
+    assert(item2.val == 4);
 }
 
 
@@ -223,10 +379,9 @@ interface PostComponentFactory(I, A...)
     /**
      * Создает компонент на основе передваемых аргументов
      * Params:
-     * config = Конфигурация
      * args   = Аргументы
      */
-    I create(Properties config, A args);
+    I create(A args);
 }
 
 
@@ -238,48 +393,47 @@ interface PostComponentFactory(I, A...)
  * T = Реализация компонента
  * A - Типы аргументов
  */
-class AutowirePostComponentFactory(F : ComponentFactory!(I, A), I, T:I, A...)
+class AutowirePostComponentFactory(I, T : I, A...)
     : PostComponentFactory!(I, A)
 {
     private
     {
-        F _factory;
+        ComponentFactory!(I, A) _factory;
         ApplicationContainer _container;
     }
 
 
-    this(ApplicationContainer container, F factory)
+    this(ApplicationContainer container, ComponentFactory!(I, A) factory)
     {
         this._container = container;
         this._factory = factory;
     }
 
 
-    I create(Properties config, A args)
+    I create(A args)
     {
-        auto ret = cast(T)_factory.createComponent(config, args);
-        static if (is (F : InitializingFactory!(I, A)))
-            ret = cast(T)_factory.initializeComponent(ret, config, args);
+        auto ret = cast(T)_factory.createComponent(args);
         _container.autowire!T(ret);
         return ret;
     }
 }
 
 
-Registration registerFactory(F : ComponentFactory!(I, A), T:I, I, A...)(
-        ApplicationContainer container, F factoryFunctor,
-        RegistrationOption options = RegistrationOption.none)
+
+unittest
 {
-    auto factory = new AutowirePostComponentFactory!(F, I, T, A)(container, factoryFunctor);
-    static if (is(F : Named) && __traits(compiles, F.NAME))
-        return container.registerNamed!(PostComponentFactory!(I, A),
-                AutowirePostComponentFactory!(F, I, T, A), F.NAME)(options)
-            .existingInstance(factory);
-    else
-        return container.register!(PostComponentFactory!(I, A),
-                AutowirePostComponentFactory!(F, I, T, A))(options)
-            .existingInstance(factory);
+    auto cnt = createContainer();
+    auto factory = new ItemFactory();
+
+    alias AF = AutowirePostComponentFactory!(IItem, Item, int);
+    auto f = new AF(cnt, factory);
+
+    auto item = f.create(2);
+    assert(item.name == "ITEM");
+    assert(item.val == 2);
+    assert(item.host == "localhost");
 }
+
 
 /**
  * Регистрация фабрики компонентов в контейнер
@@ -289,12 +443,71 @@ Registration registerFactory(F : ComponentFactory!(I, A), T:I, I, A...)(
  * F = Фабрика компонента
  * A = Типы аргументов
  */
-Registration registerFactory(F : ComponentFactory!(I, A), T:I, I, A...)(
-        ApplicationContainer container, RegistrationOption options = RegistrationOption.none)
+Registration registerFactory(F : ComponentFactory!(I, A), T : I, I, A...)(
+        ApplicationContainer container, F factoryFunctor,
+        RegistrationOption options = RegistrationOption.none)
+{
+    alias IAF = PostComponentFactory!(I, A);
+    alias AF = AutowirePostComponentFactory!(I, T, A);
+    auto factory = new AF(container, factoryFunctor);
+
+    static if (is(T : NamedComponent) && __traits(compiles, T.NAME))
+    {
+        return container.registerNamed!(IAF, AF, T.NAME)(options)
+            .existingInstance(factory);
+    }
+    else
+    {
+        return container.register!(IAF, AF)
+            .existingInstance(factory);
+    }
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+    auto f = new ItemFactory();
+    cnt.registerFactory!(ItemFactory, Item)(f);
+    auto af = cnt.resolve!(PostComponentFactory!(IItem, int));
+
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
+}
+
+
+/**
+ * Регистрация фабрики компонентов в контейнер
+ * Params:
+ * I = Интерфес компонента
+ * T = Реализация компонента
+ * F = Фабрика компонента
+ * A = Типы аргументов
+ */
+Registration registerFactory(F : ComponentFactory!(I, A), T : I, I, A...)(
+        ApplicationContainer container,
+        RegistrationOption options = RegistrationOption.none)
 {
     auto factoryFunctor = new F();
     container.autowire(factoryFunctor);
     return registerFactory!(F, T, I, A)(container, factoryFunctor, options);
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+    cnt.registerFactory!(ItemFactory, Item)();
+    auto af = cnt.resolve!(PostComponentFactory!(IItem, int));
+
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
 }
 
 
@@ -311,6 +524,20 @@ PostComponentFactory!(I, A) resolveFactory(I, A...)(ApplicationContainer contain
 }
 
 
+
+unittest
+{
+    auto cnt = createContainer();
+    cnt.registerFactory!(ItemFactory, Item)();
+    auto af = cnt.resolveFactory!(IItem, int);
+
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
+}
+
+
 /**
  * Резолвинг фабрики для указанного именованного компонента
  * Params:
@@ -322,5 +549,19 @@ PostComponentFactory!(I, A) resolveFactory(I, A...)(ApplicationContainer contain
         string name, ResolveOption resolveOptions = ResolveOption.none)
 {
     return container.resolveNamed!(PostComponentFactory!(I, A))(name, resolveOptions);
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+    cnt.registerFactory!(ItemFactory, Item)();
+    auto af = cnt.resolveFactory!(IItem, int)("item");
+
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
 }
 
