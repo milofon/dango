@@ -184,7 +184,9 @@ template GenerateHandlerFromMethod(alias F, string cmd)
         }
 
         auto result = _protocol.request("%4$s", params);
-        return deserializeUniNode!(RT)(result);
+
+        static if (!is(RT == void))
+            return deserializeUniNode!(RT)(result);
     })(nameFun, generateParameterTuple(), generateAssing(), cmd);
 }
 
