@@ -35,15 +35,9 @@ private
 }
 
 
-
-alias MiddlewareConfig = Tuple!(
-        long, "ordering",
-        Properties, "config",
-        PostComponentFactory!(WebMiddleware, Properties, Chain), "factory",
-        string, "label");
-
-
-
+/**
+ * Интерфейс Web сервера
+ */
 interface WebApplicationServer
 {
     /**
@@ -141,7 +135,7 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
         string webName = config.getOrElse!string("name", "Undefined");
         logInfo("Configuring web application '%s'", webName);
-        MiddlewareConfig[] middlewares;
+        MiddlewareInfo[] middlewares;
 
         foreach (Properties mdwConf; config.getArray("middleware"))
         {
@@ -160,7 +154,7 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
             long ordering = mdwConf.getOrElse!long("order", 0);
 
-            middlewares ~= MiddlewareConfig(ordering, mdwConf, mdwFactory, label);
+            middlewares ~= MiddlewareInfo(ordering, mdwConf, mdwFactory, label);
         }
 
         foreach (Properties ctrConf; config.getArray("controller"))
@@ -219,6 +213,15 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
 
 private:
+
+
+struct MiddlewareInfo
+{
+    long ordering;
+    Properties config;
+    PostComponentFactory!(WebMiddleware, Properties, Chain) factory;
+    string label;
+}
 
 
 /**
