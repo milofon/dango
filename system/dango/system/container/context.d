@@ -15,6 +15,8 @@ private
 
     import poodinis : ApplicationContext, DependencyContainer,
            registerContextComponents, autowire, existingInstance;
+
+    import dango.system.container : ApplicationContainer;
 }
 
 
@@ -29,7 +31,7 @@ interface ConfigurableContext
      * container = DI контейнер
      * config    = Конфигурация
      */
-    void registerDependencies(shared(DependencyContainer) container, Properties config);
+    void registerDependencies(ApplicationContainer, Properties config);
 }
 
 
@@ -39,18 +41,43 @@ interface ConfigurableContext
  * container = DI контейнер
  * config    = Конфигурация
  */
-void registerContext(Context : ApplicationContext)(shared(DependencyContainer) container,
-        Properties config)
+void registerConfigurableContext(Context : ApplicationContext)(ApplicationContainer container,
+        Properties config) if (is(Context : ConfigurableContext))
 {
     auto context = new Context();
-
-    static if (is(Context : ConfigurableContext))
-        context.registerDependencies(container, config);
-    else
-        context.registerDependencies(container);
-
+    context.registerDependencies(container, config);
     context.registerContextComponents(container);
     container.register!(ApplicationContext, Context)().existingInstance(context);
     autowire(container, context);
+}
+
+
+
+version(unittest)
+{
+    import dango.system.container.component;
+
+    class TestContext : ApplicationContext, ConfigurableContext
+    {
+        void registerDependencies(ApplicationContainer container, Properties config)
+        {
+            int a = cast(int)config.get!long("key").get;
+            container.register!(IItem, Item).factoryInstance!ItemFactory(a);
+        }
+    }
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+    Properties config;
+    config.set("key", 11);
+
+    cnt.registerConfigurableContext!TestContext(config);
+    auto item = cnt.resolve!IItem;
+    assert(item.name == "ITEM");
+    assert(item.val == 11);
 }
 

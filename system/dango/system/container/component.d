@@ -9,11 +9,6 @@
 
 module dango.system.container.component;
 
-public
-{
-    import dango.system.container : ApplicationContainer;
-}
-
 private
 {
     import std.traits : TemplateArgsOf;
@@ -22,7 +17,8 @@ private
 
     import poodinis;
 
-    import dango.system.container : registerNamed, resolveNamed;
+    import dango.system.container : registerNamed, resolveNamed,
+           ApplicationContainer;
 }
 
 
