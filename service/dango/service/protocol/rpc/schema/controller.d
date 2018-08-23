@@ -75,35 +75,31 @@ class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC"
 {
     private
     {
-        MethodSchema[] _methods;
-        ModelSchema[] _models;
-        EnumSchema[] _enums;
+        SchemaRecorder _recorder;
     }
 
 
     this(SchemaRecorder recorder)
     {
-        this._methods = recorder.getMethods();
-        this._models = recorder.getModels();
-        this._enums = recorder.getEnums();
+        this._recorder = recorder;
     }
 
 
     EnumSchema[] getAllEnums()
     {
-        return _enums;
+        return _recorder.getEnums();
     }
 
 
     string[] getAllEnumNames()
     {
-        return _enums.map!((i) => i.name).array;
+        return _recorder.getEnums().map!((i) => i.name).array;
     }
 
 
     EnumSchema getEnum(string name)
     {
-        auto fr = _enums.find!((i) => i.name == name);
+        auto fr = _recorder.getEnums.find!((i) => i.name == name);
         enforceRpc(fr.length, 404, fmt!"Schema for enum '%s' not found"(name));
         return fr[0];
     }
@@ -111,19 +107,19 @@ class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC"
 
     MethodSchema[] getAllMethods()
     {
-        return _methods;
+        return _recorder.getMethods();
     }
 
 
     string[] getAllMethodNames()
     {
-        return _methods.map!((i) => i.name).array;
+        return _recorder.getMethods.map!((i) => i.name).array;
     }
 
 
     MethodSchema getMethod(string name)
     {
-        auto fr = _methods.find!((i) => i.name == name);
+        auto fr = _recorder.getMethods.find!((i) => i.name == name);
         enforceRpc(fr.length, 404, fmt!"Schema for method '%s' not found"(name));
         return fr[0];
     }
@@ -131,19 +127,19 @@ class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC"
 
     ModelSchema[] getAllModels()
     {
-        return _models;
+        return _recorder.getModels;
     }
 
 
     string[] getAllModelNames()
     {
-        return _models.map!((i) => i.name).array;
+        return _recorder.getModels.map!((i) => i.name).array;
     }
 
 
     ModelSchema getModel(string name)
     {
-        auto fr = _models.find!((i) => i.name == name);
+        auto fr = _recorder.getModels.find!((i) => i.name == name);
         enforceRpc(fr.length, 404, fmt!"Schema for model '%s' not found"(name));
         return fr[0];
     }
@@ -152,7 +148,7 @@ class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC"
     MethodName[] getTreeMethodName()
     {
         MethodName root;
-        auto methodNodes = _methods.map!((m) => m.name.split(".")).array;
+        auto methodNodes = _recorder.getMethods.map!((m) => m.name.split(".")).array;
 
         void addNames(ref MethodName node, string[] names)
         {
