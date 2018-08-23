@@ -20,6 +20,7 @@ private
     import vibe.core.core : yield, Task, runWorkerTaskH, runTask;
     import vibe.core.connectionpool : ConnectionPool;
 
+    import proped : Properties;
     import deimos.zmq.zmq;
     import zmqd;
 
@@ -33,19 +34,9 @@ private
 
 
 /**
- * Объект настроек ZeroMQ
- */
-struct ZeroMQTransportSettings
-{
-    string uri;
-    bool useBroker;
-}
-
-
-/**
  * Транспорт использующий функционал ZeroMQ
  */
-class ZeroMQServerTransport : ServerTransport
+class ZeroMQServerTransport : BaseServerTransport!"ZEROMQ"
 {
     private
     {
@@ -139,7 +130,7 @@ class ZeroMQServerTransport : ServerTransport
 /**
  * Фабрика транспорта использующий функционал ZeroMQ
  */
-class ZeroMQServerTransportFactory : BaseServerTransportFactory!("ZEROMQ")
+class ZeroMQServerTransportFactory : BaseServerTransportFactory
 {
     ServerTransport createComponent(Properties config, ApplicationContainer container,
             ServerProtocol protocol)
@@ -150,7 +141,7 @@ class ZeroMQServerTransportFactory : BaseServerTransportFactory!("ZEROMQ")
 }
 
 
-class ZeroMQClientTransport : ClientTransport
+class ZeroMQClientTransport : BaseClientTransport!"ZEROMQ"
 {
     private
     {
@@ -178,7 +169,7 @@ class ZeroMQClientTransport : ClientTransport
 /**
  * Фабрика клиенсткого транспорта использующего функционал ZeroMQ
  */
-class ZeroMQClientTransportFactory : BaseClientTransportFactory!"ZEROMQ"
+class ZeroMQClientTransportFactory : BaseClientTransportFactory
 {
     ClientTransport createComponent(Properties config)
     {
@@ -191,6 +182,16 @@ class ZeroMQClientTransportFactory : BaseClientTransportFactory!"ZEROMQ"
 
 
 private:
+
+
+/**
+ * Объект настроек ZeroMQ
+ */
+struct ZeroMQTransportSettings
+{
+    string uri;
+    bool useBroker;
+}
 
 
 class ZeroMQConnection

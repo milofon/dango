@@ -16,6 +16,8 @@ private
     import vibe.http.server : HTTPMethod;
     import vibe.stream.operations : readAll;
 
+    import proped : Properties;
+
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
@@ -31,7 +33,7 @@ private
 /**
  * Серверный транспорт использующий функционал HTTP
  */
-class WebServerTransport : ServerTransport
+class WebServerTransport : BaseServerTransport!"WEB"
 {
     private
     {
@@ -61,7 +63,7 @@ class WebServerTransport : ServerTransport
 /**
  * Фабрика серверного транспорта использующего функционал HTTP
  */
-class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
+class WebServerTransportFactory : BaseServerTransportFactory
 {
     ServerTransport createComponent(Properties config, ApplicationContainer container,
             ServerProtocol protocol)
@@ -70,7 +72,7 @@ class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
         container.registerFactory!(RpcWebControllerFactory,
                 RpcWebController)(rpcFactory);
 
-        auto serverFactory = container.resolveFactory!(WebApplicationServer,
+        auto serverFactory = container.resolveFactory!(WebApplicationServer, Properties,
                 ApplicationContainer);
         auto server = serverFactory.create(config, container);
 
@@ -82,7 +84,7 @@ class WebServerTransportFactory : BaseServerTransportFactory!"WEB"
 /**
  * Клиентский транспорт использующий функционал HTTP
  */
-class WebClientTransport : ClientTransport
+class WebClientTransport : BaseClientTransport!"WEB"
 {
     private
     {
@@ -122,7 +124,7 @@ class WebClientTransport : ClientTransport
 /**
  * Фабрика клиенсткого транспорта использующего функционал HTTP
  */
-class WebClientTransportFactory : BaseClientTransportFactory!"WEB"
+class WebClientTransportFactory : BaseClientTransportFactory
 {
     ClientTransport createComponent(Properties config)
     {

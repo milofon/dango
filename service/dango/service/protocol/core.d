@@ -27,7 +27,7 @@ private
 /**
  * Интерфейс серверного протокола взаимодействия
  */
-interface ServerProtocol
+interface ServerProtocol : NamedComponent
 {
     /**
      * Метод-обработик входящейго запроса
@@ -45,8 +45,10 @@ interface ServerProtocol
 
 
 
-abstract class BaseServerProtocol : ServerProtocol
+abstract class BaseServerProtocol(string N) : ServerProtocol
 {
+    mixin NamedComponentMixin!N;
+
     private Serializer _serializer;
 
 
@@ -64,9 +66,6 @@ abstract class BaseServerProtocol : ServerProtocol
 
 
 
-abstract class BaseServerProtocolFactory(string N) :
-    ComponentFactory!(ServerProtocol, ApplicationContainer, Serializer), Named
-{
-    mixin NamedMixin!N;
-}
+alias BaseServerProtocolFactory = ComponentFactory!(ServerProtocol, Properties,
+        ApplicationContainer, Serializer);
 

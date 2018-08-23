@@ -13,7 +13,7 @@ private
 {
     import std.meta;
 
-    import dango.service.serialization : UniNode;
+    import uninode.core : UniNode;
 }
 
 

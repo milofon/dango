@@ -26,7 +26,7 @@ private
 /**
  * Класс контроллера RPC
  */
-class RpcWebController : BaseWebController
+class RpcWebController : NamedWebController!"RPC"
 {
     private
     {
@@ -42,7 +42,7 @@ class RpcWebController : BaseWebController
     }
 
 
-    void registerChains(ChainRegister dg)
+    void registerChains(ChainRegisterCallback dg)
     {
         dg(new RpcChain(_protocol, _entrypoint));
     }
@@ -75,7 +75,7 @@ class RpcChain : BaseChain
                 break;
         }
 
-        pushHandler((HTTPServerRequest req, HTTPServerResponse res) {
+        registerChainHandler((HTTPServerRequest req, HTTPServerResponse res) {
                 () @trusted {
                     auto data = protocol.handle(cast(immutable)req.bodyReader.readAll());
                     res.writeBody(data, contentType);
@@ -104,12 +104,10 @@ class RpcChain : BaseChain
 
 
 /**
- * Класс фабрика контроллера позволяющий раздавать статику из директории
+ * Класс фабрика контроллера предоствляющего entrypoint для RPC
  */
-class RpcWebControllerFactory : ComponentFactory!(WebController), Named
+class RpcWebControllerFactory : ComponentFactory!(WebController, Properties)
 {
-    mixin NamedMixin!"RPC";
-
     private ServerProtocol _protocol;
 
 

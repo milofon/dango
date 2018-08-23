@@ -21,10 +21,11 @@ private
     import std.conv : to;
     import std.typecons : Nullable;
 
+    import uninode.serialization : serializeToUniNode;
+
     import vibe.data.serialization : isISOExtStringSerializable,
                 DefaultPolicy, OptionalAttribute;
     import dango.service.protocol.rpc.schema.parser : parseDocumentationContent;
-    import dango.service.serialization : marshalObject;
 
     import dango.system.traits;
     import dango.service.protocol.rpc.schema.types;
@@ -154,6 +155,10 @@ void generateModelEnumSchema(Model, ESink)(ref ESink eSink)
     ret.name = Model.stringof;
     ret.type = getTypeSchema!OT;
 
+    enum annoEnum = getUDAs!(Model, Doc);
+    static if (annoEnum.length)
+        ret.note = annoEnum[0].content;
+
     foreach(em; EnumMembers!Model)
     {
         string key = to!string(em);
@@ -177,6 +182,11 @@ void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESin
 
     ModelSchema ret;
     ret.name = modelName;
+
+    enum annoModel = getUDAs!(Model, Doc);
+    static if (annoModel.length)
+        ret.note = annoModel[0].content;
+
     alias MemberNameTuple = FieldNameTuple!Model;
 
     foreach(i, MemberType; Fields!Model)

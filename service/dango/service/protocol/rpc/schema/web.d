@@ -22,7 +22,7 @@ private
 /**
  * Класс контроллера позволяющий отобразить документацию
  */
-class RpcDocumentationWebController : BaseWebController
+class RpcDocumentationWebController : NamedWebController!"RPCDOC"
 {
     private
     {
@@ -38,7 +38,7 @@ class RpcDocumentationWebController : BaseWebController
     }
 
 
-    void registerChains(ChainRegister dg)
+    void registerChains(ChainRegisterCallback dg)
     {
         dg(new RpcDocChain(_path, _entrypoint));
     }
@@ -60,9 +60,9 @@ class RpcDocChain : BaseChain
     {
         this._path = path;
 
-        pushHandler((scope HTTPServerRequest req, scope HTTPServerResponse res){
-		    res.render!("documentation.dt", req, entrypoint);
-        });
+        registerChainHandler((scope HTTPServerRequest req, scope HTTPServerResponse res){
+                res.render!("documentation.dt", req, entrypoint);
+            });
     }
 
 
@@ -88,9 +88,9 @@ class RpcDocChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий отобразить документацию
  */
-class RpcDocumentationWebControllerFactory : BaseWebControllerFactory!("RPCDOC")
+class RpcDocumentationWebControllerFactory : BaseWebControllerFactory
 {
-    WebController createComponent(Properties config)
+    override RpcDocumentationWebController createController(Properties config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");

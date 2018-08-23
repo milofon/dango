@@ -20,6 +20,7 @@ public
 
 private
 {
+    import proped : Properties;
     import dango.system.container;
     import dango.service.types;
 }
@@ -28,7 +29,7 @@ private
 /**
  * Интерфейс серверного транспортного уровня
  */
-interface ServerTransport
+interface ServerTransport : NamedComponent
 {
     /**
      * Запуск транспортного уровня
@@ -45,19 +46,25 @@ interface ServerTransport
 
 
 /**
- * Базовый класс фабрики серверного транспортного уровня
+ * Базовый класс серверного транспортного уровня
  */
-abstract class BaseServerTransportFactory(string N) : ComponentFactory!(
-        ServerTransport, ApplicationContainer, ServerProtocol), Named
+abstract class BaseServerTransport(string N) : ServerTransport
 {
-    mixin NamedMixin!N;
+    mixin NamedComponentMixin!N;
 }
+
+
+/**
+ * Фабрика серверного транспортного уровня
+ */
+alias BaseServerTransportFactory = ComponentFactory!(ServerTransport, Properties,
+        ApplicationContainer, ServerProtocol);
 
 
 /**
  * Интерфейс клиентского транспортного уровня
  */
-interface ClientTransport
+interface ClientTransport : NamedComponent
 {
     /**
      * Выполнение запроса
@@ -70,11 +77,16 @@ interface ClientTransport
 
 
 /**
- * Базовый класс фабрики клиентского транспортного уровня
+ * Базовый класс клиентского транспортного уровня
  */
-abstract class BaseClientTransportFactory(string N) :
-    ComponentFactory!(ClientTransport), Named
+abstract class BaseClientTransport(string N) : ClientTransport
 {
-    mixin NamedMixin!N;
+    mixin NamedComponentMixin!N;
 }
+
+
+/**
+ * Фабрика клиентского транспортного уровня
+ */
+alias BaseClientTransportFactory = ComponentFactory!(ClientTransport, Properties);
 

@@ -16,6 +16,9 @@ private
 
     import vibe.data.json;
 
+    import uninode.core : UniNode;
+    import proped : Properties;
+
     import dango.system.container;
     import dango.service.types;
     import dango.service.serialization.core;
@@ -42,7 +45,7 @@ class JsonSerializer : BaseSerializer!"JSON"
 
 
 
-class JsonSerializerFactory : BaseSerializerFactory!("JSON")
+class JsonSerializerFactory : ComponentFactory!(Serializer, Properties)
 {
     Serializer createComponent(Properties config)
     {

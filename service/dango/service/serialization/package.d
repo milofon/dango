@@ -9,10 +9,11 @@ module dango.service.serialization;
 
 public
 {
-    import vibe.data.serialization : optional;
+    import uninode.core : UniNode;
+    import uninode.serialization : optional,
+           deserializeUniNode, serializeToUniNode;
 
-    import dango.service.serialization.core : Serializer, UniNode,
-           marshalObject, unmarshalObject;
+    import dango.service.serialization.core : Serializer;
 }
 
 private

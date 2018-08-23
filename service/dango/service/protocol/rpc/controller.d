@@ -27,23 +27,11 @@ private
     import dango.system.container;
     import dango.system.traits;
 
+    import dango.service.protocol.rpc.core : Handler;
     import dango.service.protocol.rpc.error;
     import dango.service.protocol.rpc.schema.recorder;
-    import dango.service.serialization : UniNode,
-           marshalObject, unmarshalObject;
+    import dango.service.serialization;
 }
-
-
-/**
- * Функция обработки запроса
- */
-alias Handler = UniNode delegate(UniNode params);
-
-
-/**
- * Функция регистрации обработчика запроса
- */
-alias RegisterHandler = void delegate(string, Handler);
 
 
 /**
@@ -101,7 +89,7 @@ template GetRpcControllerMethods(C)
 /**
  * Интерфейс контроллера
  */
-interface RpcController : Activated
+interface RpcController : ActivatedComponent, NamedComponent
 {
     /**
      * Регистрация обработчиков в диспетчер
@@ -109,7 +97,7 @@ interface RpcController : Activated
      * Params:
      * dg = Функция регистрации цепочки
      */
-    void registerHandlers(RegisterHandler hdl);
+    void registerHandlers(RegisterHandlerCallback hdl);
 
     /**
      * Регистрация документации метода
@@ -125,9 +113,10 @@ interface RpcController : Activated
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class BaseRpcController : RpcController
+abstract class BaseRpcController(string N) : RpcController
 {
-    mixin ActivatedMixin!();
+    mixin NamedComponentMixin!N;
+    mixin ActivatedComponentMixin!();
 }
 
 
@@ -136,7 +125,7 @@ abstract class BaseRpcController : RpcController
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericRpcController(IType) : BaseRpcController, IType
+abstract class GenericRpcController(IType, string N) : BaseRpcController!N, IType
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -149,7 +138,7 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
     static assert(Handlers.length, "The controller must contain handlers");
 
 
-    void registerHandlers(RegisterHandler hdl)
+    void registerHandlers(RegisterHandlerCallback hdl)
     {
         foreach(Member; Handlers)
         {
@@ -190,7 +179,7 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
         if (!!value)
             return;
 
-        throw new RpcException(code, message, marshalObject!T(data), file, line);
+        throw new RpcException(code, message, serializeToUniNode!T(data), file, line);
     }
 }
 
@@ -200,16 +189,16 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
  * Params:
  * CType = Тип контроллера
  */
-abstract class BaseRpcControllerFactory(string N)
-    : ComponentFactory!RpcController, InitializingFactory!(RpcController), Named
+abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Properties)
 {
-    mixin NamedMixin!N;
+    RpcController createController(Properties config);
 
 
-    RpcController initializeComponent(RpcController component, Properties config)
+    RpcController createComponent(Properties config)
     {
-        component.enabled = config.getOrElse!bool("enabled", false);
-        return component;
+        auto ret = createController(config);
+        ret.enabled = config.getOrElse!bool("enabled", false);
+        return ret;
     }
 }
 
@@ -234,6 +223,12 @@ template FullMethodName(I, string method)
 
 
 private:
+
+
+/**
+ * Функция регистрации обработчика запроса
+ */
+alias RegisterHandlerCallback = void delegate(string, Handler);
 
 
 /**
@@ -275,7 +270,7 @@ template GenerateHandlerFromMethod(alias F)
             void fillArg(size_t idx, PType)(string key, UniNode value)
             {
                 try
-                    args[idx] = unmarshalObject!(PType)(value);
+                    args[idx] = deserializeUniNode!(PType)(value);
                 catch (Exception e)
                     paramErrors[key] ~= e.msg;
             }
@@ -347,7 +342,7 @@ template GenerateHandlerFromMethod(alias F)
             else
             {
                 RT ret = hdl(args.expand);
-                return marshalObject!RT(ret);
+                return serializeToUniNode!RT(ret);
             }
         }
 

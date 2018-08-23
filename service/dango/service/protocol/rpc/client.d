@@ -25,9 +25,7 @@ private
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
     import dango.service.protocol.rpc.core;
-    import dango.service.protocol.rpc.controller;
-    import dango.service.serialization : UniNode,
-           marshalObject, unmarshalObject;
+    import dango.service.serialization : UniNode;
 }
 
 
@@ -54,7 +52,7 @@ class InterfaceClient(I) : I
 
 
 
-class ClientFactory(I) : ComponentFactory!(I, ApplicationContainer)
+class ClientFactory(I) : ComponentFactory!(I, Properties, ApplicationContainer)
 {
     InterfaceClient!I createComponent(Properties config, ApplicationContainer container)
     {
@@ -177,11 +175,11 @@ template GenerateHandlerFromMethod(alias F, string cmd)
                     args[i] = def;
             }
             %3$s
-            auto params = marshalObject!PT(args);
+            auto params = serializeToUniNode!PT(args);
         }
 
         auto result = _protocol.request("%4$s", params);
-        return unmarshalObject!(RT)(result);
+        return deserializeUniNode!(RT)(result);
     })(nameFun, generateParameterTuple(), generateAssing(), cmd);
 }
 

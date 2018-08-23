@@ -13,8 +13,10 @@ private
 {
     import std.algorithm.searching : startsWith;
 
-    import proped : Properties;
     import msgpack;
+
+    import uninode.core : UniNode;
+    import proped : Properties;
 
     import dango.system.container;
     import dango.service.types;
@@ -59,7 +61,7 @@ class MsgPackSerializer : BaseSerializer!"MSGPACK"
 
 
 
-class MsgPackSerializerFactory : BaseSerializerFactory!"MSGPACK"
+class MsgPackSerializerFactory : ComponentFactory!(Serializer, Properties)
 {
     Serializer createComponent(Properties config)
     {

@@ -17,9 +17,7 @@ public
 
 private
 {
-    import std.exception : enforceEx;
-
-    import vibe.core.log : logError;
+    import std.exception : enforce;
 
     import dango.system.exception : ExceptionMixin;
 }
@@ -34,5 +32,5 @@ class TransportException : Exception
 }
 
 
-alias transportEnforce = enforceEx!(TransportException);
+alias transportEnforce = enforce!(TransportException);
 

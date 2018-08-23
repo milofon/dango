@@ -11,7 +11,7 @@ module dango.service.protocol.rpc.schema.types;
 
 public
 {
-    import dango.service.serialization : UniNode;
+    import uninode.core : UniNode;
 }
 
 private
@@ -55,6 +55,8 @@ struct ModelSchema
 {
     @Doc("Наименование модели")
     string name;
+    @Doc("Описание модели")
+    string note;
     @Doc("Поля модели")
     MemberSchema[string] members;
 }
@@ -67,6 +69,8 @@ struct EnumSchema
 {
     @Doc("Наименование перечисления")
     string name;
+    @Doc("Описание перечисления")
+    string note;
     @Doc("Информация о базовом типе")
     TypeSchema type;
     @Doc("Значения")

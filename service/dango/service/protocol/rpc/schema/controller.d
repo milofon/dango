@@ -33,47 +33,45 @@ struct MethodName
 
 
 
-struct VersionAPI
-{
-    string title;
-    string entrypoint;
-}
-
-
-
 @Controller("__schema")
 interface ISchemaRpcController
 {
-    @Method("enum.list")
-    EnumSchema[] getAllEnums();
-
-    @Method("enum.get")
-    EnumSchema getEnum(string name);
-
     @Method("method.list")
     MethodSchema[] getAllMethods();
-
-    @Method("method.get")
-    MethodSchema getMethod(string name);
-
-    @Method("model.list")
-    ModelSchema[] getAllModels();
-
-    @Method("model.get")
-    ModelSchema getModel(string name);
 
     @Method("method.tree")
     MethodName[] getTreeMethodName();
 
-    @Method("version.list")
-    VersionAPI[] getVersions();
+    @Method("method.names")
+    string[] getAllMethodNames();
+
+    @Method("method.get")
+    MethodSchema getMethod(string name);
+
+    @Method("enum.list")
+    EnumSchema[] getAllEnums();
+
+    @Method("enum.names")
+    string[] getAllEnumNames();
+
+    @Method("enum.get")
+    EnumSchema getEnum(string name);
+
+    @Method("model.list")
+    ModelSchema[] getAllModels();
+
+    @Method("model.names")
+    string[] getAllModelNames();
+
+    @Method("model.get")
+    ModelSchema getModel(string name);
 }
 
 
 /**
  * Контроллер методов документации
  */
-class SchemaRpcController : GenericRpcController!ISchemaRpcController
+class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC")
 {
     private
     {
@@ -97,6 +95,12 @@ class SchemaRpcController : GenericRpcController!ISchemaRpcController
     }
 
 
+    string[] getAllEnumNames()
+    {
+        return _enums.map!((i) => i.name).array;
+    }
+
+
     EnumSchema getEnum(string name)
     {
         auto fr = _enums.find!((i) => i.name == name);
@@ -111,6 +115,12 @@ class SchemaRpcController : GenericRpcController!ISchemaRpcController
     }
 
 
+    string[] getAllMethodNames()
+    {
+        return _methods.map!((i) => i.name).array;
+    }
+
+
     MethodSchema getMethod(string name)
     {
         auto fr = _methods.find!((i) => i.name == name);
@@ -122,6 +132,12 @@ class SchemaRpcController : GenericRpcController!ISchemaRpcController
     ModelSchema[] getAllModels()
     {
         return _models;
+    }
+
+
+    string[] getAllModelNames()
+    {
+        return _models.map!((i) => i.name).array;
     }
 
 
@@ -158,12 +174,6 @@ class SchemaRpcController : GenericRpcController!ISchemaRpcController
             addNames(root, names);
 
         return root.child;
-    }
-
-
-    VersionAPI[] getVersions()
-    {
-        return [];
     }
 }
 

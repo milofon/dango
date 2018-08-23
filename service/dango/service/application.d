@@ -124,20 +124,20 @@ private:
 
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
-        auto serFactory = container.resolveFactory!Serializer(serializerName);
+        auto serFactory = container.resolveFactory!(Serializer, Properties)(serializerName);
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         logInfo("Use serializer '%s'", serializerName);
         Serializer serializer = serFactory.create(serConf);
 
-        auto protoFactory = container.resolveFactory!(ServerProtocol,
+        auto protoFactory = container.resolveFactory!(ServerProtocol, Properties,
                 ApplicationContainer, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
         logInfo("Use protocol '%s'", protoName);
         ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
 
-        auto trFactory = container.resolveFactory!(ServerTransport,
+        auto trFactory = container.resolveFactory!(ServerTransport, Properties,
                 ApplicationContainer, ServerProtocol)(transportName);
         configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));

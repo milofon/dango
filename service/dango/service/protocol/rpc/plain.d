@@ -17,7 +17,7 @@ private
 
 
 
-class PlainRpcServerProtocol : BaseRpcServerProtocol
+class PlainRpcServerProtocol : BaseRpcServerProtocol!"PLAIN"
 {
     this(Serializer serializer)
     {
@@ -55,12 +55,11 @@ class PlainRpcServerProtocol : BaseRpcServerProtocol
 
 
 
-alias PlainRpcServerProtocolFactory = RpcServerProtocolFactory!(
-                PlainRpcServerProtocol, "PLAIN");
+alias PlainRpcServerProtocolFactory = RpcServerProtocolFactory!(PlainRpcServerProtocol);
 
 
 
-class PlainRpcClientProtocol : BaseRpcClientProtocol
+class PlainRpcClientProtocol : BaseRpcClientProtocol!"PLAIN"
 {
     private ulong counterId;
 
@@ -113,6 +112,5 @@ class PlainRpcClientProtocol : BaseRpcClientProtocol
 
 
 
-alias PlainRpcClientProtocolFactory = RpcClientProtocolFactory!(
-                PlainRpcClientProtocol, "PLAIN");
+alias PlainRpcClientProtocolFactory = RpcClientProtocolFactory!(PlainRpcClientProtocol);
 

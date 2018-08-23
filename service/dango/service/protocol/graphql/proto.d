@@ -18,7 +18,7 @@ private
 /**
  * Протокол GraphQL
  */
-class GraphQLServerProtocol : BaseServerProtocol
+class GraphQLServerProtocol : BaseServerProtocol!"GRAPHQL"
 {
     this(Serializer serializer)
     {
@@ -34,7 +34,7 @@ class GraphQLServerProtocol : BaseServerProtocol
 
 
 
-class GraphQLServerProtocolFactory : BaseServerProtocolFactory!"GRAPHQL"
+class GraphQLServerProtocolFactory : BaseServerProtocolFactory
 {
     ServerProtocol createComponent(Properties config, ApplicationContainer container,
             Serializer serializer)

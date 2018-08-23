@@ -26,13 +26,24 @@ private
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
-    import dango.service.serialization : UniNode, marshalObject;
+    import uninode.core : UniNode;
+
     import dango.service.protocol.core;
-    import dango.service.protocol.rpc.controller;
+    import dango.service.serialization;
+
     import dango.service.protocol.rpc.error;
+    import dango.service.protocol.rpc.controller : RpcController;
+
     import dango.service.protocol.rpc.schema.recorder;
     import dango.service.protocol.rpc.schema.controller;
 }
+
+
+/**
+ * Функция обработки запроса
+ */
+alias Handler = UniNode delegate(UniNode params);
+
 
 
 /**
@@ -53,7 +64,7 @@ interface RpcServerProtocol
 /**
  * Базовый протокол RPC
  */
-abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
+abstract class BaseRpcServerProtocol(string N) : BaseServerProtocol!N, RpcServerProtocol
 {
     private
     {
@@ -139,13 +150,13 @@ protected:
             static if (is(D[0] == UniNode))
                 return data[0];
             else
-                return marshalObject(data[0]);
+                return serializeToUniNode(data[0]);
         }
         else static if (data.length > 1)
         {
             UniNode[] edata;
             foreach (dt; data)
-                edata ~= marshalObject(dt);
+                edata ~= serializeToUniNode(dt);
             return UniNode(edata);
         }
         else
@@ -216,8 +227,7 @@ private:
 /**
  * Фабрика протокола RPC
  */
-class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
-        : BaseServerProtocolFactory!(N)
+class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFactory
 {
     ServerProtocol createComponent(Properties config, ApplicationContainer container,
             Serializer serializer)
@@ -230,7 +240,7 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol, string N)
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            auto ctrlFactory = container.resolveFactory!RpcController(ctrName);
+            auto ctrlFactory = container.resolveFactory!(RpcController, Properties)(ctrName);
             configEnforce(ctrlFactory !is null,
                     fmt!"RPC controller '%s' not register"(ctrName));
 
@@ -269,8 +279,10 @@ interface RpcClientProtocol
 /**
  * Клиент-протокол RPC
  */
-abstract class BaseRpcClientProtocol : RpcClientProtocol
+abstract class BaseRpcClientProtocol(string N) : RpcClientProtocol
 {
+    mixin NamedComponentMixin!N;
+
     protected
     {
         ClientTransport _transport;
@@ -319,12 +331,9 @@ protected:
 /**
  * Фабрика Клиент-протокола RPC
  */
-class RpcClientProtocolFactory(T : BaseRpcClientProtocol, string N) : ComponentFactory!(
-        RpcClientProtocol, ClientTransport, Serializer), Named
+class RpcClientProtocolFactory(T : RpcClientProtocol) : ComponentFactory!(
+        RpcClientProtocol, Properties, ClientTransport, Serializer)
 {
-    mixin NamedMixin!N;
-
-
     RpcClientProtocol createComponent(Properties config, ClientTransport transport,
             Serializer serializer)
     {
