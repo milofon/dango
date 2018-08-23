@@ -99,7 +99,7 @@ void generateMethodSchema(IType, string name, alias Member, Sink)(ref Sink sink)
         alias def = ParameterDefs[i];
         static if (!is(def == void))
         {
-            param.defVal = marshalObject(def);
+            param.defVal = serializeToUniNode(def);
             param.required = false;
         }
         else

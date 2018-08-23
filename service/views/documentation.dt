@@ -2,40 +2,26 @@ doctype html
 html
     head
         meta(charset="utf-8")
+
+        meta(http-equiv="X-UA-Compatible", content="IE=edge")
         meta(content="width=device-width,initial-scale=1,minimal-ui", name="viewport")
+        link(href="https://fonts.googleapis.com/css?family=Roboto", rel="stylesheet")
 
-        title Dango RPC documentation
+        title #{title} (#{release}) Documentation
 
-        link(rel="stylesheet", href="//fonts.googleapis.com/css?family=Roboto:400,500,700,400italic|Material+Icons")
-        link(rel="stylesheet", href="https://unpkg.com/vue-material@beta/dist/vue-material.min.css")
-        link(rel="stylesheet", href="https://unpkg.com/vue-material@beta/dist/theme/default.css")
-
-        link(href='/static/app.css', rel="stylesheet")
+        :css
+            !{dist.appCss}
 
     body
-        div#app
-            div.page-container
-                md-app
-                    md-app-toolbar.md-primary
-                        span.md-title Dango RPC
-                    md-app-drawer(md-permanent="full")
-                        md-toolbar.md-transparent(md-elevation="0")
-                            | Методы
-                        div.full-control
-                            div.list
-                                md-list(:md-expand-single="expandSingle")
-                                    item.item(:indent="20", :key="index", :model="method", v-for="(method, index) in treeMethods")
+        noscript
+            strong
+                | We're sorry but dango-doc doesn't work properly without JavaScript enabled.
+                | Please enable it to continue.
 
-                    md-app-content
-                        router-view
-
-        script(src="https://unpkg.com/axios/dist/axios.min.js", crossorigin="anonymous")
-        script(src="https://unpkg.com/vue")
-        script(src="https://unpkg.com/vue-material@beta")
-        script(src="https://unpkg.com/vue-router/dist/vue-router.js")
-
-        script(src="/static/app.js")
+        entry-component(apiuri="!{entrypoint}", appName="!{title}", appVersion="!{release}")
 
         :javascript
-            var app = runApplication("!{entrypoint}");
+            !{dist.vendorJs}
 
+        :javascript
+            !{dist.appJs}

@@ -11,9 +11,9 @@ module dango.system.container.component;
 
 private
 {
-    import std.traits : TemplateArgsOf;
+    import std.traits : TemplateArgsOf, TransitiveBaseTypeTuple;
     import std.format : fmt = format;
-    import std.meta : AliasSeq;
+    import std.meta : AliasSeq, staticIndexOf;
 
     import poodinis;
 
@@ -332,7 +332,11 @@ Registration factoryInstance(F : ComponentFactory!(I), I, A...)(
     }
 
     alias SF = SimplePreComponentFactory!(I, AR);
-    alias FA = TemplateArgsOf!F;
+
+    alias PARENTS = TransitiveBaseTypeTuple!F;
+    alias PIDX = staticIndexOf!(ComponentFactory!(I, AR), PARENTS);
+    static assert (PIDX > -1, "Factory not ComponentFactory");
+    alias FA = TemplateArgsOf!(PARENTS[PIDX]);
 
     static assert(is(FA[0] == I), "Component factory not " ~ FA[0].stringof);
     static foreach(i, TT; AR)

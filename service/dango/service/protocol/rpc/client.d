@@ -17,6 +17,8 @@ private
     import std.typecons : Tuple;
     import std.conv : to;
 
+    import proped : Properties;
+
     import vibe.internal.meta.codegen;
     import vibe.core.log;
 
@@ -24,8 +26,9 @@ private
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
 
+    import dango.service.serialization;
     import dango.service.protocol.rpc.core;
-    import dango.service.serialization : UniNode;
+    import dango.service.protocol.rpc.controller;
 }
 
 
@@ -70,20 +73,22 @@ class ClientFactory(I) : ComponentFactory!(I, Properties, ApplicationContainer)
         string transportName = getNameOrEnforce(trConf,
                 "Not defined clien transport name");
 
-        auto serFactory = container.resolveFactory!Serializer(serializerName);
+        auto serFactory = container.resolveFactory!(Serializer,
+                Properties)(serializerName);
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         Serializer serializer = serFactory.create(serConf);
         logInfo("Use serializer '%s'", serializerName);
 
-        auto trFactory = container.resolveFactory!(ClientTransport)(transportName);
+        auto trFactory = container.resolveFactory!(ClientTransport,
+                Properties)(transportName);
         configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
         ClientTransport transport = trFactory.create(trConf);
         logInfo("Use transport '%s'", transportName);
 
         auto protoFactory = container.resolveFactory!(
-                RpcClientProtocol, ClientTransport, Serializer)(protoName);
+                RpcClientProtocol, Properties, ClientTransport, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
         RpcClientProtocol protocol = protoFactory.create(protoConf, transport, serializer);
@@ -102,7 +107,7 @@ void registerClient(TYPE, string NAME)(ApplicationContainer container, Propertie
     alias Client = InterfaceClient!(TYPE);
     alias Factory = ClientFactory!(TYPE);
     container.registerNamed!(TYPE, Client, NAME)
-        .factoryInstance!(Factory)(CreatesSingleton.yes, config, container);
+        .factoryInstance!(Factory, TYPE)(CreatesSingleton.yes, config, container);
 }
 
 

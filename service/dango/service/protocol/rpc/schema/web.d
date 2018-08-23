@@ -11,12 +11,21 @@ module dango.service.protocol.rpc.schema.web;
 
 private
 {
+    import std.zip;
+    import std.format : fmt = format;
+    import std.conv : to;
+
     import vibe.http.server : render;
 
+    import dango.system.application : Application;
+    import dango.system.container : Autowire;
     import dango.system.properties : getOrEnforce;
+
     import dango.web.controller;
 }
 
+
+enum DANGO_DOC_DIST = import("dist.zip");
 
 
 /**
@@ -24,6 +33,10 @@ private
  */
 class RpcDocumentationWebController : NamedWebController!"RPCDOC"
 {
+    @Autowire
+    Application _application;
+
+
     private
     {
         string _entrypoint;
@@ -40,7 +53,8 @@ class RpcDocumentationWebController : NamedWebController!"RPCDOC"
 
     void registerChains(ChainRegisterCallback dg)
     {
-        dg(new RpcDocChain(_path, _entrypoint));
+        dg(new RpcDocChain(_path, _entrypoint,
+                    _application.name, _application.release.to!string));
     }
 }
 
@@ -56,12 +70,41 @@ class RpcDocChain : BaseChain
     }
 
 
-    this(string path, string entrypoint)
+    this(string path, string entrypoint, string title, string release)
     {
         this._path = path;
 
+        struct Dist
+        {
+            string appJs;
+            string vendorJs;
+            string appCss;
+        }
+
+        Dist dist;
+
+        auto zip = new ZipArchive(cast(ubyte[])DANGO_DOC_DIST);
+        foreach (name, am; zip.directory)
+        {
+            zip.expand(am);
+            switch (name)
+            {
+                case "app.js":
+                    dist.appJs = cast(string)am.expandedData;
+                    break;
+                case "chunk-vendors.js":
+                    dist.vendorJs = cast(string)am.expandedData;
+                    break;
+                case "app.css":
+                    dist.appCss = cast(string)am.expandedData;
+                    break;
+                default:
+                    break;
+            }
+        }
+
         registerChainHandler((scope HTTPServerRequest req, scope HTTPServerResponse res){
-                res.render!("documentation.dt", req, entrypoint);
+                res.render!("documentation.dt", req, entrypoint, dist, title, release);
             });
     }
 
