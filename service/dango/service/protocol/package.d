@@ -32,20 +32,21 @@ class ProtocolContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(GraphQLServerProtocolFactory,
-                GraphQLServerProtocol);
-        container.registerFactory!(PlainRpcServerProtocolFactory,
-                PlainRpcServerProtocol);
-        container.registerFactory!(JsonRpcServerProtocolFactory,
-                JsonRpcServerProtocol);
+        container.registerNamedFactory!(GraphQLServerProtocolFactory,
+                GraphQLServerProtocol, "GRAPHQL");
 
-        container.registerFactory!(RpcDocumentationWebControllerFactory,
-                RpcDocumentationWebController);
+        container.registerNamedFactory!(PlainRpcServerProtocolFactory,
+                PlainRpcServerProtocol, "PLAIN");
+        container.registerNamedFactory!(JsonRpcServerProtocolFactory,
+                JsonRpcServerProtocol, "JSONRPC");
 
-        container.registerFactory!(PlainRpcClientProtocolFactory,
-                PlainRpcClientProtocol);
-        container.registerFactory!(JsonRpcClientProtocolFactory,
-                JsonRpcClientProtocol);
+        container.registerNamedFactory!(RpcDocumentationWebControllerFactory,
+                RpcDocumentationWebController, "RPCDOC");
+
+        container.registerNamedFactory!(PlainRpcClientProtocolFactory,
+                PlainRpcClientProtocol, "PLAIN");
+        container.registerNamedFactory!(JsonRpcClientProtocolFactory,
+                JsonRpcClientProtocol, "JSONRPC");
     }
 }
 

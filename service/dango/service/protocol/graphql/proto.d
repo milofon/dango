@@ -18,7 +18,7 @@ private
 /**
  * Протокол GraphQL
  */
-class GraphQLServerProtocol : BaseServerProtocol!"GRAPHQL"
+class GraphQLServerProtocol : BaseServerProtocol
 {
     this(Serializer serializer)
     {

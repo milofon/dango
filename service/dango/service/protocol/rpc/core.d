@@ -64,7 +64,7 @@ interface RpcServerProtocol
 /**
  * Базовый протокол RPC
  */
-abstract class BaseRpcServerProtocol(string N) : BaseServerProtocol!N, RpcServerProtocol
+abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
 {
     private
     {
@@ -279,10 +279,8 @@ interface RpcClientProtocol
 /**
  * Клиент-протокол RPC
  */
-abstract class BaseRpcClientProtocol(string N) : RpcClientProtocol
+abstract class BaseRpcClientProtocol : RpcClientProtocol
 {
-    mixin NamedComponentMixin!N;
-
     protected
     {
         ClientTransport _transport;

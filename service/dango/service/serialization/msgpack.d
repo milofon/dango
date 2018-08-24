@@ -25,8 +25,10 @@ private
 
 
 
-class MsgPackSerializer : BaseSerializer!"MSGPACK"
+class MsgPackSerializer : Serializer
 {
+    mixin NamedComponentMixin!"MSGPACK";
+
     private bool _withFieldName;
 
 

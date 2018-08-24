@@ -71,7 +71,7 @@ interface ISchemaRpcController
 /**
  * Контроллер методов документации
  */
-class SchemaRpcController : GenericRpcController!(ISchemaRpcController, "RPCDOC")
+class SchemaRpcController : GenericRpcController!(ISchemaRpcController)
 {
     private
     {

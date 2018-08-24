@@ -27,7 +27,7 @@ private
 /**
  * Интерфейс серверного протокола взаимодействия
  */
-interface ServerProtocol : NamedComponent
+interface ServerProtocol
 {
     /**
      * Метод-обработик входящейго запроса
@@ -45,10 +45,8 @@ interface ServerProtocol : NamedComponent
 
 
 
-abstract class BaseServerProtocol(string N) : ServerProtocol
+abstract class BaseServerProtocol : ServerProtocol
 {
-    mixin NamedComponentMixin!N;
-
     private Serializer _serializer;
 
 

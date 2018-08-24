@@ -65,12 +65,3 @@ interface Serializer : NamedComponent
     Bytes serialize(UniNode node);
 }
 
-
-/**
- * Базовый сериализатор
- */
-abstract class BaseSerializer(string N) : Serializer
-{
-    mixin NamedComponentMixin!N;
-}
-

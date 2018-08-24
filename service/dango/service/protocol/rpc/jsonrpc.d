@@ -19,7 +19,7 @@ private
 /**
  * Протокол JsonRPC
  */
-class JsonRpcServerProtocol : BaseRpcServerProtocol!"JSONRPC"
+class JsonRpcServerProtocol : BaseRpcServerProtocol
 {
     this(Serializer serializer)
     {
@@ -62,7 +62,7 @@ alias JsonRpcServerProtocolFactory = RpcServerProtocolFactory!(JsonRpcServerProt
 
 
 
-class JsonRpcClientProtocol : BaseRpcClientProtocol!"JSONRPC"
+class JsonRpcClientProtocol : BaseRpcClientProtocol
 {
     private ulong counterId;
 

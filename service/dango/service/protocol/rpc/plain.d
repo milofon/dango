@@ -17,7 +17,7 @@ private
 
 
 
-class PlainRpcServerProtocol : BaseRpcServerProtocol!"PLAIN"
+class PlainRpcServerProtocol : BaseRpcServerProtocol
 {
     this(Serializer serializer)
     {
@@ -59,7 +59,7 @@ alias PlainRpcServerProtocolFactory = RpcServerProtocolFactory!(PlainRpcServerPr
 
 
 
-class PlainRpcClientProtocol : BaseRpcClientProtocol!"PLAIN"
+class PlainRpcClientProtocol : BaseRpcClientProtocol
 {
     private ulong counterId;
 

@@ -26,7 +26,7 @@ private
 /**
  * Класс контроллера RPC
  */
-class RpcWebController : NamedWebController!"RPC"
+class RpcWebController : BaseWebController
 {
     private
     {

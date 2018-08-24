@@ -31,7 +31,7 @@ enum DANGO_DOC_DIST = import("dist.zip");
 /**
  * Класс контроллера позволяющий отобразить документацию
  */
-class RpcDocumentationWebController : NamedWebController!"RPCDOC"
+class RpcDocumentationWebController : BaseWebController
 {
     @Autowire
     Application _application;

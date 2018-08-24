@@ -36,7 +36,7 @@ private
 /**
  * Транспорт использующий функционал ZeroMQ
  */
-class ZeroMQServerTransport : BaseServerTransport!"ZEROMQ"
+class ZeroMQServerTransport : ServerTransport
 {
     private
     {
@@ -141,7 +141,10 @@ class ZeroMQServerTransportFactory : BaseServerTransportFactory
 }
 
 
-class ZeroMQClientTransport : BaseClientTransport!"ZEROMQ"
+/**
+ * Транспорт использующий функционал ZeroMQ
+ */
+class ZeroMQClientTransport : ClientTransport
 {
     private
     {

@@ -89,7 +89,7 @@ template GetRpcControllerMethods(C)
 /**
  * Интерфейс контроллера
  */
-interface RpcController : ActivatedComponent, NamedComponent
+interface RpcController : ActivatedComponent
 {
     /**
      * Регистрация обработчиков в диспетчер
@@ -113,9 +113,8 @@ interface RpcController : ActivatedComponent, NamedComponent
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class BaseRpcController(string N) : RpcController
+abstract class BaseRpcController : RpcController
 {
-    mixin NamedComponentMixin!N;
     mixin ActivatedComponentMixin!();
 }
 
@@ -125,7 +124,7 @@ abstract class BaseRpcController(string N) : RpcController
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericRpcController(IType, string N) : BaseRpcController!N, IType
+abstract class GenericRpcController(IType) : BaseRpcController, IType
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -219,18 +218,18 @@ class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
  * Регистрация компонента RPC контроллер
  */
 void registerController(F : ComponentFactory!(RpcController, Properties),
-        C : RpcController)(ApplicationContainer container)
+        C : RpcController, string N)(ApplicationContainer container)
 {
-    container.registerFactory!(F, C);
+    container.registerNamedFactory!(F, C, N);
 }
 
 
 /**
  * Регистрация компонента RPC контроллер
  */
-void registerController(C : RpcController)(ApplicationContainer container)
+void registerController(C : RpcController, string N)(ApplicationContainer container)
 {
-    container.registerController!(SimpleRpcControllerFactory!C, C);
+    container.registerController!(SimpleRpcControllerFactory!C, C, N);
 }
 
 

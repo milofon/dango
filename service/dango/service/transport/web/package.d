@@ -23,7 +23,7 @@ private
 /**
  * Контекст DI транспортных уровней
  */
-class WebTransportContext : ApplicationContext
+class WebTransportContext(string N) : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
@@ -32,10 +32,10 @@ class WebTransportContext : ApplicationContext
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
 
-        container.registerFactory!(WebServerTransportFactory,
-                WebServerTransport);
-        container.registerFactory!(WebClientTransportFactory,
-                WebClientTransport);
+        container.registerNamedFactory!(WebServerTransportFactory,
+                WebServerTransport, N);
+        container.registerNamedFactory!(WebClientTransportFactory,
+                WebClientTransport, N);
     }
 }
 

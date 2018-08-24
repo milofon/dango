@@ -29,7 +29,7 @@ private
 /**
  * Интерфейс серверного транспортного уровня
  */
-interface ServerTransport : NamedComponent
+interface ServerTransport
 {
     /**
      * Запуск транспортного уровня
@@ -46,15 +46,6 @@ interface ServerTransport : NamedComponent
 
 
 /**
- * Базовый класс серверного транспортного уровня
- */
-abstract class BaseServerTransport(string N) : ServerTransport
-{
-    mixin NamedComponentMixin!N;
-}
-
-
-/**
  * Фабрика серверного транспортного уровня
  */
 alias BaseServerTransportFactory = ComponentFactory!(ServerTransport, Properties,
@@ -64,7 +55,7 @@ alias BaseServerTransportFactory = ComponentFactory!(ServerTransport, Properties
 /**
  * Интерфейс клиентского транспортного уровня
  */
-interface ClientTransport : NamedComponent
+interface ClientTransport
 {
     /**
      * Выполнение запроса
@@ -73,15 +64,6 @@ interface ClientTransport : NamedComponent
      * Return: Данные ответа
      */
     Future!Bytes request(Bytes bytes);
-}
-
-
-/**
- * Базовый класс клиентского транспортного уровня
- */
-abstract class BaseClientTransport(string N) : ClientTransport
-{
-    mixin NamedComponentMixin!N;
 }
 
 

@@ -354,7 +354,7 @@ unittest
     auto cnt = createContainer();
 
     cnt.register!(IItem, Item)
-        .factoryInstance!ItemFactory(3);
+        .factoryInstance!ItemFactory(CreatesSingleton.yes, 3);
 
     auto item = cnt.resolve!IItem;
     assert(item.name == "ITEM");
@@ -480,6 +480,41 @@ unittest
 
 
 /**
+ * Регистрация именованной фабрики компонентов в контейнер
+ * Params:
+ * I = Интерфес компонента
+ * T = Реализация компонента
+ * F = Фабрика компонента
+ * A = Типы аргументов
+ */
+Registration registerNamedFactory(F : ComponentFactory!(I, A), T : I, string N, I, A...)(
+        ApplicationContainer container, F factoryFunctor,
+        RegistrationOption options = RegistrationOption.none)
+{
+    alias IAF = PostComponentFactory!(I, A);
+    alias AF = AutowirePostComponentFactory!(I, T, A);
+    auto factory = new AF(container, factoryFunctor);
+
+    return container.registerNamed!(IAF, AF, N)(options)
+        .existingInstance(factory);
+}
+
+
+unittest
+{
+    auto cnt = createContainer();
+    auto f = new ItemFactory();
+    cnt.registerNamedFactory!(ItemFactory, Item, "TEST")(f);
+
+    auto af = cnt.resolveNamed!(PostComponentFactory!(IItem, int))("test");
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
+}
+
+
+/**
  * Регистрация фабрики компонентов в контейнер
  * Params:
  * I = Интерфес компонента
@@ -503,6 +538,38 @@ unittest
     auto cnt = createContainer();
     cnt.registerFactory!(ItemFactory, Item)();
     auto af = cnt.resolve!(PostComponentFactory!(IItem, int));
+
+    auto item = af.create(22);
+    assert(item.name == "ITEM");
+    assert(item.val == 22);
+    assert(item.host == "localhost");
+}
+
+
+/**
+ * Регистрация именованной фабрики компонентов в контейнер
+ * Params:
+ * I = Интерфес компонента
+ * T = Реализация компонента
+ * F = Фабрика компонента
+ * A = Типы аргументов
+ */
+Registration registerNamedFactory(F : ComponentFactory!(I, A), T : I, string N, I, A...)(
+        ApplicationContainer container,
+        RegistrationOption options = RegistrationOption.none)
+{
+    auto factoryFunctor = new F();
+    container.autowire(factoryFunctor);
+    return registerNamedFactory!(F, T, N, I, A)(container, factoryFunctor, options);
+}
+
+
+
+unittest
+{
+    auto cnt = createContainer();
+    cnt.registerNamedFactory!(ItemFactory, Item, "TEST")();
+    auto af = cnt.resolveNamed!(PostComponentFactory!(IItem, int))("test");
 
     auto item = af.create(22);
     assert(item.name == "ITEM");

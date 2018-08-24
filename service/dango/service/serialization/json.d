@@ -26,8 +26,11 @@ private
 
 
 
-class JsonSerializer : BaseSerializer!"JSON"
+class JsonSerializer : Serializer
 {
+    mixin NamedComponentMixin!"JSON";
+
+
     UniNode deserialize(Bytes bytes)
     {
         auto strData = cast(string)bytes;

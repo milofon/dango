@@ -33,7 +33,7 @@ private
 /**
  * Серверный транспорт использующий функционал HTTP
  */
-class WebServerTransport : BaseServerTransport!"WEB"
+class WebServerTransport : ServerTransport
 {
     private
     {
@@ -69,8 +69,8 @@ class WebServerTransportFactory : BaseServerTransportFactory
             ServerProtocol protocol)
     {
         auto rpcFactory = new RpcWebControllerFactory(protocol);
-        container.registerFactory!(RpcWebControllerFactory,
-                RpcWebController)(rpcFactory);
+        container.registerNamedFactory!(RpcWebControllerFactory,
+                RpcWebController, "RPC")(rpcFactory);
 
         auto serverFactory = container.resolveFactory!(WebApplicationServer, Properties,
                 ApplicationContainer);
@@ -84,7 +84,7 @@ class WebServerTransportFactory : BaseServerTransportFactory
 /**
  * Клиентский транспорт использующий функционал HTTP
  */
-class WebClientTransport : BaseClientTransport!"WEB"
+class WebClientTransport : ClientTransport
 {
     private
     {
