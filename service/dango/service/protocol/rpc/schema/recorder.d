@@ -24,7 +24,7 @@ private
     import uninode.serialization : serializeToUniNode;
 
     import vibe.data.serialization : isISOExtStringSerializable,
-                DefaultPolicy, OptionalAttribute;
+                DefaultPolicy, OptionalAttribute, ByNameAttribute;
     import dango.service.protocol.rpc.schema.parser : parseDocumentationContent;
 
     import dango.system.traits;
@@ -170,6 +170,7 @@ void generateModelEnumSchema(Model, ESink)(ref ESink eSink)
 
 
 alias defOptional = OptionalAttribute!DefaultPolicy;
+alias defByName = ByNameAttribute!DefaultPolicy;
 
 
 void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESink eSink)
@@ -195,13 +196,17 @@ void generateModelCompositeSchema(Model, MSink, ESink)(ref MSink mSink, ref ESin
         static if (IsPublicMember!(Model, name))
         {
             MemberSchema ms;
+            alias mbr = Alias!(__traits(getMember, Model, name));
             ms.type = getTypeSchema!MemberType;
 
-            enum annotations = getUDAs!(__traits(getMember, Model, name), Doc);
+            static if (is(typeof(mbr) == enum) && hasUDA!(mbr, defByName))
+                ms.type.input = TypeSchemaInput!string;
+
+            enum annotations = getUDAs!(mbr, Doc);
             static if (annotations.length)
                 ms.note = annotations[0].content;
 
-            static if (hasUDA!(__traits(getMember, Model, name), defOptional))
+            static if (hasUDA!(mbr, defOptional))
                 ms.required = false;
             else
                 ms.required = true;

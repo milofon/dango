@@ -217,6 +217,11 @@ private:
                 logError("Error execute handler: (%s)", e.msg);
                 return createErrorBody(id, ErrorCode.SERVER_ERROR, e.msg);
             }
+            catch (Error e)
+            {
+                logError("FATAL Error execute handler: (%s)", e.msg);
+                return createErrorBody(id, ErrorCode.SERVER_ERROR, e.msg);
+            }
         }
         else
             return createErrorBody(id, ErrorCode.METHOD_NOT_FOUND);
