@@ -69,9 +69,10 @@ protected:
         {
             if (servConf.getOrElse("enabled", false))
             {
-                auto tr = createServiceTransport(container, servConf);
-                tr.listen();
-                _transports ~= tr;
+                createServiceTransports(container, servConf, (tr) {
+                    tr.listen();
+                    _transports ~= tr;
+                });
             }
         }
     }
@@ -102,8 +103,8 @@ protected:
 private:
 
 
-    ServerTransport createServiceTransport(ApplicationContainer container,
-            Properties servConf)
+    void createServiceTransports(ApplicationContainer container, Properties servConf,
+            void delegate(ServerTransport tr) cb)
     {
         string serviceName = servConf.getOrElse!string("name", "Undefined");
         logInfo("Configuring service '%s'", serviceName);
@@ -112,15 +113,11 @@ private:
                 "Not defined serializer config for service '" ~ serviceName ~ "'");
         Properties protoConf = servConf.getOrEnforce!Properties("protocol",
                 "Not defined protocol config for service '" ~ serviceName ~ "'");
-        Properties trConf = servConf.getOrEnforce!Properties("transport",
-                "Not defined transport config for service '" ~ serviceName ~ "'");
 
         string serializerName = getNameOrEnforce(serConf,
                 "Not defined serializer name for service '" ~ serviceName ~ "'");
         string protoName = getNameOrEnforce(protoConf,
                 "Not defined protocol name for service '" ~ serviceName ~ "'");
-        string transportName = getNameOrEnforce(trConf,
-                "Not defined transport name for service '" ~ serviceName ~ "'");
 
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
@@ -137,14 +134,20 @@ private:
         logInfo("Use protocol '%s'", protoName);
         ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
 
-        auto trFactory = container.resolveFactory!(ServerTransport, Properties,
-                ApplicationContainer, ServerProtocol)(transportName);
-        configEnforce(trFactory !is null,
-                fmt!"Transport '%s' not register"(transportName));
-        logInfo("Use transport '%s'", transportName);
-        ServerTransport transport = trFactory.create(trConf, container, protocol);
+        foreach (Properties trConf; servConf.getArray("transport"))
+        {
+            string transportName = getNameOrEnforce(trConf,
+                    "Not defined transport name for service '" ~ serviceName ~ "'");
 
-        return transport;
+            auto trFactory = container.resolveFactory!(ServerTransport, Properties,
+                    ApplicationContainer, ServerProtocol)(transportName);
+            configEnforce(trFactory !is null,
+                    fmt!"Transport '%s' not register"(transportName));
+            logInfo("Use transport '%s'", transportName);
+
+            ServerTransport transport = trFactory.create(trConf, container, protocol);
+            cb(transport);
+        }
     }
 }
 
