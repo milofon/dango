@@ -204,6 +204,37 @@ abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Prope
 
 
 /**
+ * Урощенная фабрика контроллера
+ */
+class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
+{
+    override RpcController createController(Properties config)
+    {
+        return new C();
+    }
+}
+
+
+/**
+ * Регистрация компонента RPC контроллер
+ */
+void registerController(F : ComponentFactory!(RpcController, Properties),
+        C : RpcController)(ApplicationContainer container)
+{
+    container.registerFactory!(F, C);
+}
+
+
+/**
+ * Регистрация компонента RPC контроллер
+ */
+void registerController(C : RpcController)(ApplicationContainer container)
+{
+    container.registerController!(SimpleRpcControllerFactory!C, C);
+}
+
+
+/**
  * Возвращает полное наименование команды
  */
 template FullMethodName(I, string method)
