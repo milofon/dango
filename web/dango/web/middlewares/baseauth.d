@@ -26,7 +26,7 @@ private
 /**
  * Middleware позволяет реализовать аутентификацию baseauth
  */
-class BaseAuthWebMiddleware : NamedWebMiddleware!("BASEAUTH")
+class BaseAuthWebMiddleware : BaseWebMiddleware
 {
     private
     {

@@ -36,7 +36,7 @@ alias AllowChecker = bool delegate(string val) @safe;
 /**
  * Middleware позволяет реализовать CORS доступ
  */
-class CorsWebMiddleware : NamedWebMiddleware!("CORS")
+class CorsWebMiddleware : BaseWebMiddleware
 {
     private
     {

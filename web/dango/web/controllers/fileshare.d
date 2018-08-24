@@ -25,7 +25,7 @@ private
 /**
  * Класс контроллера позволяющий раздавать статику из директории
  */
-class FileShareWebController : NamedWebController!("SHARE")
+class FileShareWebController : BaseWebController
 {
     private
     {

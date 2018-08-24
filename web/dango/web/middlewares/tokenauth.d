@@ -21,7 +21,7 @@ private
 /**
  * Middleware позволяет реализовать авторизацию по токену
  */
-class TokenAuthWebMiddleware : NamedWebMiddleware!("TOKENAUTH")
+class TokenAuthWebMiddleware : BaseWebMiddleware
 {
     private string _token;
 

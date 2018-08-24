@@ -27,7 +27,8 @@ class WebControllersContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerController!(FileShareWebControllerFactory, FileShareWebController);
+        container.registerController!(FileShareWebControllerFactory,
+                FileShareWebController, "SHARE");
         // container.registerFactory!(FileUploadWebControllerFactory, FileUploadWebController);
     }
 }

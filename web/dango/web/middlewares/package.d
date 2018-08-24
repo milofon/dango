@@ -28,9 +28,12 @@ class WebMiddlewaresContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerMiddleware!(TokenAuthWebMiddlewareFactory, TokenAuthWebMiddleware);
-        container.registerMiddleware!(BaseAuthWebMiddlewareFactory, BaseAuthWebMiddleware);
-        container.registerMiddleware!(CorsWebMiddlewareFactory, CorsWebMiddleware);
+        container.registerMiddleware!(TokenAuthWebMiddlewareFactory,
+                TokenAuthWebMiddleware, "TOKENAUTH");
+        container.registerMiddleware!(BaseAuthWebMiddlewareFactory,
+                BaseAuthWebMiddleware, "BASEAUTH");
+        container.registerMiddleware!(CorsWebMiddlewareFactory,
+                CorsWebMiddleware, "CORS");
     }
 }
 

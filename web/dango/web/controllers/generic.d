@@ -71,7 +71,7 @@ template GetWebControllerHandlers(C)
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(CType, IType, string N) : NamedWebController!N, IType
+abstract class GenericWebController(CType, IType) : BaseWebController, IType
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");

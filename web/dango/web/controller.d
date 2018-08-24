@@ -168,15 +168,6 @@ abstract class BaseWebController : WebController
 }
 
 
-/**
- * Базовый именованный класс web контроллера
- */
-abstract class NamedWebController(string N) : BaseWebController, NamedComponent
-{
-    mixin NamedComponentMixin!N;
-}
-
-
 
 alias ControllerFactory = ComponentFactory!(WebController, Properties);
 
@@ -216,18 +207,18 @@ class SimpleWebControllerFactory(C : BaseWebController) : BaseWebControllerFacto
 /**
  * Регистрация компонента Middleware
  */
-void registerController(F : ControllerFactory, C : WebController)(
+void registerController(F : ControllerFactory, C : WebController, string N)(
         ApplicationContainer container)
 {
-    container.registerFactory!(F, C);
+    container.registerNamedFactory!(F, C, N);
 }
 
 
 /**
  * Регистрация компонента Middleware
  */
-void registerController(C : WebController)(ApplicationContainer container)
+void registerController(C : WebController, string N)(ApplicationContainer container)
 {
-    container.registerController!(SimpleWebControllerFactory!(C), C);
+    container.registerController!(SimpleWebControllerFactory!(C), C, N);
 }
 

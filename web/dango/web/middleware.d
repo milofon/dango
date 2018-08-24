@@ -88,15 +88,6 @@ abstract class BaseWebMiddleware : WebMiddleware
 }
 
 
-/**
- * Базовый именованный класс Middleware
- */
-abstract class NamedWebMiddleware(string N) : BaseWebMiddleware, NamedComponent
-{
-    mixin NamedComponentMixin!N;
-}
-
-
 
 alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Properties, Chain);
 
@@ -133,19 +124,19 @@ class SimpleWebMiddlewareFactory(M : BaseWebMiddleware) : BaseWebMiddlewareFacto
 /**
  * Регистрация компонента Middleware
  */
-void registerMiddleware(F : MiddlewareFactory, M : WebMiddleware)(
+void registerMiddleware(F : MiddlewareFactory, M : WebMiddleware, string N)(
         ApplicationContainer container)
 {
-    container.registerFactory!(F, M);
+    container.registerNamedFactory!(F, M, N);
 }
 
 
 /**
  * Регистрация компонента Middleware
  */
-void registerMiddleware(M : WebMiddleware)(ApplicationContainer container)
+void registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer container)
 {
-    container.registerMiddleware!(SimpleWebMiddlewareFactory!M, M);
+    container.registerMiddleware!(SimpleWebMiddlewareFactory!M, M, N);
 }
 
 
