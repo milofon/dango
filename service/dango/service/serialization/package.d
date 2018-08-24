@@ -10,7 +10,7 @@ module dango.service.serialization;
 public
 {
     import uninode.core : UniNode;
-    import uninode.serialization : optional,
+    import uninode.serialization : optional, byName,
            deserializeUniNode, serializeToUniNode;
 
     import dango.service.serialization.core : Serializer;
