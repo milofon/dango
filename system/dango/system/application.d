@@ -22,12 +22,16 @@ public
 private
 {
     import std.array : empty;
+    import std.format : fmt = format;
 
     import poodinis : existingInstance;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
-    import dango.system.properties : PropertiesContext;
+    import dango.system.container : resolveFactory;
+    import dango.system.properties : PropertiesContext, getNameOrEnforce,
+            getOrEnforce, configEnforce;
     import dango.system.logging : configureLogging, LoggingContext;
+    import dango.system.scheduler : JobScheduler;
 }
 
 
@@ -244,6 +248,9 @@ private:
  */
 abstract class BaseDaemonApplication : BaseApplication
 {
+    private JobScheduler[] _schedulers;
+
+
     this(string name, string _version)
     {
         super(name, _version);
@@ -261,7 +268,9 @@ abstract class BaseDaemonApplication : BaseApplication
         return runLoop(config);
     }
 
+
 protected:
+
 
     /**
      * Запуск демона сервисов
@@ -279,7 +288,9 @@ protected:
      */
     int finalizeDaemon(int exitStatus);
 
+
 private:
+
 
     /**
      * Запуск основного цикла обработки событий
@@ -293,11 +304,32 @@ private:
 
         lowerPrivileges();
 
+        foreach (Properties jobConf; config.getArray("job"))
+        {
+            if (jobConf.getOrElse!bool("enabled", false))
+            {
+                string jobName = getNameOrEnforce(jobConf,
+                        "Не определено имя задачи");
+                auto jobFactory = container.resolveFactory!(JobScheduler,
+                        Properties, ApplicationContainer)(jobName);
+                configEnforce(jobFactory !is null,
+                        fmt!"Job '%s' not register"(jobName));
+                logInfo("Start job '%s'", jobName);
+                _schedulers ~= jobFactory.create(jobConf, container);
+            }
+        }
+
         initializeDaemon(config);
+
+        foreach (JobScheduler job; _schedulers)
+            job.start();
 
         logDiagnostic("Запуск цикла обработки событий...");
         int status = runEventLoop();
         logDiagnostic("Цикл событий зaвершен со статутом %d.", status);
+
+        foreach (JobScheduler job; _schedulers)
+            job.stop();
 
         return finalizeDaemon(status);
     }

@@ -171,6 +171,8 @@ version(unittest)
 
         void val(int val) @property;
 
+        string kind() @property;
+
         string host() @property;
     }
 
@@ -180,10 +182,12 @@ version(unittest)
         mixin NamedComponentMixin!"ITEM";
         @Autowire Config conf;
         private int _a;
+        private string _b;
 
-        this(int a)
+        this(int a, string b)
         {
             this._a = a;
+            this._b = b;
         }
 
         int val() @property
@@ -196,6 +200,11 @@ version(unittest)
             _a = val;
         }
 
+        string kind() @property
+        {
+            return _b;
+        }
+
         string host() @property
         {
             return conf.host;
@@ -205,9 +214,33 @@ version(unittest)
 
     class ItemFactory : ComponentFactory!(IItem, int)
     {
+        private
+        {
+            string _val;
+        }
+
+
+        this()
+        {
+            this("default");
+        }
+
+
+        this(string val)
+        {
+            this._val = val;
+        }
+
+
+        string val() @property
+        {
+            return _val;
+        }
+
+
         IItem createComponent(int a)
         {
-            return new Item(a);
+            return new Item(a, _val);
         }
     }
 
@@ -503,14 +536,15 @@ Registration registerNamedFactory(F : ComponentFactory!(I, A), T : I, string N, 
 unittest
 {
     auto cnt = createContainer();
-    auto f = new ItemFactory();
-    cnt.registerNamedFactory!(ItemFactory, Item, "TEST")(f);
+    cnt.registerNamedFactory!(ItemFactory, Item, "TEST")(new ItemFactory("test"));
+    cnt.registerNamedFactory!(ItemFactory, Item, "TEST2")(new ItemFactory("test2"));
 
     auto af = cnt.resolveNamed!(PostComponentFactory!(IItem, int))("test");
     auto item = af.create(22);
     assert(item.name == "ITEM");
     assert(item.val == 22);
     assert(item.host == "localhost");
+    // assert(item.kind == "test", "Kind equal " ~ item.kind);
 }
 
 
