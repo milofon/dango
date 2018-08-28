@@ -55,6 +55,20 @@ class SimpleJobFactory(J : Job) : JobFactory
 
 
 
+alias SystemJobFactory = ComponentFactory!Job;
+
+
+
+class SimpleSystemJobFactory(J : Job) : SystemJobFactory
+{
+    J createComponent()
+    {
+        return new J();
+    }
+}
+
+
+
 interface JobScheduler
 {
     void start();
@@ -133,6 +147,33 @@ class JobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
 
 
 
+class SystemJobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
+        ApplicationContainer)
+{
+    private string _cronExp;
+
+
+    this(string cronExp)
+    {
+        this._cronExp = cronExp;
+    }
+
+
+    JobScheduler createComponent(ApplicationContainer container)
+    {
+        auto jobFactory = container.resolveFactory!(Job)(N);
+        auto job = jobFactory.create();
+
+        try
+            return new TimerJobScheduler!N(job, CronExpr(_cronExp));
+        catch (CronException e)
+            throw new ConfigException(
+                    fmt!"Не верное cron выражение для задачи %s"(N));
+    }
+}
+
+
+
 void registerJob(F : JobFactory, J : Job, string N)(ApplicationContainer container)
 {
     container.registerNamedFactory!(F, J, N);
@@ -142,8 +183,25 @@ void registerJob(F : JobFactory, J : Job, string N)(ApplicationContainer contain
 
 
 
+void registerSystemJob(F : SystemJobFactory, J : Job, string N)(
+        ApplicationContainer container, string cronExp)
+{
+    container.registerNamedFactory!(F, J, N);
+    auto f = new SystemJobSchedulerFactory!N(cronExp);
+    container.registerNamedFactory!(SystemJobSchedulerFactory!N, TimerJobScheduler!N, N)(f);
+}
+
+
+
 void registerJob(J : Job, string N)(ApplicationContainer container)
 {
     container.registerJob!(SimpleJobFactory!J, J, N);
+}
+
+
+
+void registerSystemJob(J : Job, string N)(ApplicationContainer container, string cronExp)
+{
+    container.registerSystemJob!(SimpleSystemJobFactory!J, J, N)(cronExp);
 }
 

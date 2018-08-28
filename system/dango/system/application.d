@@ -24,10 +24,10 @@ private
     import std.array : empty;
     import std.format : fmt = format;
 
-    import poodinis : existingInstance;
+    import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
-    import dango.system.container : resolveFactory;
+    import dango.system.container : resolveFactory, PostComponentFactory;
     import dango.system.properties : PropertiesContext, getNameOrEnforce,
             getOrEnforce, configEnforce;
     import dango.system.logging : configureLogging, LoggingContext;
@@ -321,6 +321,16 @@ private:
                 _schedulers ~= jobFactory.create(jobConf, container);
             }
         }
+
+        try
+        {
+            auto factorys = container.resolveAll!(
+                    PostComponentFactory!(JobScheduler, ApplicationContainer));
+
+            foreach (jobFactory; factorys)
+                _schedulers ~= jobFactory.create(container);
+        }
+        catch(ResolveException e) {}
 
         initializeDaemon(config);
 
