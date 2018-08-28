@@ -209,7 +209,7 @@ class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
 {
     override RpcController createController(Properties config)
     {
-        return new C();
+        return createSimpleComponent!C(config);
     }
 }
 

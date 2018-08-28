@@ -116,7 +116,7 @@ class SimpleWebMiddlewareFactory(M : BaseWebMiddleware) : BaseWebMiddlewareFacto
 {
     WebMiddleware createMiddleware(Properties config, Chain chain)
     {
-        return new M();
+        return createSimpleComponent!C(config);
     }
 }
 
