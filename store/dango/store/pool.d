@@ -11,6 +11,7 @@ module dango.store.pool;
 
 private
 {
+    import core.sync.mutex : Mutex;
     import std.container : SList;
 
     import vibe.core.sync;
