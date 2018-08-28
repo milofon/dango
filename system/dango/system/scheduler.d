@@ -49,7 +49,7 @@ class SimpleJobFactory(J : Job) : JobFactory
 {
     J createComponent(Properties config)
     {
-        return new J(config);
+        return createSimpleComponent!J(config);
     }
 }
 
