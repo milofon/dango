@@ -1,0 +1,12 @@
+name "store"
+description "The library for constructing service"
+copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD"
+
+dependency "vibe-core" version="~>1.4.0"
+
+targetType "library"
+targetPath "../out"
+sourcePaths "."
+importPaths "."
