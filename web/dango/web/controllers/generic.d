@@ -67,17 +67,37 @@ template GetWebControllerHandlers(C)
 
 
 /**
+ * Упроценная функция создания обработчика
+ * Params:
+ * IType = Тип интерфейса контроллера
+ * HandlerType = Тип функции обработчика
+ * Member = Функция обработчик
+ * controller = Объект контроллера
+ * hdl = Реализация функции обработчика
+ */
+HTTPServerRequestDelegate createSimpleHandler(IType, HandlerType, alias Member)(
+        BaseWebController controller, HandlerType hdl)
+{
+    return (HTTPServerRequest req, HTTPServerResponse res) @safe
+    {
+        static if (hasFunctionAttributes!(HandlerType, "@safe"))
+            hdl(req, res);
+        else
+            () @trusted { hdl(req, res); } ();
+    };
+}
+
+
+/**
  * Базовый класс web контроллера
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(CType, IType) : BaseWebController, IType
+abstract class GenericWebController(IType, alias CH = createSimpleHandler)
+    : BaseWebController, IType if (is(IType == interface))
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
-
-    static assert(is(CType == class),
-            CType.stringof ~ " is not class");
 
     static assert(hasUDA!(IType, Controller),
             IType.stringof ~ " is not marked with a Controller");
@@ -97,35 +117,33 @@ abstract class GenericWebController(CType, IType) : BaseWebController, IType
     static assert(allSatisfy!(__isHandler, Handlers),
             "Handlers must meet the '" ~ HandlerType.stringof ~ "'");
 
-    private enum __existsCreateHandler = hasMember!(CType, "createHandler");
-    static assert(__existsCreateHandler, CType.stringof
-            ~ " must contain the function "
-            ~ "'HTTPServerRequestDelegate createHandler(HandlerType, alias Member)"
-            ~ "(HandlerType hdl)'");
+    enum __errorMsg = "The handler creation function must match '"
+        ~ createSimpleHandler.stringof ~ "'";
 
-    static if (__existsCreateHandler) private
-    {
-        alias __createHandler = Alias!(__traits(getMember, CType, "createHandler"));
-        alias __CH = __createHandler!(HandlerType, Handlers[0]);
+    static assert(__traits(compiles, CH!(IType, HandlerType, Handlers[0])), __errorMsg);
 
-        static assert(is(ReturnType!__CH == HTTPServerRequestDelegate),
-                "createHandler must return HTTPServerRequestDelegate");
+    alias __CH = CH!(IType, HandlerType, Handlers[0]);
 
-        alias __P = Parameters!__CH;
-        static assert(__P.length == 1 && is(__P[0] == HandlerType),
-                "createHandler must accept '" ~ HandlerType.stringof ~ "'");
-    }
+    static assert(is(ReturnType!__CH == HTTPServerRequestDelegate),
+            "createHandler must return HTTPServerRequestDelegate");
+
+    alias __P = Parameters!__CH;
+    static assert(__P.length == 2, __errorMsg);
+    static assert(is(__P[0] : BaseWebController), __errorMsg);
+    static assert(is(__P[1] == HandlerType), __errorMsg);
 
 
     void registerChains(ChainRegisterCallback dg)
     {
-        CType controller = cast(CType)this;
         foreach(Member; Handlers)
         {
             enum udas = getUDAs!(Member, Handler);
             enum fName = __traits(identifier, Member);
-            auto HDL = &__traits(getMember, controller, fName);
-            dg(new ChainHandler!(CType, IType, Member)(controller, udas[0], HDL));
+            auto HDL = &__traits(getMember, this, fName);
+            alias MemberType = typeof(toDelegate(&Member));
+            auto hdl= CH!(IType, MemberType, Member)(this, HDL);
+            if (hdl !is null)
+                dg(new ChainHandler!(IType, Member)(this, udas[0], hdl));
         }
     }
 }
@@ -137,22 +155,20 @@ abstract class GenericWebController(CType, IType) : BaseWebController, IType
  * С      = Тип контроллера
  * Member = Функция обработчик
  */
-class ChainHandler(CType, IType, alias Member) : BaseChain
+class ChainHandler(IType, alias Member) : BaseChain
 {
-    alias MemberType = typeof(toDelegate(&Member));
-
     private
     {
         Handler _udaHandler;
-        CType _controller;
+        BaseWebController _controller;
     }
 
 
-    this(CType controller, Handler uda, MemberType hdl)
+    this(BaseWebController controller, Handler uda, HTTPServerRequestDelegate hdl)
     {
         this._udaHandler = uda;
         this._controller = controller;
-        registerChainHandler(controller.createHandler!(MemberType, Member)(hdl));
+        registerChainHandler(hdl);
     }
 
 
