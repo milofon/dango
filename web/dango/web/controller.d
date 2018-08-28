@@ -199,7 +199,7 @@ class SimpleWebControllerFactory(C : BaseWebController) : BaseWebControllerFacto
 {
     override BaseWebController createController(Properties config)
     {
-        return new C();
+        return createSimpleComponent!C(config);
     }
 }
 

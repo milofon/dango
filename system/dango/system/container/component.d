@@ -11,10 +11,12 @@ module dango.system.container.component;
 
 private
 {
-    import std.traits : TemplateArgsOf, TransitiveBaseTypeTuple;
+    import std.traits : TemplateArgsOf, TransitiveBaseTypeTuple,
+           hasMember;
     import std.format : fmt = format;
-    import std.meta : AliasSeq, staticIndexOf;
+    import std.meta : AliasSeq, staticIndexOf, Filter;
 
+    import bolts : isFunctionOver;
     import poodinis;
 
     import dango.system.container : registerNamed, resolveNamed,
@@ -664,5 +666,32 @@ unittest
     assert(item.name == "ITEM");
     assert(item.val == 22);
     assert(item.host == "localhost");
+}
+
+
+/**
+ * Метод позволяет создавать компоненты на основе анализа конструкторов
+ * Params:
+ * C = Тип создаваемого объекта
+ * args = Принимаемые аргументы
+ */
+C createSimpleComponent(C, A...)(A args)
+{
+    template hasValidCtor(alias ctor)
+    {
+        enum hasValidCtor = isFunctionOver!(ctor, args);
+    }
+
+    static if (hasMember!(C, "__ctor"))
+    {
+        alias pCtors = Filter!(hasValidCtor,
+                __traits(getOverloads, C, "__ctor"));
+        static if(pCtors.length)
+            return new C(args);
+        else
+            return new C();
+    }
+    else
+        return new C();
 }
 
