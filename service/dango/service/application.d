@@ -90,14 +90,17 @@ protected:
      * Params:
      * config = Общая конфигурация приложения
      */
-    void initializeServiceApplication(Properties config);
+    void initializeServiceApplication(Properties config){}
 
     /**
      * Завершение работы сервиса
      * Params:
      * exitCode = Код возврата
      */
-    int finalizeServiceApplication(int exitCode);
+    int finalizeServiceApplication(int exitCode)
+    {
+        return exitCode;
+    }
 
 
 private:

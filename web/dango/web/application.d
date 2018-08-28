@@ -71,14 +71,17 @@ protected:
      * Params:
      * config = Общая конфигурация приложения
      */
-    void initializeWebApplication(Properties config);
+    void initializeWebApplication(Properties config) {}
 
     /**
      * Завершение работы сервиса
      * Params:
      * exitCode = Код возврата
      */
-    int finalizeWebApplication(int exitCode);
+    int finalizeWebApplication(int exitCode)
+    {
+        return exitCode;
+    }
 
 
     final override void initializeDaemon(Properties config)

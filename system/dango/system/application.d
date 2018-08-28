@@ -278,7 +278,7 @@ protected:
      *
      * config = Конфигурация приложения
      */
-    void initializeDaemon(Properties config);
+    void initializeDaemon(Properties config) {}
 
     /**
      * Остановка демона сервисов
@@ -286,7 +286,10 @@ protected:
      *
      * exitStatus = Код завершения приложения
      */
-    int finalizeDaemon(int exitStatus);
+    int finalizeDaemon(int exitStatus)
+    {
+        return exitStatus;
+    }
 
 
 private:
