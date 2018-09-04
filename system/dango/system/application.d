@@ -26,39 +26,12 @@ private
     import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
-    import uniconf.core.loader : Loader, createConfigLoader,
-            registerLoader;
+    import uniconf.core.loader : Loader, createConfigLoader, ConfigLoader;
 
     import dango.system.container : resolveFactory, PostComponentFactory;
     import dango.system.properties : getNameOrEnforce, configEnforce;
     import dango.system.logging : configureLogging, LoggingContext;
     import dango.system.scheduler : JobScheduler;
-}
-
-
-
-static this()
-{
-    version(Have_uniconf_sdlang)
-    {
-        import uniconf.sdlang;
-        registerLoader(new SdlangConfigLoader());
-    }
-    version (Have_uniconf_properd)
-    {
-        import uniconf.properd;
-        registerLoader(new PropertiesConfigLoader());
-    }
-    version (Have_uniconf_json)
-    {
-        import uniconf.json;
-        registerLoader(new JsonConfigLoader());
-    }
-    version (Have_uniconf_yaml)
-    {
-        import uniconf.yaml;
-        registerLoader(new YamlConfigLoader());
-    }
 }
 
 
@@ -128,8 +101,32 @@ abstract class BaseApplication : Application
     {
         _applicationName = name;
         _applicationVersion = _version;
-        _propLoader = createConfigLoader();
         _container = new ApplicationContainer();
+
+        ConfigLoader[] loaders;
+
+        version(Have_uniconf_sdlang)
+        {
+            import uniconf.sdlang;
+            loaders ~= new SdlangConfigLoader();
+        }
+        version (Have_uniconf_properd)
+        {
+            import uniconf.properd;
+            loaders ~= new PropertiesConfigLoader();
+        }
+        version (Have_uniconf_json)
+        {
+            import uniconf.json;
+            loaders ~= new JsonConfigLoader();
+        }
+        version (Have_uniconf_yaml)
+        {
+            import uniconf.yaml;
+            loaders ~= new YamlConfigLoader();
+        }
+
+        _propLoader = createConfigLoader(loaders);
     }
 
 
@@ -185,8 +182,6 @@ abstract class BaseApplication : Application
 
     Config loadConfig(string filePath)
     {
-        if (_propLoader is null)
-            _propLoader = createConfigLoader();
         return _propLoader(filePath);
     }
 
