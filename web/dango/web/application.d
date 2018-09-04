@@ -16,7 +16,6 @@ public
 
 private
 {
-    import dango.system.properties : getOrEnforce;
     import dango.system.container : registerFactory, resolveFactory;
 
     import dango.web.server;
@@ -49,7 +48,7 @@ abstract class BaseWebApplication : BaseDaemonApplication
 
 protected:
 
-    override void doInitializeDependencies(Properties config)
+    override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
         doRegisterServerDependencies(config);
@@ -60,7 +59,7 @@ protected:
     /**
      * Регистрация сервера
      */
-    void doRegisterServerDependencies(Properties config)
+    void doRegisterServerDependencies(Config config)
     {
         container.registerFactory!(RouterWebApplicationServerFactory,
                 RouterWebApplicationServer);
@@ -71,7 +70,7 @@ protected:
      * Params:
      * config = Общая конфигурация приложения
      */
-    void initializeWebApplication(Properties config) {}
+    void initializeWebApplication(Config config) {}
 
     /**
      * Завершение работы сервиса
@@ -84,19 +83,19 @@ protected:
     }
 
 
-    final override void initializeDaemon(Properties config)
+    final override void initializeDaemon(Config config)
     {
         initializeWebApplication(config);
 
-        auto webConfigs = config.getOrEnforce!Properties("web",
+        auto webConfigs = config.getOrEnforce!Config("web",
                 "Not found web application configurations");
 
-        foreach (Properties webConf; webConfigs.getArray())
+        foreach (Config webConf; webConfigs.getArray())
         {
             if (webConf.getOrElse("enabled", false))
             {
                 auto serverFactory = container.resolveFactory!(WebApplicationServer,
-                        Properties, ApplicationContainer);
+                        Config, ApplicationContainer);
                 auto server = serverFactory.create(webConf, container);
                 server.listen();
                 _servers ~= server;

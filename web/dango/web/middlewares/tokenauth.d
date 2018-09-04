@@ -11,9 +11,6 @@ module dango.web.middlewares.tokenauth;
 
 private
 {
-    import proped : Properties;
-
-    import dango.system.properties : getOrEnforce;
     import dango.web.middleware;
 }
 
@@ -49,7 +46,7 @@ class TokenAuthWebMiddleware : BaseWebMiddleware
 
 class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Properties config, Chain chain)
+    override WebMiddleware createMiddleware(Config config, Chain chain)
     {
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");

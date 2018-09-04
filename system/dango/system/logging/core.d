@@ -7,6 +7,11 @@
  */
 module dango.system.logging.core;
 
+public
+{
+    import uniconf.core : Config;
+}
+
 private
 {
     import std.uni: toUpper;
@@ -15,7 +20,6 @@ private
 
     import poodinis : ApplicationContext;
     import vibe.core.log;
-    import proped: Properties;
 
     import dango.system.container : resolveNamed, registerNamed, ApplicationContainer;
     import dango.system.logging.loggers.console;
@@ -43,7 +47,7 @@ class LoggingContext : ApplicationContext
  */
 interface LoggerFactory
 {
-    shared(Logger) createLogger(Properties config);
+    shared(Logger) createLogger(Config config);
 }
 
 
@@ -101,7 +105,8 @@ package FileLogger.Format matchLogFormat(string logFormat)
  * config    = Объект свойств содержит настройки логгеров
  * dg        = Функция для обработки логгера
  */
-void configureLogging(ApplicationContainer container, Properties config, void function(shared(Logger)) nothrow dg)
+void configureLogging(ApplicationContainer container, Config config,
+        void function(shared(Logger)) nothrow dg)
 {
     configureLogging(container, config, toDelegate(dg));
 }
@@ -119,7 +124,8 @@ void configureLogging(ApplicationContainer container, Properties config, void fu
  * config    = Объект свойств содержит настройки логгеров
  * dg        = Функция-делегат для обработки логгера
  */
-void configureLogging(ApplicationContainer container, Properties config, void delegate(shared(Logger)) nothrow dg)
+void configureLogging(ApplicationContainer container, Config config,
+        void delegate(shared(Logger)) nothrow dg)
 {
     if ("logger" !in config)
         return;
@@ -127,7 +133,7 @@ void configureLogging(ApplicationContainer container, Properties config, void de
     // отключаем логгер консоли по умолчанию
     setLogLevel(LogLevel.none);
 
-    foreach (Properties loggerConf; config.getArray("logger"))
+    foreach (Config loggerConf; config.getArray("logger"))
     {
         auto appender = loggerConf.get!string("appender");
         if (appender.isNull)

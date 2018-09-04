@@ -5,7 +5,7 @@ authors "Maksim Galanin"
 license "BSD"
 
 dependency "dango:web" version="*"
-dependency "uninode" version="~>0.0.1-beta.1"
+dependency "uninode" version="~>0.0.1-beta.2"
 
 dependency "zmqd" version="~>1.1.0"
 dependency "msgpack-d" version="~>1.0.0-beta.6"

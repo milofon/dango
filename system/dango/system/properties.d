@@ -9,34 +9,15 @@ module dango.system.properties;
 
 public
 {
-    import dango.system.exception : configEnforce;
+    import uniconf.core.exception : configEnforce;
 }
 
 private
 {
-    import proped;
+    import uniconf.core;
     import poodinis : ApplicationContext;
 
     import dango.system.container : ApplicationContainer;
-}
-
-
-/**
- * Получение настроек или генерация исключения
- * Params:
- * config = Объект содержащий необходимы ключ конфигурации
- * key = Ключ конфигруации
- * msg = Сообщение об ошибке
- */
-T getOrEnforce(T)(Properties config, string key, lazy string msg)
-{
-    static if (is(T == Properties))
-        auto ret = config.sub(key);
-    else
-        auto ret = config.get!T(key);
-
-    configEnforce(!ret.isNull, msg);
-    return ret.get;
 }
 
 
@@ -46,7 +27,7 @@ T getOrEnforce(T)(Properties config, string key, lazy string msg)
  * config = Объект содержащий необходимы ключ конфигурации
  * msg = Сообщение об ошибке
  */
-string getNameOrEnforce(Properties config, string msg)
+string getNameOrEnforce(Config config, string msg)
 {
     if (config.isObject)
         return config.getOrEnforce!string("name", msg);
@@ -56,36 +37,5 @@ string getNameOrEnforce(Properties config, string msg)
         configEnforce(!val.isNull, msg);
         return val.get;
     }
-}
-
-
-/**
- * Контекст для регистрации системных компоненетов
- */
-class PropertiesContext : ApplicationContext
-{
-    override void registerDependencies(ApplicationContainer container)
-    {
-        container.register!(PropertiesLoader, SDLPropertiesLoader);
-        container.register!(PropertiesLoader, YAMLPropertiesLoader);
-        container.register!(PropertiesLoader, JSONPropertiesLoader);
-    }
-}
-
-
-/**
-  * Создает функцию загрузчик
-  * Params:
-  *
-  * container = Контейнер зависимостей
-  */
-Loader createLoaderFromContainer(ApplicationContainer container)
-{
-    PropertiesLoader[] loaders = container.resolveAll!PropertiesLoader;
-
-    return (string fileName)
-    {
-        return loaders.loadProperties(fileName);
-    };
 }
 

@@ -9,12 +9,15 @@
 
 module dango.service.serialization.core;
 
+public
+{
+    import uniconf.core : Config;
+}
+
 private
 {
     import uninode.core : UniNode;
     import uninode.serialization;
-
-    import proped : Properties;
 
     import dango.system.container;
     import dango.service.types;

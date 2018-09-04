@@ -16,7 +16,6 @@ private
     import msgpack;
 
     import uninode.core : UniNode;
-    import proped : Properties;
 
     import dango.system.container;
     import dango.service.types;
@@ -63,9 +62,9 @@ class MsgPackSerializer : Serializer
 
 
 
-class MsgPackSerializerFactory : ComponentFactory!(Serializer, Properties)
+class MsgPackSerializerFactory : ComponentFactory!(Serializer, Config)
 {
-    Serializer createComponent(Properties config)
+    Serializer createComponent(Config config)
     {
         auto withFieldName = config.getOrElse!bool("withFieldName", false);
         MsgPackSerializer ret = new MsgPackSerializer(withFieldName);
@@ -129,30 +128,30 @@ Value fromUniNode(UniNode input)
 {
     Value convert(UniNode node) @safe
     {
-        switch(node.kind) with (UniNode)
+        switch(node.kind) with (UniNode.Kind)
         {
-            case Kind.nil:
+            case nil:
                 return Value();
-            case Kind.boolean:
+            case boolean:
                 return Value(node.get!bool);
-            case Kind.integer:
+            case integer:
                 return Value(node.get!long);
-            case Kind.uinteger:
+            case uinteger:
                 return Value(node.get!ulong);
-            case Kind.floating:
+            case floating:
                 return Value(node.get!double);
-            case Kind.raw:
+            case raw:
                 return Value(node.get!(ubyte[]));
-            case Kind.text:
+            case text:
                 return Value(node.get!(string));
-            case Kind.array:
+            case array:
             {
                 Value[] arr;
                 foreach(ref UniNode ch; node)
                     arr ~= convert(ch);
                 return Value(arr);
             }
-            case Kind.object:
+            case object:
             {
                 Value[Value] map;
                 foreach(string key, ref UniNode ch; node)

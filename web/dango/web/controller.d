@@ -11,13 +11,12 @@ module dango.web.controller;
 
 public
 {
-    import proped : Properties;
-
     import vibe.http.server : HTTPMethod, HTTPServerRequestHandler,
             HTTPServerRequestDelegate, HTTPServerRequest, HTTPServerResponse;
 
-    import dango.web.middleware : WebMiddleware;
+    import uniconf.core : Config;
 
+    import dango.web.middleware : WebMiddleware;
     import dango.web.controllers.generic;
 }
 
@@ -169,7 +168,7 @@ abstract class BaseWebController : WebController
 
 
 
-alias ControllerFactory = ComponentFactory!(WebController, Properties);
+alias ControllerFactory = ComponentFactory!(WebController, Config);
 
 
 /**
@@ -179,10 +178,10 @@ alias ControllerFactory = ComponentFactory!(WebController, Properties);
  */
 abstract class BaseWebControllerFactory : ControllerFactory
 {
-    BaseWebController createController(Properties config);
+    BaseWebController createController(Config config);
 
 
-    WebController createComponent(Properties config)
+    WebController createComponent(Config config)
     {
         auto ret = createController(config);
         ret.enabled = config.getOrElse!bool("enabled", false);
@@ -197,7 +196,7 @@ abstract class BaseWebControllerFactory : ControllerFactory
  */
 class SimpleWebControllerFactory(C : BaseWebController) : BaseWebControllerFactory
 {
-    override BaseWebController createController(Properties config)
+    override BaseWebController createController(Config config)
     {
         return createSimpleComponent!C(config);
     }

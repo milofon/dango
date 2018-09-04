@@ -20,12 +20,11 @@ private
     import vibe.core.core : yield, Task, runWorkerTaskH, runTask;
     import vibe.core.connectionpool : ConnectionPool;
 
-    import proped : Properties;
     import deimos.zmq.zmq;
     import zmqd;
 
     import dango.system.container;
-    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
+    import dango.system.properties : getNameOrEnforce;
 
     import dango.service.types;
     import dango.service.exception;
@@ -132,7 +131,7 @@ class ZeroMQServerTransport : ServerTransport
  */
 class ZeroMQServerTransportFactory : BaseServerTransportFactory
 {
-    ServerTransport createComponent(Properties config, ApplicationContainer container,
+    ServerTransport createComponent(Config config, ApplicationContainer container,
             ServerProtocol protocol)
     {
         auto ret = new ZeroMQServerTransport(protocol, loadServiceSettings(config));
@@ -174,7 +173,7 @@ class ZeroMQClientTransport : ClientTransport
  */
 class ZeroMQClientTransportFactory : BaseClientTransportFactory
 {
-    ClientTransport createComponent(Properties config)
+    ClientTransport createComponent(Config config)
     {
         string uri = config.getOrEnforce!string("uri",
                 "Not defined uri for client transport");
@@ -289,7 +288,7 @@ class ZeroMQConnection
 
 
 
-ZeroMQTransportSettings loadServiceSettings(Properties config)
+ZeroMQTransportSettings loadServiceSettings(Config config)
 {
     auto uri = config.getOrEnforce!string("bind",
                 "ZeroMQ transport is not defined bind");

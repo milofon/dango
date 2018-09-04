@@ -21,9 +21,7 @@ private
     import vibe.http.server : HTTPMethod;
     import vibe.inet.url : URL;
 
-    import proped : Properties;
-    import dango.system.exception : configEnforce, ConfigException;
-    import dango.system.properties : getOrEnforce;
+    import uniconf.core.exception : configEnforce;
 
     import dango.web.middleware;
 }
@@ -111,7 +109,7 @@ private:
 
 class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Properties config, Chain chain)
+    override WebMiddleware createMiddleware(Config config, Chain chain)
     {
         AllowChecker oCk = createOriginChecker(config.getArray("origin"));
         AllowChecker mCk = createMethodChecker(config.getArray("method"));
@@ -124,14 +122,14 @@ class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory
 private:
 
 
-    AllowChecker createOriginChecker(Properties[] origins)
+    AllowChecker createOriginChecker(Config[] origins)
     {
         import std.regex;
 
         enum replaceRx = ctRegex!(`\\\*`);
         Regex!char[] regs;
 
-        foreach (Properties origin; origins)
+        foreach (Config origin; origins)
         {
             auto origStr = origin.get!string();
             configEnforce(!origStr.isNull, "Origin must be a string");
@@ -155,11 +153,11 @@ private:
     }
 
 
-    AllowChecker createMethodChecker(Properties[] methodProps)
+    AllowChecker createMethodChecker(Config[] methodProps)
     {
         string[] methods;
 
-        foreach (Properties mp; methodProps)
+        foreach (Config mp; methodProps)
         {
             auto m = mp.get!string();
             configEnforce(!m.isNull, "Method must be a string");
@@ -173,11 +171,11 @@ private:
     }
 
 
-    AllowChecker createHeaderChecker(Properties[] headerProps)
+    AllowChecker createHeaderChecker(Config[] headerProps)
     {
         string[] headers;
 
-        foreach (Properties hp; headerProps)
+        foreach (Config hp; headerProps)
         {
             auto h = hp.get!string();
             configEnforce(!h.isNull, "Header must be a string");

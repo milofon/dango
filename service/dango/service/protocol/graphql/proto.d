@@ -36,7 +36,7 @@ class GraphQLServerProtocol : BaseServerProtocol
 
 class GraphQLServerProtocolFactory : BaseServerProtocolFactory
 {
-    ServerProtocol createComponent(Properties config, ApplicationContainer container,
+    ServerProtocol createComponent(Config config, ApplicationContainer container,
             Serializer serializer)
     {
         return new GraphQLServerProtocol(serializer);

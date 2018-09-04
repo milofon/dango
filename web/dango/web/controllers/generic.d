@@ -16,7 +16,6 @@ public
 
 private
 {
-
     import std.functional : toDelegate;
     import std.traits;
     import std.meta;

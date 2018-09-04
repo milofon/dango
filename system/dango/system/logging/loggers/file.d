@@ -12,8 +12,6 @@ private
     import vibe.core.log;
     import vibe.core.concurrency: lock;
 
-    import proped: Properties;
-
     import dango.system.logging.core;
 }
 
@@ -23,7 +21,7 @@ private
  */
 class FileLoggerFactory : LoggerFactory
 {
-    shared(Logger) createLogger(Properties config)
+    shared(Logger) createLogger(Config config)
     {
         string fileName = config.getOrElse("file", "trand.log");
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));

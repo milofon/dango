@@ -16,10 +16,8 @@ private
     import vibe.http.server : HTTPMethod;
     import vibe.stream.operations : readAll;
 
-    import proped : Properties;
-
     import dango.system.container;
-    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
+    import dango.system.properties : getNameOrEnforce;
 
     import dango.web.controller : WebController;
     import dango.web.server : WebApplicationServer;
@@ -65,14 +63,14 @@ class WebServerTransport : ServerTransport
  */
 class WebServerTransportFactory : BaseServerTransportFactory
 {
-    ServerTransport createComponent(Properties config, ApplicationContainer container,
+    ServerTransport createComponent(Config config, ApplicationContainer container,
             ServerProtocol protocol)
     {
         auto rpcFactory = new RpcWebControllerFactory(protocol);
         container.registerNamedFactory!(RpcWebControllerFactory,
                 RpcWebController, "RPC")(rpcFactory);
 
-        auto serverFactory = container.resolveFactory!(WebApplicationServer, Properties,
+        auto serverFactory = container.resolveFactory!(WebApplicationServer, Config,
                 ApplicationContainer);
         auto server = serverFactory.create(config, container);
 
@@ -126,7 +124,7 @@ class WebClientTransport : ClientTransport
  */
 class WebClientTransportFactory : BaseClientTransportFactory
 {
-    ClientTransport createComponent(Properties config)
+    ClientTransport createComponent(Config config)
     {
         auto settings = new HTTPClientSettings();
         string entrypoint = config.getOrEnforce!string("entrypoint",

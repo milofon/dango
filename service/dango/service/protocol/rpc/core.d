@@ -24,9 +24,10 @@ private
     import vibe.core.log;
 
     import dango.system.container;
-    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
+    import dango.system.properties : getNameOrEnforce;
 
     import uninode.core : UniNode;
+    import uniconf.core.exception : configEnforce;
 
     import dango.service.protocol.core;
     import dango.service.serialization;
@@ -234,18 +235,18 @@ private:
  */
 class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFactory
 {
-    ServerProtocol createComponent(Properties config, ApplicationContainer container,
+    ServerProtocol createComponent(Config config, ApplicationContainer container,
             Serializer serializer)
     {
         auto ret = new CType(serializer);
         auto schemaRec = new SchemaRecorder();
 
-        foreach (Properties ctrConf; config.getArray("controller"))
+        foreach (Config ctrConf; config.getArray("controller"))
         {
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            auto ctrlFactory = container.resolveFactory!(RpcController, Properties)(ctrName);
+            auto ctrlFactory = container.resolveFactory!(RpcController, Config)(ctrName);
             configEnforce(ctrlFactory !is null,
                     fmt!"RPC controller '%s' not register"(ctrName));
 
@@ -335,9 +336,9 @@ protected:
  * Фабрика Клиент-протокола RPC
  */
 class RpcClientProtocolFactory(T : RpcClientProtocol) : ComponentFactory!(
-        RpcClientProtocol, Properties, ClientTransport, Serializer)
+        RpcClientProtocol, Config, ClientTransport, Serializer)
 {
-    RpcClientProtocol createComponent(Properties config, ClientTransport transport,
+    RpcClientProtocol createComponent(Config config, ClientTransport transport,
             Serializer serializer)
     {
         return new T(transport, serializer);

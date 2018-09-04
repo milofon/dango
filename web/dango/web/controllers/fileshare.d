@@ -13,11 +13,9 @@ private
 {
     import std.algorithm.searching : endsWith;
 
-    import dango.system.properties : getOrEnforce;
-    import dango.system.container;
-
     import vibe.http.fileserver;
 
+    import dango.system.container;
     import dango.web.controller;
 }
 
@@ -92,7 +90,7 @@ class FilesChain : BaseChain
  */
 class FileShareWebControllerFactory : BaseWebControllerFactory
 {
-    override FileShareWebController createController(Properties config)
+    override FileShareWebController createController(Config config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");

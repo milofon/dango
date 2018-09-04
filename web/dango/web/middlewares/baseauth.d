@@ -16,9 +16,7 @@ private
     import std.format : fmt = format;
 
     import vibe.http.auth.basic_auth;
-    import proped : Properties;
 
-    import dango.system.properties : getOrEnforce;
     import dango.web.middleware;
 }
 
@@ -69,7 +67,7 @@ private:
 
 class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Properties config, Chain chain)
+    override WebMiddleware createMiddleware(Config config, Chain chain)
     {
         string username = config.getOrEnforce!string("username",
                 "Not defined username parameter").strip;

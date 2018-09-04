@@ -11,7 +11,7 @@ module dango.service.protocol.rpc.controller;
 
 public
 {
-    import proped : Properties;
+    import uniconf.core : Config;
 }
 
 private
@@ -188,12 +188,12 @@ abstract class GenericRpcController(IType) : BaseRpcController, IType
  * Params:
  * CType = Тип контроллера
  */
-abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Properties)
+abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Config)
 {
-    RpcController createController(Properties config);
+    RpcController createController(Config config);
 
 
-    RpcController createComponent(Properties config)
+    RpcController createComponent(Config config)
     {
         auto ret = createController(config);
         ret.enabled = config.getOrElse!bool("enabled", false);
@@ -207,7 +207,7 @@ abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Prope
  */
 class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
 {
-    override RpcController createController(Properties config)
+    override RpcController createController(Config config)
     {
         return createSimpleComponent!C(config);
     }
@@ -217,7 +217,7 @@ class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
 /**
  * Регистрация компонента RPC контроллер
  */
-void registerController(F : ComponentFactory!(RpcController, Properties),
+void registerController(F : ComponentFactory!(RpcController, Config),
         C : RpcController, string N)(ApplicationContainer container)
 {
     container.registerNamedFactory!(F, C, N);
@@ -277,104 +277,125 @@ template GenerateHandlerFromMethod(alias F)
     {
         bool[string] requires; // обязательные поля
 
-        UniNode fun(UniNode params)
-        {
-            if (!(params.kind == UniNode.Kind.object
-                        || params.kind == UniNode.Kind.array
-                        || params.kind == UniNode.Kind.nil))
-                throw new RpcException(ErrorCode.INVALID_PARAMS);
-
-            string[][string] paramErrors;
-
-            // инициализируем обязательные поля
-            PT args;
-            foreach (i, def; ParameterDefs)
+        static if (ParameterTypes.length == 1 && is(ParameterTypes[0] == UniNode))
+            UniNode fun(UniNode params)
             {
-                string key = ParameterIdents[i];
-                static if (is(def == void))
-                    requires[key] = false;
-                else
-                    args[i] = def;
-            }
-
-            void fillArg(size_t idx, PType)(string key, UniNode value)
-            {
-                try
-                    args[idx] = deserializeUniNode!(PType)(value);
-                catch (Exception e)
-                    paramErrors[key] ~= e.msg;
-            }
-
-            // заполняем аргументы
-            foreach(i, key; ParameterIdents)
-            {
-                alias PType = ParameterTypes[i];
-                if (params.kind == UniNode.Kind.object)
+                static if (is(RT == void))
                 {
-                    if (auto v = key in params)
-                    {
-                        fillArg!(i, PType)(key, *v);
-                        requires[key] = true;
-                    }
+                    hdl(params);
+                    return UniNode();
+                }
+                else
+                {
+                    RT ret = hdl(params);
+                    static if (is(RT == UniNode))
+                        return ret;
                     else
+                        return serializeToUniNode!RT(ret);
+                }
+            }
+        else
+            UniNode fun(UniNode params)
+            {
+                if (!(params.kind == UniNode.Kind.object
+                            || params.kind == UniNode.Kind.array
+                            || params.kind == UniNode.Kind.nil))
+                    throw new RpcException(ErrorCode.INVALID_PARAMS);
+
+                string[][string] paramErrors;
+
+                // инициализируем обязательные поля
+                PT args;
+                foreach (i, def; ParameterDefs)
+                {
+                    string key = ParameterIdents[i];
+                    static if (is(def == void))
+                        requires[key] = false;
+                    else
+                        args[i] = def;
+                }
+
+                void fillArg(size_t idx, PType)(string key, UniNode value)
+                {
+                    try
+                        args[idx] = deserializeUniNode!(PType)(value);
+                    catch (Exception e)
+                        paramErrors[key] ~= e.msg;
+                }
+
+                // заполняем аргументы
+                foreach(i, key; ParameterIdents)
+                {
+                    alias PType = ParameterTypes[i];
+                    if (params.kind == UniNode.Kind.object)
                     {
-                        if (ParameterIdents.length == 1 && isAggregateType!PType)
+                        if (auto v = key in params)
+                        {
+                            fillArg!(i, PType)(key, *v);
+                            requires[key] = true;
+                        }
+                        else
+                        {
+                            if (ParameterIdents.length == 1 && isAggregateType!PType)
+                            {
+                                fillArg!(i, PType)(key, params);
+                                requires[key] = true;
+                            }
+                        }
+                    }
+                    else if (params.kind == UniNode.Kind.array)
+                    {
+                        UniNode[] aParams = params.get!(UniNode[]);
+                        if (isArray!PType && ParameterIdents.length == 1)
                         {
                             fillArg!(i, PType)(key, params);
                             requires[key] = true;
                         }
+                        else if (i < aParams.length)
+                        {
+                            UniNode v = aParams[i];
+                            fillArg!(i, PType)(key, v);
+                            requires[key] = true;
+                        }
                     }
                 }
-                else if (params.kind == UniNode.Kind.array)
+
+                // генерируем ошибку об обязательных полях
+                foreach (k, v; requires)
                 {
-                    UniNode[] aParams = params.get!(UniNode[]);
-                    if (isArray!PType && ParameterIdents.length == 1)
-                    {
-                        fillArg!(i, PType)(key, params);
-                        requires[key] = true;
-                    }
-                    else if (i < aParams.length)
-                    {
-                        UniNode v = aParams[i];
-                        fillArg!(i, PType)(key, v);
-                        requires[key] = true;
-                    }
+                    if (v == false)
+                        paramErrors[k] ~= "is required";
                 }
-            }
 
-            // генерируем ошибку об обязательных полях
-            foreach (k, v; requires)
-            {
-                if (v == false)
-                    paramErrors[k] ~= "is required";
-            }
-
-            if (paramErrors.length > 0)
-            {
-                UniNode[string] errObj;
-                foreach (k, errs; paramErrors)
+                if (paramErrors.length > 0)
                 {
-                    logInfo("%s -> %s", k, errs);
-                    UniNode[] errArr;
-                    foreach (v; errs)
-                        errArr ~= UniNode(v);
-                    errObj[k] = UniNode(errArr);
+                    UniNode[string] errObj;
+                    foreach (k, errs; paramErrors)
+                    {
+                        logInfo("%s -> %s", k, errs);
+                        UniNode[] errArr;
+                        foreach (v; errs)
+                            errArr ~= UniNode(v);
+                        errObj[k] = UniNode(errArr);
+                    }
+
+                    throw new RpcException(ErrorCode.INVALID_PARAMS, UniNode(errObj));
                 }
 
-                throw new RpcException(ErrorCode.INVALID_PARAMS, UniNode(errObj));
+                static if (is(RT == void))
+                {
+                    hdl(args.expand);
+                    return UniNode();
+                }
+                else
+                {
+                    RT ret = hdl(args.expand);
+                    static if (is(RT == UniNode))
+                        return ret;
+                    else
+                        return serializeToUniNode!RT(ret);
+                }
             }
-
-            static if (is(RT == void))
-            {
-                hdl(args.expand);
-                return UniNode();
-            }
-            else
-            {
-                RT ret = hdl(args.expand);
-                return serializeToUniNode!RT(ret);
-            }
-        }
 
         return &fun;
     }

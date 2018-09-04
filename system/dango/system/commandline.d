@@ -15,7 +15,7 @@ private
     import std.traits: isArray, isNarrowString;
     import std.conv : to;
 
-    import proped.properties: Properties, PropNode;
+    import uniconf.core : Config;
 }
 
 
@@ -35,7 +35,7 @@ class CommandLineProcessor
     {
         string[] args;
         Option[] options;
-        Properties config;
+        Config config;
 
         bool helpWanted;
         bool errorWanted;
@@ -44,8 +44,7 @@ class CommandLineProcessor
 
     this(string[] args)
     {
-        PropNode[string] map;
-        this.config = Properties(PropNode(map));
+        this.config = Config.emptyObject;
         this.args = args;
     }
 
@@ -74,16 +73,16 @@ class CommandLineProcessor
     private void addProperties(T)(string key, T value)
     {
         static if (isNarrowString!T)
-            config.set(key, value);
+            config[key] = Config(value);
         else static if (isArray!T)
         {
-            PropNode[] arr;
+            Config[] arr;
             foreach(item; value)
-                arr ~= PropNode(item);
-            config.set(key, arr);
+                arr ~= Config(item);
+            config[key] = Config(arr);
         }
         else
-            config.set(key, value.to!string);
+            config[key] = Config(value.to!string);
     }
 
     /**
@@ -150,7 +149,7 @@ class CommandLineProcessor
     /**
      * Возвращает свойства полученные при разборе
      */
-    Properties getOptionProperties()
+    Config getOptionConfig()
     {
         return config;
     }
@@ -158,12 +157,13 @@ class CommandLineProcessor
     /**
      * Возвращает свойства полученные из переменных окружения приложения
      */
-    Properties getEnvironmentProperties()
+    Config getEnvironmentConfig()
     {
-        PropNode[string] map;
+        Config[string] map;
         foreach(string key, string val; environment.toAA)
-            map[key] = PropNode(val);
+            map[key] = Config(val);
 
-        return Properties(PropNode(["env": PropNode(map)]));
+        return Config(["env": Config(map)]);
     }
 }
+

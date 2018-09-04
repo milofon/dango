@@ -17,14 +17,12 @@ private
     import std.typecons : Tuple;
     import std.conv : to;
 
-    import proped : Properties;
-
     import vibe.internal.meta.codegen;
     import vibe.core.log;
 
     import dango.system.traits;
     import dango.system.container;
-    import dango.system.properties : getNameOrEnforce, configEnforce, getOrEnforce;
+    import dango.system.properties : getNameOrEnforce;
 
     import dango.service.serialization;
     import dango.service.protocol.rpc.core;
@@ -55,15 +53,15 @@ class InterfaceClient(I) : I
 
 
 
-class ClientFactory(I) : ComponentFactory!(I, Properties, ApplicationContainer)
+class ClientFactory(I) : ComponentFactory!(I, Config, ApplicationContainer)
 {
-    InterfaceClient!I createComponent(Properties config, ApplicationContainer container)
+    InterfaceClient!I createComponent(Config config, ApplicationContainer container)
     {
-        Properties trConf = config.getOrEnforce!Properties("transport",
+        Config trConf = config.getOrEnforce!Config("transport",
                 "Not defined client transport config");
-        Properties serConf = config.getOrEnforce!Properties("serializer",
+        Config serConf = config.getOrEnforce!Config("serializer",
                 "Not defined client serializer config");
-        Properties protoConf = config.getOrEnforce!Properties("protocol",
+        Config protoConf = config.getOrEnforce!Config("protocol",
                 "Not defined client protocol config");
 
         string serializerName = getNameOrEnforce(serConf,
@@ -74,21 +72,21 @@ class ClientFactory(I) : ComponentFactory!(I, Properties, ApplicationContainer)
                 "Not defined clien transport name");
 
         auto serFactory = container.resolveFactory!(Serializer,
-                Properties)(serializerName);
+                Config)(serializerName);
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         Serializer serializer = serFactory.create(serConf);
         logInfo("Use serializer '%s'", serializerName);
 
         auto trFactory = container.resolveFactory!(ClientTransport,
-                Properties)(transportName);
+                Config)(transportName);
         configEnforce(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
         ClientTransport transport = trFactory.create(trConf);
         logInfo("Use transport '%s'", transportName);
 
         auto protoFactory = container.resolveFactory!(
-                RpcClientProtocol, Properties, ClientTransport, Serializer)(protoName);
+                RpcClientProtocol, Config, ClientTransport, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
         RpcClientProtocol protocol = protoFactory.create(protoConf, transport, serializer);
@@ -102,7 +100,7 @@ class ClientFactory(I) : ComponentFactory!(I, Properties, ApplicationContainer)
 /**
  * Регистрация клиента
  */
-void registerClient(TYPE, string NAME)(ApplicationContainer container, Properties config)
+void registerClient(TYPE, string NAME)(ApplicationContainer container, Config config)
 {
     alias Client = InterfaceClient!(TYPE);
     alias Factory = ClientFactory!(TYPE);

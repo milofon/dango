@@ -11,7 +11,7 @@ module dango.service.protocol.core;
 
 public
 {
-    import proped : Properties;
+    import uniconf.core : Config;
     import dango.system.container : ApplicationContainer;
 
     import dango.service.types;
@@ -64,6 +64,6 @@ abstract class BaseServerProtocol : ServerProtocol
 
 
 
-alias BaseServerProtocolFactory = ComponentFactory!(ServerProtocol, Properties,
+alias BaseServerProtocolFactory = ComponentFactory!(ServerProtocol, Config,
         ApplicationContainer, Serializer);
 

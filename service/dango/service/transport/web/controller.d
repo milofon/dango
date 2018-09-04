@@ -15,9 +15,7 @@ private
 
     import vibe.stream.operations : readAll;
 
-    import dango.system.properties : getOrEnforce;
     import dango.system.container;
-
     import dango.web.controller;
     import dango.service.protocol;
 }
@@ -106,7 +104,7 @@ class RpcChain : BaseChain
 /**
  * Класс фабрика контроллера предоствляющего entrypoint для RPC
  */
-class RpcWebControllerFactory : ComponentFactory!(WebController, Properties)
+class RpcWebControllerFactory : ComponentFactory!(WebController, Config)
 {
     private ServerProtocol _protocol;
 
@@ -117,7 +115,7 @@ class RpcWebControllerFactory : ComponentFactory!(WebController, Properties)
     }
 
 
-    WebController createComponent(Properties config)
+    WebController createComponent(Config config)
     {
         auto entrypoint = config.getOrEnforce!string("entrypoint",
                 "Not defined entrypoint in configuration transport web");

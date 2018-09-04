@@ -18,8 +18,9 @@ private
 {
     import std.format : fmt = format;
 
-    import dango.system.properties : getOrEnforce, getNameOrEnforce;
-    import dango.system.exception : configEnforce;
+    import uniconf.core.exception : configEnforce;
+
+    import dango.system.properties : getNameOrEnforce;
     import dango.system.container : resolveFactory;
 
     import dango.service.serialization;
@@ -49,7 +50,7 @@ abstract class BaseServiceApplication : BaseDaemonApplication
 
 protected:
 
-    override void doInitializeDependencies(Properties config)
+    override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
         container.registerContext!SerializerContext;
@@ -58,14 +59,14 @@ protected:
     }
 
 
-    final override void initializeDaemon(Properties config)
+    final override void initializeDaemon(Config config)
     {
         initializeServiceApplication(config);
 
-        auto sConfgs = config.getOrEnforce!Properties("service",
+        auto sConfgs = config.getOrEnforce!Config("service",
                 "Not found service configurations");
 
-        foreach (Properties servConf; sConfgs.getArray())
+        foreach (Config servConf; sConfgs.getArray())
         {
             if (servConf.getOrElse("enabled", false))
             {
@@ -90,7 +91,7 @@ protected:
      * Params:
      * config = Общая конфигурация приложения
      */
-    void initializeServiceApplication(Properties config){}
+    void initializeServiceApplication(Config config){}
 
     /**
      * Завершение работы сервиса
@@ -106,15 +107,15 @@ protected:
 private:
 
 
-    void createServiceTransports(ApplicationContainer container, Properties servConf,
+    void createServiceTransports(ApplicationContainer container, Config servConf,
             void delegate(ServerTransport tr) cb)
     {
         string serviceName = servConf.getOrElse!string("name", "Undefined");
         logInfo("Configuring service '%s'", serviceName);
 
-        Properties serConf = servConf.getOrEnforce!Properties("serializer",
+        Config serConf = servConf.getOrEnforce!Config("serializer",
                 "Not defined serializer config for service '" ~ serviceName ~ "'");
-        Properties protoConf = servConf.getOrEnforce!Properties("protocol",
+        Config protoConf = servConf.getOrEnforce!Config("protocol",
                 "Not defined protocol config for service '" ~ serviceName ~ "'");
 
         string serializerName = getNameOrEnforce(serConf,
@@ -124,25 +125,25 @@ private:
 
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
-        auto serFactory = container.resolveFactory!(Serializer, Properties)(serializerName);
+        auto serFactory = container.resolveFactory!(Serializer, Config)(serializerName);
         configEnforce(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         logInfo("Use serializer '%s'", serializerName);
         Serializer serializer = serFactory.create(serConf);
 
-        auto protoFactory = container.resolveFactory!(ServerProtocol, Properties,
+        auto protoFactory = container.resolveFactory!(ServerProtocol, Config,
                 ApplicationContainer, Serializer)(protoName);
         configEnforce(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
         logInfo("Use protocol '%s'", protoName);
         ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
 
-        foreach (Properties trConf; servConf.getArray("transport"))
+        foreach (Config trConf; servConf.getArray("transport"))
         {
             string transportName = getNameOrEnforce(trConf,
                     "Not defined transport name for service '" ~ serviceName ~ "'");
 
-            auto trFactory = container.resolveFactory!(ServerTransport, Properties,
+            auto trFactory = container.resolveFactory!(ServerTransport, Config,
                     ApplicationContainer, ServerProtocol)(transportName);
             configEnforce(trFactory !is null,
                     fmt!"Transport '%s' not register"(transportName));

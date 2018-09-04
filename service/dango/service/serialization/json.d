@@ -17,7 +17,6 @@ private
     import vibe.data.json;
 
     import uninode.core : UniNode;
-    import proped : Properties;
 
     import dango.system.container;
     import dango.service.types;
@@ -48,9 +47,9 @@ class JsonSerializer : Serializer
 
 
 
-class JsonSerializerFactory : ComponentFactory!(Serializer, Properties)
+class JsonSerializerFactory : ComponentFactory!(Serializer, Config)
 {
-    Serializer createComponent(Properties config)
+    Serializer createComponent(Config config)
     {
         return new JsonSerializer();
     }
@@ -110,31 +109,31 @@ Json fromUniNode(UniNode input)
 {
     Json convert(UniNode node) @safe
     {
-        switch(node.kind) with (UniNode)
+        switch(node.kind) with (UniNode.Kind)
         {
-            case Kind.nil:
+            case nil:
                 return Json();
-            case Kind.boolean:
+            case boolean:
                 return Json(node.get!bool);
-            case Kind.integer:
+            case integer:
                 return Json(node.get!long);
-            case Kind.uinteger:
+            case uinteger:
                 return Json(node.get!ulong);
-            case Kind.floating:
+            case floating:
                 return Json(node.get!double);
-            case Kind.raw:
+            case raw:
                 string result = "base64:" ~ Base64.encode(node.get!(ubyte[])).idup;
                 return Json(result);
-            case Kind.text:
+            case text:
                 return Json(node.get!string);
-            case Kind.array:
+            case array:
             {
                 Json arr = Json.emptyArray();
                 foreach(ref UniNode ch; node)
                     arr ~= convert(ch);
                 return arr;
             }
-            case Kind.object:
+            case object:
             {
                 Json map = Json.emptyObject();
                 foreach(ref string key, ref UniNode ch; node)

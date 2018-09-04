@@ -20,14 +20,14 @@ private
     import std.algorithm.sorting : sort;
     import std.array : array;
 
-    import proped : PropertiesNotFoundException;
+    import uniconf.core.exception : configEnforce, ConfigNotFoundException;
 
     import vibe.core.log;
     import vibe.http.server;
     import vibe.http.router : URLRouter, HTTPListener;
     import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
 
-    import dango.system.properties : getOrEnforce, getNameOrEnforce, configEnforce;
+    import dango.system.properties : getNameOrEnforce;
     import dango.system.container;
 
     import dango.web.controller;
@@ -57,16 +57,16 @@ interface WebApplicationServer
  * Класс фабрики веб сервера
  */
 abstract class WebApplicationServerFactory : ComponentFactory!(WebApplicationServer,
-        Properties, ApplicationContainer)
+        Config, ApplicationContainer)
 {
     /**
      * Конструирует объект сервера
      */
-    WebApplicationServer createServer(Properties webConf, HTTPServerSettings settings,
+    WebApplicationServer createServer(Config webConf, HTTPServerSettings settings,
             ApplicationContainer container);
 
 
-    WebApplicationServer createComponent(Properties webConf,
+    WebApplicationServer createComponent(Config webConf,
             ApplicationContainer container)
     {
         HTTPServerSettings settings = loadServiceSettings(webConf);
@@ -128,7 +128,7 @@ class RouterWebApplicationServer : WebApplicationServer
  */
 class RouterWebApplicationServerFactory : WebApplicationServerFactory
 {
-    override WebApplicationServer createServer(Properties config, HTTPServerSettings settings,
+    override WebApplicationServer createServer(Config config, HTTPServerSettings settings,
             ApplicationContainer container)
     {
         auto server = new RouterWebApplicationServer(settings);
@@ -137,13 +137,13 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
         logInfo("Configuring web application '%s'", webName);
         MiddlewareInfo[] middlewares;
 
-        foreach (Properties mdwConf; config.getArray("middleware"))
+        foreach (Config mdwConf; config.getArray("middleware"))
         {
             string mdwName = mdwConf.getNameOrEnforce(
                     "Not defined middleware name");
 
             auto mdwFactory = container.resolveFactory!(WebMiddleware,
-                    Properties, Chain)(mdwName);
+                    Config, Chain)(mdwName);
             configEnforce(mdwFactory !is null,
                     fmt!"Middleware '%s' not register"(mdwName));
 
@@ -157,13 +157,13 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             middlewares ~= MiddlewareInfo(ordering, mdwConf, mdwFactory, label);
         }
 
-        foreach (Properties ctrConf; config.getArray("controller"))
+        foreach (Config ctrConf; config.getArray("controller"))
         {
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
             auto ctrlFactory = container.resolveFactory!(WebController,
-                    Properties)(ctrName);
+                    Config)(ctrName);
             configEnforce(ctrlFactory !is null,
                     fmt!"Controller '%s' not register"(ctrName));
 
@@ -218,8 +218,8 @@ private:
 struct MiddlewareInfo
 {
     long ordering;
-    Properties config;
-    PostComponentFactory!(WebMiddleware, Properties, Chain) factory;
+    Config config;
+    PostComponentFactory!(WebMiddleware, Config, Chain) factory;
     string label;
 }
 
@@ -230,7 +230,7 @@ struct MiddlewareInfo
  *
  * config = Конфигурация
  */
-HTTPServerSettings loadServiceSettings(Properties config)
+HTTPServerSettings loadServiceSettings(Config config)
 {
     HTTPServerSettings settings = new HTTPServerSettings();
 
@@ -239,7 +239,7 @@ HTTPServerSettings loadServiceSettings(Properties config)
 
     auto port = config.get!long("port");
     if (port.isNull)
-        throw new PropertiesNotFoundException(config, "port");
+        throw new ConfigNotFoundException(config, "port");
     settings.port = cast(ushort)port.get;
 
     settings.options = HTTPServerOption.defaults;
@@ -269,7 +269,7 @@ HTTPServerSettings loadServiceSettings(Properties config)
 
     if ("ssl" in config)
     {
-        Properties sslConfig = config.sub("ssl");
+        Config sslConfig = config.get!Config("ssl");
         settings.tlsContext = createTLSContextFrom(sslConfig);
     }
 
@@ -280,7 +280,7 @@ HTTPServerSettings loadServiceSettings(Properties config)
 /**
  * Создание TLS контекста из конфигурации сервиса
  */
-TLSContext createTLSContextFrom(Properties sslConfig)
+TLSContext createTLSContextFrom(Config sslConfig)
 {
     TLSContext tlsCtx = createTLSContext(TLSContextKind.server);
 
@@ -288,10 +288,10 @@ TLSContext createTLSContextFrom(Properties sslConfig)
     auto privateKeyFile = sslConfig.get!string("privateKeyFile");
 
     if (certChainFile.isNull)
-        throw new PropertiesNotFoundException(sslConfig, "certificateChainFile");
+        throw new ConfigNotFoundException(sslConfig, "certificateChainFile");
 
     if (privateKeyFile.isNull)
-        throw new PropertiesNotFoundException(sslConfig, "privateKeyFile");
+        throw new ConfigNotFoundException(sslConfig, "privateKeyFile");
 
     tlsCtx.useCertificateChainFile(certChainFile.get);
     tlsCtx.usePrivateKeyFile(privateKeyFile.get);

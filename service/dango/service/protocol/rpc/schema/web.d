@@ -19,7 +19,6 @@ private
 
     import dango.system.application : Application;
     import dango.system.container : Autowire;
-    import dango.system.properties : getOrEnforce;
 
     import dango.web.controller;
 }
@@ -133,7 +132,7 @@ class RpcDocChain : BaseChain
  */
 class RpcDocumentationWebControllerFactory : BaseWebControllerFactory
 {
-    override RpcDocumentationWebController createController(Properties config)
+    override RpcDocumentationWebController createController(Config config)
     {
         string path = config.getOrEnforce!string("path",
                 "Not defined path parameter");

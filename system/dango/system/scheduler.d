@@ -18,13 +18,13 @@ private
 
     import vibe.core.core;
 
-    import proped : Properties;
+    import uniconf.core.exception : ConfigException;
+    import uniconf.core : Config;
+
     import cronexp : CronExpr, CronException;
 
-    import dango.system.exception : ConfigException;
     import dango.system.container;
-
-    import dango.system.properties : getOrEnforce, configEnforce;
+    import dango.system.properties : configEnforce;
 }
 
 
@@ -41,13 +41,13 @@ interface Job
 
 
 
-alias JobFactory = ComponentFactory!(Job, Properties);
+alias JobFactory = ComponentFactory!(Job, Config);
 
 
 
 class SimpleJobFactory(J : Job) : JobFactory
 {
-    J createComponent(Properties config)
+    J createComponent(Config config)
     {
         return createSimpleComponent!J(config);
     }
@@ -127,11 +127,11 @@ private:
 
 
 class JobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
-        Properties, ApplicationContainer)
+        Config, ApplicationContainer)
 {
-    JobScheduler createComponent(Properties config, ApplicationContainer container)
+    JobScheduler createComponent(Config config, ApplicationContainer container)
     {
-        auto jobFactory = container.resolveFactory!(Job, Properties)(N);
+        auto jobFactory = container.resolveFactory!(Job, Config)(N);
         auto job = jobFactory.create(config);
 
         auto exp = config.getOrEnforce!string("cron",

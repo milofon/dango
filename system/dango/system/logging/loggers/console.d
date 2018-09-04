@@ -14,7 +14,6 @@ private
     import std.format : format;
 
     import vibe.core.log;
-    import proped: Properties;
 
     import dango.system.logging.core;
 }
@@ -58,7 +57,7 @@ struct StringWithBoth(T)
  */
 class ConsoleLoggerFactory : LoggerFactory
 {
-    shared(Logger) createLogger(Properties config)
+    shared(Logger) createLogger(Config config)
     {
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
 

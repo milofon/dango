@@ -10,8 +10,7 @@ module dango.system.application;
 public
 {
     import BrightProof : SemVer;
-    import proped : Properties, Loader;
-    import proped.loader : createPropertiesLoader;
+    import uniconf.core : Config;
 
     import vibe.core.log;
 
@@ -27,11 +26,39 @@ private
     import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
+    import uniconf.core.loader : Loader, createConfigLoader,
+            registerLoader;
+
     import dango.system.container : resolveFactory, PostComponentFactory;
-    import dango.system.properties : PropertiesContext, getNameOrEnforce,
-            getOrEnforce, configEnforce;
+    import dango.system.properties : getNameOrEnforce, configEnforce;
     import dango.system.logging : configureLogging, LoggingContext;
     import dango.system.scheduler : JobScheduler;
+}
+
+
+
+static this()
+{
+    version(Have_uniconf_sdlang)
+    {
+        import uniconf.sdlang;
+        registerLoader(new SdlangConfigLoader());
+    }
+    version (Have_uniconf_properd)
+    {
+        import uniconf.properd;
+        registerLoader(new PropertiesConfigLoader());
+    }
+    version (Have_uniconf_json)
+    {
+        import uniconf.json;
+        registerLoader(new JsonConfigLoader());
+    }
+    version (Have_uniconf_yaml)
+    {
+        import uniconf.yaml;
+        registerLoader(new YamlConfigLoader());
+    }
 }
 
 
@@ -68,7 +95,7 @@ interface Application
      *
      * Returns: Объект свойств
      */
-    Properties loadProperties(string filePath);
+    Config loadConfig(string filePath);
 
     /**
      * Контейнер DI приложения
@@ -101,7 +128,7 @@ abstract class BaseApplication : Application
     {
         _applicationName = name;
         _applicationVersion = _version;
-        _propLoader = createPropertiesLoader();
+        _propLoader = createConfigLoader();
         _container = new ApplicationContainer();
     }
 
@@ -139,12 +166,12 @@ abstract class BaseApplication : Application
         if (configFiles.empty)
             configFiles = getDefaultConfigFiles();
 
-        Properties config;
+        Config config;
         foreach(string cFile; configFiles)
-            config ~= loadProperties(cFile);
+            config = config ~ loadConfig(cFile);
 
-        config ~= cProcessor.getOptionProperties();
-        config ~= cProcessor.getEnvironmentProperties();
+        config = config ~ cProcessor.getOptionConfig();
+        config = config ~ cProcessor.getEnvironmentConfig();
 
         // иницмализируем зависимостей
         doInitializeDependencies(config);
@@ -156,10 +183,10 @@ abstract class BaseApplication : Application
     }
 
 
-    Properties loadProperties(string filePath)
+    Config loadConfig(string filePath)
     {
         if (_propLoader is null)
-            _propLoader = createPropertiesLoader();
+            _propLoader = createConfigLoader();
         return _propLoader(filePath);
     }
 
@@ -174,7 +201,7 @@ protected:
      *
      * Returns: Код завершения работы приложения
      */
-    int runApplication(Properties config);
+    int runApplication(Config config);
 
     /**
      * Получение аргументов из командной строки
@@ -212,13 +239,12 @@ protected:
      * container = Контейнер DI
      * config = Конфигурация
      */
-    void initializeDependencies(ApplicationContainer container, Properties config);
+    void initializeDependencies(ApplicationContainer container, Config config);
 
 
-    void doInitializeDependencies(Properties config)
+    void doInitializeDependencies(Config config)
     {
         container.register!(Application, typeof(this)).existingInstance(this);
-        container.registerContext!PropertiesContext;
         container.registerContext!LoggingContext;
     }
 
@@ -263,7 +289,7 @@ abstract class BaseDaemonApplication : BaseApplication
     }
 
 
-    final override int runApplication(Properties config)
+    final override int runApplication(Config config)
     {
         return runLoop(config);
     }
@@ -278,7 +304,7 @@ protected:
      *
      * config = Конфигурация приложения
      */
-    void initializeDaemon(Properties config) {}
+    void initializeDaemon(Config config) {}
 
     /**
      * Остановка демона сервисов
@@ -301,20 +327,20 @@ private:
      *
      * config = Конфигурация приложения
      */
-    int runLoop(Properties config)
+    int runLoop(Config config)
     {
         logInfo("Запуск приложения %s (%s)", name, release);
 
         lowerPrivileges();
 
-        foreach (Properties jobConf; config.getArray("job"))
+        foreach (Config jobConf; config.getArray("job"))
         {
             if (jobConf.getOrElse!bool("enabled", false))
             {
                 string jobName = getNameOrEnforce(jobConf,
                         "Не определено имя задачи");
                 auto jobFactory = container.resolveFactory!(JobScheduler,
-                        Properties, ApplicationContainer)(jobName);
+                        Config, ApplicationContainer)(jobName);
                 configEnforce(jobFactory !is null,
                         fmt!"Job '%s' not register"(jobName));
                 logInfo("Start job '%s'", jobName);

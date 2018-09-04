@@ -11,7 +11,7 @@ module dango.system.container.context;
 
 private
 {
-    import proped : Properties;
+    import uniconf.core : Config;
 
     import poodinis : ApplicationContext, DependencyContainer,
            registerContextComponents, autowire, existingInstance;
@@ -31,7 +31,7 @@ interface ConfigurableContext
      * container = DI контейнер
      * config    = Конфигурация
      */
-    void registerDependencies(ApplicationContainer, Properties config);
+    void registerDependencies(ApplicationContainer, Config config);
 }
 
 
@@ -42,7 +42,7 @@ interface ConfigurableContext
  * config    = Конфигурация
  */
 void registerConfigurableContext(Context : ApplicationContext)(ApplicationContainer container,
-        Properties config) if (is(Context : ConfigurableContext))
+        Config config) if (is(Context : ConfigurableContext))
 {
     auto context = new Context();
     context.registerDependencies(container, config);
@@ -59,7 +59,7 @@ version(unittest)
 
     class TestContext : ApplicationContext, ConfigurableContext
     {
-        void registerDependencies(ApplicationContainer container, Properties config)
+        void registerDependencies(ApplicationContainer container, Config config)
         {
             int a = cast(int)config.get!long("key").get;
             container.register!(IItem, Item).factoryInstance!ItemFactory(a);
@@ -72,8 +72,7 @@ version(unittest)
 unittest
 {
     auto cnt = createContainer();
-    Properties config;
-    config.set("key", 11);
+    Config config = Config(["key": Config(11)]);
 
     cnt.registerConfigurableContext!TestContext(config);
     auto item = cnt.resolve!IItem;

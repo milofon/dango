@@ -13,6 +13,7 @@ public
 {
     import vibe.http.server : HTTPServerRequest, HTTPServerResponse, HTTPMethod;
 
+    import uniconf.core : Config;
     import dango.web.controller : Chain;
 }
 
@@ -21,7 +22,6 @@ private
     import std.traits;
     import std.meta : Alias;
 
-    import proped : Properties;
     import vibe.http.server : HTTPServerRequestDelegate, HTTPServerRequestHandler;
 
     import dango.system.container;
@@ -89,7 +89,7 @@ abstract class BaseWebMiddleware : WebMiddleware
 
 
 
-alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Properties, Chain);
+alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Config, Chain);
 
 
 /**
@@ -97,10 +97,10 @@ alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Properties, Chain);
  */
 abstract class BaseWebMiddlewareFactory : MiddlewareFactory
 {
-    WebMiddleware createMiddleware(Properties config, Chain chain);
+    WebMiddleware createMiddleware(Config config, Chain chain);
 
 
-    WebMiddleware createComponent(Properties config, Chain chain)
+    WebMiddleware createComponent(Config config, Chain chain)
     {
         auto ret = createMiddleware(config, chain);
         ret.enabled = config.getOrElse!bool("enabled", false);
@@ -114,7 +114,7 @@ abstract class BaseWebMiddlewareFactory : MiddlewareFactory
  */
 class SimpleWebMiddlewareFactory(M : BaseWebMiddleware) : BaseWebMiddlewareFactory
 {
-    WebMiddleware createMiddleware(Properties config, Chain chain)
+    WebMiddleware createMiddleware(Config config, Chain chain)
     {
         return createSimpleComponent!C(config);
     }

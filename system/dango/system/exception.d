@@ -9,13 +9,6 @@
 
 module dango.system.exception;
 
-private
-{
-    import std.exception : enforce;
-
-    import proped : Properties;
-}
-
 
 
 mixin template ExceptionMixin()
@@ -27,17 +20,4 @@ mixin template ExceptionMixin()
         super(msg, file, line, next);
     }
 }
-
-
-/**
- * Исключение конфигурации приложения
- */
-class ConfigException : Exception
-{
-    mixin ExceptionMixin!();
-}
-
-
-
-alias configEnforce = enforce!(ConfigException);
 
