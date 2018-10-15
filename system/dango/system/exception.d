@@ -9,6 +9,11 @@
 
 module dango.system.exception;
 
+public
+{
+    import uniconf.core.exception : enforceConfig;
+}
+
 
 
 mixin template ExceptionMixin()

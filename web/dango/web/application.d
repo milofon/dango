@@ -24,10 +24,28 @@ private
 }
 
 
+interface WebApplication
+{
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeWebApplication(Config config);
+
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeWebApplication(int exitCode);
+}
+
+
 /**
  * Базовая реализация приложения позволяет инициализировать веб приложение
  */
-abstract class BaseWebApplication : BaseDaemonApplication
+abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
 {
     private
     {
@@ -51,26 +69,11 @@ protected:
     override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
-        doRegisterServerDependencies(config);
+        container.registerFactory!(RouterWebApplicationServerFactory,
+                RouterWebApplicationServer);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
     }
-
-    /**
-     * Регистрация сервера
-     */
-    void doRegisterServerDependencies(Config config)
-    {
-        container.registerFactory!(RouterWebApplicationServerFactory,
-                RouterWebApplicationServer);
-    }
-
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeWebApplication(Config config) {}
 
     /**
      * Завершение работы сервиса
@@ -83,7 +86,7 @@ protected:
     }
 
 
-    final override void initializeDaemon(Config config)
+    final void initializeDaemon(Config config)
     {
         initializeWebApplication(config);
 

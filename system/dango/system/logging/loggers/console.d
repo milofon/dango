@@ -10,7 +10,7 @@ module dango.system.logging.loggers.console;
 private
 {
     import std.typecons: Tuple, tuple;
-    import std.stdio: writeln, write, writef;
+    import std.stdio: writeln, write, writef, stdout;
     import std.format : format;
 
     import vibe.core.log;
@@ -38,12 +38,14 @@ struct StringWithBoth(T)
     string s;
     T fg;
     T bg;
+
     this(string s, T fg, T bg)
     {
         this.s = s;
         this.fg = fg;
         this.bg = bg;
     }
+
 
     string toString()
     {
@@ -60,9 +62,8 @@ class ConsoleLoggerFactory : LoggerFactory
     shared(Logger) createLogger(Config config)
     {
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
-
-        auto result = cast(shared)new ConsoleLogger(level);
-        return result;
+        bool isSync = config.getOrElse("sync", false);
+        return cast(shared)new ConsoleLogger(level, isSync);
     }
 }
 
@@ -72,6 +73,7 @@ class ConsoleLoggerFactory : LoggerFactory
  */
 class ConsoleLogger : Logger
 {
+    private bool isSync;
     alias ColorTheme = Tuple!(AnsiColor, AnsiColor);
 
     enum themes = [
@@ -87,9 +89,12 @@ class ConsoleLogger : Logger
         LogLevel.none: ColorTheme(AnsiColor.defaultColor, AnsiColor.defaultColor),
     ];
 
-    this(LogLevel level) {
+
+    this(LogLevel level, bool isSync) {
+        this.isSync = isSync;
         minLevel = level;
     }
+
 
     override void beginLine(ref LogLine msg) @trusted
     {
@@ -120,14 +125,22 @@ class ConsoleLogger : Logger
         write("] ");
     }
 
+
     override void put(scope const(char)[] text)
     {
         write(text);
     }
 
+
     override void endLine()
     {
         writeln();
+        if (isSync)
+        {
+            () @trusted {
+                stdout.flush();
+            } ();
+        }
     }
 }
 

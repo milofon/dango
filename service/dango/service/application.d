@@ -18,7 +18,7 @@ private
 {
     import std.format : fmt = format;
 
-    import uniconf.core.exception : configEnforce;
+    import uniconf.core.exception : enforceConfig;
 
     import dango.system.properties : getNameOrEnforce;
     import dango.system.container : resolveFactory;
@@ -29,10 +29,28 @@ private
 }
 
 
+interface ServiceApplication
+{
+    /**
+     * Инициализация сервиса
+     * Params:
+     * config = Общая конфигурация приложения
+     */
+    void initializeServiceApplication(Config config);
+
+    /**
+     * Завершение работы сервиса
+     * Params:
+     * exitCode = Код возврата
+     */
+    int finalizeServiceApplication(int exitCode);
+}
+
+
 /**
  * Приложение позволяет использовать с сервисами
  */
-abstract class BaseServiceApplication : BaseDaemonApplication
+abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplication
 {
     private ServerTransport[] _transports;
 
@@ -59,7 +77,7 @@ protected:
     }
 
 
-    final override void initializeDaemon(Config config)
+    final void initializeDaemon(Config config)
     {
         initializeServiceApplication(config);
 
@@ -85,13 +103,6 @@ protected:
             tr.shutdown();
         return finalizeServiceApplication(exitCode);
     }
-
-    /**
-     * Инициализация сервиса
-     * Params:
-     * config = Общая конфигурация приложения
-     */
-    void initializeServiceApplication(Config config){}
 
     /**
      * Завершение работы сервиса
@@ -126,14 +137,14 @@ private:
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
         auto serFactory = container.resolveFactory!(Serializer, Config)(serializerName);
-        configEnforce(serFactory !is null,
+        enforceConfig(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
         logInfo("Use serializer '%s'", serializerName);
         Serializer serializer = serFactory.create(serConf);
 
         auto protoFactory = container.resolveFactory!(ServerProtocol, Config,
                 ApplicationContainer, Serializer)(protoName);
-        configEnforce(protoFactory !is null,
+        enforceConfig(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
         logInfo("Use protocol '%s'", protoName);
         ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
@@ -145,7 +156,7 @@ private:
 
             auto trFactory = container.resolveFactory!(ServerTransport, Config,
                     ApplicationContainer, ServerProtocol)(transportName);
-            configEnforce(trFactory !is null,
+            enforceConfig(trFactory !is null,
                     fmt!"Transport '%s' not register"(transportName));
             logInfo("Use transport '%s'", transportName);
 

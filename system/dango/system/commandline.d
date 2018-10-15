@@ -15,7 +15,7 @@ private
     import std.traits: isArray, isNarrowString;
     import std.conv : to;
 
-    import uniconf.core : Config;
+    import uniconf.core.config : Config;
 }
 
 

@@ -9,15 +9,8 @@ module dango.system.properties;
 
 public
 {
-    import uniconf.core.exception : configEnforce;
-}
-
-private
-{
-    import uniconf.core;
-    import poodinis : ApplicationContext;
-
-    import dango.system.container : ApplicationContainer;
+    import uniconf.core.config : Config;
+    import uniconf.core.exception : enforceConfig;
 }
 
 
@@ -34,7 +27,7 @@ string getNameOrEnforce(Config config, string msg)
     else
     {
         auto val = config.get!string;
-        configEnforce(!val.isNull, msg);
+        enforceConfig(!val.isNull, msg);
         return val.get;
     }
 }

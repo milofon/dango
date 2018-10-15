@@ -20,7 +20,7 @@ private
     import std.algorithm.sorting : sort;
     import std.array : array;
 
-    import uniconf.core.exception : configEnforce, ConfigNotFoundException;
+    import uniconf.core.exception : enforceConfig, ConfigNotFoundException;
 
     import vibe.core.log;
     import vibe.http.server;
@@ -144,11 +144,11 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
             auto mdwFactory = container.resolveFactory!(WebMiddleware,
                     Config, Chain)(mdwName);
-            configEnforce(mdwFactory !is null,
+            enforceConfig(mdwFactory !is null,
                     fmt!"Middleware '%s' not register"(mdwName));
 
             string label = mdwConf.getOrElse!string("label", mdwName);
-            configEnforce(!middlewares.canFind!((m) {
+            enforceConfig(!middlewares.canFind!((m) {
                         return m.label == label;
                     }), fmt!"Middleware %s already registered"(label));
 
@@ -164,7 +164,7 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
             auto ctrlFactory = container.resolveFactory!(WebController,
                     Config)(ctrName);
-            configEnforce(ctrlFactory !is null,
+            enforceConfig(ctrlFactory !is null,
                     fmt!"Controller '%s' not register"(ctrName));
 
             auto ctrlMiddlewares = ctrConf.getArray("middlewares")
@@ -173,7 +173,7 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             // проверка на наличие конфигураций
             foreach (string mdwLabel; ctrlMiddlewares)
             {
-                configEnforce(middlewares.canFind!((m) => m.label == mdwLabel),
+                enforceConfig(middlewares.canFind!((m) => m.label == mdwLabel),
                         fmt!"Middleware %s not found configuration"(mdwLabel));
             }
 

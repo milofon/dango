@@ -24,7 +24,24 @@ private
     import cronexp : CronExpr, CronException;
 
     import dango.system.container;
-    import dango.system.properties : configEnforce;
+    import dango.system.properties : getNameOrEnforce, enforceConfig;
+}
+
+
+/**
+ * Создает на основе конфигов новый объект планировщика
+ */
+JobScheduler createScheduler(Config config, ApplicationContainer container)
+{
+    string jobName = getNameOrEnforce(config,
+            "Не определено имя задачи");
+    auto jobFactory = container.resolveFactory!(JobScheduler,
+            Config, ApplicationContainer)(jobName);
+
+    enforceConfig(jobFactory !is null,
+            fmt!"Job '%s' not register"(jobName));
+
+    return jobFactory.create(config, container);
 }
 
 
@@ -42,6 +59,7 @@ interface Job
 
 
 alias JobFactory = ComponentFactory!(Job, Config);
+alias PostJobFactory = PostComponentFactory!(JobScheduler, ApplicationContainer);
 
 
 
@@ -75,6 +93,9 @@ interface JobScheduler
 
 
     void stop();
+
+
+    string name() @property;
 }
 
 
@@ -85,14 +106,22 @@ class TimerJobScheduler(string N) : JobScheduler
     {
         Job _job;
         CronExpr _cron;
+        string _cronExp;
         Timer _timer;
     }
 
 
-    this(Job job, CronExpr ce)
+    this(Job job, string exp)
     {
         this._job = job;
-        this._cron = ce;
+        this._cronExp = exp;
+        this._cron = CronExpr(exp);
+    }
+
+
+    string name() @property
+    {
+        return N;
     }
 
 
@@ -111,6 +140,12 @@ class TimerJobScheduler(string N) : JobScheduler
     void stop()
     {
         _timer.stop();
+    }
+
+
+    override string toString()
+    {
+        return name ~ "(" ~ _cronExp ~ ")";
     }
 
 
@@ -138,7 +173,7 @@ class JobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
                 fmt!"Не определено cron выражение в задаче %s"(N));
 
         try
-            return new TimerJobScheduler!N(job, CronExpr(exp));
+            return new TimerJobScheduler!N(job, exp);
         catch (CronException e)
             throw new ConfigException(
                     fmt!"Не верное cron выражение для задачи %s"(N));
@@ -165,7 +200,7 @@ class SystemJobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
         auto job = jobFactory.create();
 
         try
-            return new TimerJobScheduler!N(job, CronExpr(_cronExp));
+            return new TimerJobScheduler!N(job, _cronExp);
         catch (CronException e)
             throw new ConfigException(
                     fmt!"Не верное cron выражение для задачи %s"(N));

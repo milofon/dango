@@ -21,7 +21,7 @@ private
     import vibe.http.server : HTTPMethod;
     import vibe.inet.url : URL;
 
-    import uniconf.core.exception : configEnforce;
+    import uniconf.core.exception : enforceConfig;
 
     import dango.web.middleware;
 }
@@ -132,7 +132,7 @@ private:
         foreach (Config origin; origins)
         {
             auto origStr = origin.get!string();
-            configEnforce(!origStr.isNull, "Origin must be a string");
+            enforceConfig(!origStr.isNull, "Origin must be a string");
 
             string escapeOrig = origStr.get.escaper.array.to!string;
             string repOrig = escapeOrig.replaceAll(replaceRx, "(.*?)");
@@ -160,7 +160,7 @@ private:
         foreach (Config mp; methodProps)
         {
             auto m = mp.get!string();
-            configEnforce(!m.isNull, "Method must be a string");
+            enforceConfig(!m.isNull, "Method must be a string");
             methods ~= m.get.toUpper;
         }
 
@@ -178,7 +178,7 @@ private:
         foreach (Config hp; headerProps)
         {
             auto h = hp.get!string();
-            configEnforce(!h.isNull, "Header must be a string");
+            enforceConfig(!h.isNull, "Header must be a string");
             headers ~= h.get.toLower;
         }
 

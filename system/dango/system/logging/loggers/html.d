@@ -29,7 +29,7 @@ class HTMLLoggerFactory : LoggerFactory
         auto result = cast(shared)new HTMLLogger(fileName);
         {
             auto l = result.lock();
-            l.minLogLevel = level;
+            l.unsafeGet.minLogLevel = level;
         }
 
         return result;

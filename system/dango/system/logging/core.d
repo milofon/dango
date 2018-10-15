@@ -22,6 +22,7 @@ private
     import vibe.core.log;
 
     import dango.system.container : resolveNamed, registerNamed, ApplicationContainer;
+    import dango.system.properties : getNameOrEnforce;
     import dango.system.logging.loggers.console;
     import dango.system.logging.loggers.file;
     import dango.system.logging.loggers.html;
@@ -135,13 +136,17 @@ void configureLogging(ApplicationContainer container, Config config,
 
     foreach (Config loggerConf; config.getArray("logger"))
     {
-        auto appender = loggerConf.get!string("appender");
+        auto appender = loggerConf.get!Config("appender");
         if (appender.isNull)
-            throw new Exception("В конфигурации логера не указан тип ('%s')".format(loggerConf));
+            throw new Exception("В конфигурации логера не указан тип ('%s')"
+                    .format(loggerConf));
 
-        auto factory = container.resolveNamed!LoggerFactory(appender.get.toUpper);
+        string appenderName = appender.get.getNameOrEnforce(
+                "Не указано наименование логгера").toUpper;
+
+        auto factory = container.resolveNamed!LoggerFactory(appenderName);
         if (factory is null)
-            throw new Exception("Не зарегистрирован логгер с именем " ~ appender);
+            throw new Exception("Не зарегистрирован логгер с именем " ~ appenderName);
 
         shared(Logger) logger = factory.createLogger(loggerConf);
         if (logger && dg)

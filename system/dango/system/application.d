@@ -10,7 +10,7 @@ module dango.system.application;
 public
 {
     import BrightProof : SemVer;
-    import uniconf.core : Config;
+    import uniconf.core.config : Config;
 
     import vibe.core.log;
 
@@ -20,18 +20,16 @@ public
 
 private
 {
-    import std.array : empty;
-    import std.format : fmt = format;
+    import std.algorithm.iteration : filter, map;
+    import std.array : empty, array;
 
     import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
 
-    import uniconf.core.loader : Loader, createConfigLoader, ConfigLoader;
+    import uniconf.core.loader: ConfigLoader, LangConfigLoader, createConfigLoader;
 
-    import dango.system.container : resolveFactory, PostComponentFactory;
-    import dango.system.properties : getNameOrEnforce, configEnforce;
     import dango.system.logging : configureLogging, LoggingContext;
-    import dango.system.scheduler : JobScheduler;
+    import dango.system.scheduler : JobScheduler, createScheduler, PostJobFactory;
 }
 
 
@@ -78,16 +76,63 @@ interface Application
 
 
 /**
- * Базовый класс приложения
+ * Интерфейс системного приложения
  */
-abstract class BaseApplication : Application
+interface SystemApplication
+{
+    /**
+     * Запуск приложения
+     *
+     * Params:
+     * config = Входящие параметры
+     *
+     * Returns: Код завершения работы приложения
+     */
+
+    int runApplication(Config config);
+
+    /**
+     * Получение аргументов из командной строки
+     *
+     * Params:
+     * processor = Объект для разбора командной строки
+     *
+     * Returns: Успешность получения свойств
+     */
+    bool parseCommandLine(CommandLineProcessor processor);
+
+    /**
+     * Возвращает строку помощи для консоли
+     */
+    string helpText() @property;
+
+    /**
+     * Возвращает пути до файлов по-умолчанию
+     */
+    string[] getDefaultConfigFiles();
+
+    /**
+     * Инициализация зависимостей
+     *
+     * Params:
+     * container = Контейнер DI
+     * config = Конфигурация
+     */
+    void initializeDependencies(ApplicationContainer container, Config config);
+}
+
+
+/**
+ * Базовый класс системного приложения
+ */
+abstract class BaseSystemApplication : Application, SystemApplication
 {
     private
     {
         string _applicationName;
         SemVer _applicationVersion;
         ApplicationContainer _container;
-        Loader _propLoader;
+        ConfigLoader _propLoader;
     }
 
 
@@ -103,7 +148,7 @@ abstract class BaseApplication : Application
         _applicationVersion = _version;
         _container = new ApplicationContainer();
 
-        ConfigLoader[] loaders;
+        LangConfigLoader[] loaders;
 
         version(Have_uniconf_sdlang)
         {
@@ -124,6 +169,11 @@ abstract class BaseApplication : Application
         {
             import uniconf.yaml;
             loaders ~= new YamlConfigLoader();
+        }
+        version (Have_uniconf_toml)
+        {
+            import uniconf.toml;
+            loaders ~= new TomlConfigLoader();
         }
 
         _propLoader = createConfigLoader(loaders);
@@ -188,15 +238,7 @@ abstract class BaseApplication : Application
 
 protected:
 
-    /**
-     * Запуск приложения
-     *
-     * Params:
-     * config = Входящие параметры
-     *
-     * Returns: Код завершения работы приложения
-     */
-    int runApplication(Config config);
+    // Реализация методов по умолчанию
 
     /**
      * Получение аргументов из командной строки
@@ -227,24 +269,16 @@ protected:
         return [];
     }
 
-    /**
-     * Инициализация зависимостей
-     *
-     * Params:
-     * container = Контейнер DI
-     * config = Конфигурация
-     */
-    void initializeDependencies(ApplicationContainer container, Config config);
 
+protected:
+
+    // Методы для изменения поведения в системных потомках
 
     void doInitializeDependencies(Config config)
     {
         container.register!(Application, typeof(this)).existingInstance(this);
         container.registerContext!LoggingContext;
     }
-
-
-private:
 
 
     bool doParseCommandLine(CommandLineProcessor processor, ref string[] configFiles)
@@ -262,12 +296,34 @@ private:
 }
 
 
+/**
+ * Интерфейс приложения демона
+ */
+interface DaemonApplication
+{
+    /**
+     * Запуск демона сервисов
+     * Params:
+     *
+     * config = Конфигурация приложения
+     */
+    void initializeDaemon(Config config);
+
+    /**
+     * Остановка демона сервисов
+     * Params:
+     *
+     * exitStatus = Код завершения приложения
+     */
+    int finalizeDaemon(int exitStatus);
+}
+
 
 /**
  * Базовая реализация приложения запускающее обработчик событий
  * работающее в режиме демона
  */
-abstract class BaseDaemonApplication : BaseApplication
+abstract class BaseDaemonApplication : BaseSystemApplication, DaemonApplication
 {
     private JobScheduler[] _schedulers;
 
@@ -284,7 +340,7 @@ abstract class BaseDaemonApplication : BaseApplication
     }
 
 
-    final override int runApplication(Config config)
+    final int runApplication(Config config)
     {
         return runLoop(config);
     }
@@ -292,21 +348,8 @@ abstract class BaseDaemonApplication : BaseApplication
 
 protected:
 
+    // Реализация методов по умолчанию
 
-    /**
-     * Запуск демона сервисов
-     * Params:
-     *
-     * config = Конфигурация приложения
-     */
-    void initializeDaemon(Config config) {}
-
-    /**
-     * Остановка демона сервисов
-     * Params:
-     *
-     * exitStatus = Код завершения приложения
-     */
     int finalizeDaemon(int exitStatus)
     {
         return exitStatus;
@@ -328,39 +371,29 @@ private:
 
         lowerPrivileges();
 
-        foreach (Config jobConf; config.getArray("job"))
-        {
-            if (jobConf.getOrElse!bool("enabled", false))
-            {
-                string jobName = getNameOrEnforce(jobConf,
-                        "Не определено имя задачи");
-                auto jobFactory = container.resolveFactory!(JobScheduler,
-                        Config, ApplicationContainer)(jobName);
-                configEnforce(jobFactory !is null,
-                        fmt!"Job '%s' not register"(jobName));
-                logInfo("Start job '%s'", jobName);
-                _schedulers ~= jobFactory.create(jobConf, container);
-            }
-        }
+        _schedulers = config.getArray("job")
+            .filter!(c => c.getOrElse!bool("enabled", false))
+            .map!(c => createScheduler(c, container))
+            .array;
 
         try
-        {
-            auto factorys = container.resolveAll!(
-                    PostComponentFactory!(JobScheduler, ApplicationContainer));
-
-            foreach (jobFactory; factorys)
-                _schedulers ~= jobFactory.create(container);
-        }
-        catch(ResolveException e) {}
+            _schedulers ~= container.resolveAll!PostJobFactory
+                .map!(f => f.create(container))
+                .array;
+        catch(ResolveException e)
+            logError(e.msg);
 
         initializeDaemon(config);
 
         foreach (JobScheduler job; _schedulers)
+        {
+            logInfo("Start job %s", job);
             job.start();
+        }
 
         logDiagnostic("Запуск цикла обработки событий...");
         int status = runEventLoop();
-        logDiagnostic("Цикл событий зaвершен со статутом %d.", status);
+        logDiagnostic("Цикл событий зaвершен со статуcом %d.", status);
 
         foreach (JobScheduler job; _schedulers)
             job.stop();

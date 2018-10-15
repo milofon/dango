@@ -32,11 +32,12 @@ class FileLoggerFactory : LoggerFactory
         auto result = cast(shared)new FileLogger(fileName);
         {
             auto l = result.lock();
-            l.minLevel = level;
-            l.format = logFormat;
-            l.infoFormat = logInfoFormat;
+            l.unsafeGet.minLevel = level;
+            l.unsafeGet.format = logFormat;
+            l.unsafeGet.infoFormat = logInfoFormat;
         }
 
         return result;
     }
 }
+

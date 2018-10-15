@@ -27,7 +27,7 @@ private
     import dango.system.properties : getNameOrEnforce;
 
     import uninode.core : UniNode;
-    import uniconf.core.exception : configEnforce;
+    import uniconf.core.exception : enforceConfig;
 
     import dango.service.protocol.core;
     import dango.service.serialization;
@@ -247,11 +247,11 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFa
                     "Not defined controller name");
 
             auto ctrlFactory = container.resolveFactory!(RpcController, Config)(ctrName);
-            configEnforce(ctrlFactory !is null,
+            enforceConfig(ctrlFactory !is null,
                     fmt!"RPC controller '%s' not register"(ctrName));
 
             RpcController ctrl = ctrlFactory.create(ctrConf);
-            configEnforce(ctrl !is null,
+            enforceConfig(ctrl !is null,
                     fmt!"RPC controller factory '%s' return null"(ctrName));
 
             if (ctrl.enabled)
