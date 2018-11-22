@@ -9,7 +9,7 @@ module dango.system.logging.loggers.file;
 
 private
 {
-    import vibe.core.log;
+    import vibe.core.log : FileLogger, Logger, LogLevel;
     import vibe.core.concurrency: lock;
 
     import dango.system.logging.core;
@@ -21,13 +21,15 @@ private
  */
 class FileLoggerFactory : LoggerFactory
 {
-    shared(Logger) createLogger(Config config)
+    shared(Logger) createComponent(Config config)
     {
         string fileName = config.getOrElse("file", "trand.log");
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
 
-        FileLogger.Format logFormat = matchLogFormat(config.getOrElse("errorFormat", "plain"));
-        FileLogger.Format logInfoFormat = matchLogFormat(config.getOrElse("infoFormat", "plain"));
+        FileLogger.Format logFormat = matchLogFormat(
+                config.getOrElse("errorFormat", "plain"));
+        FileLogger.Format logInfoFormat = matchLogFormat(
+                config.getOrElse("infoFormat", "plain"));
 
         auto result = cast(shared)new FileLogger(fileName);
         {

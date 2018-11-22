@@ -9,48 +9,14 @@ module dango.system.logging.loggers.console;
 
 private
 {
-    import std.typecons: Tuple, tuple;
+    import std.typecons: Tuple;
     import std.stdio: writeln, write, writef, stdout;
-    import std.format : format;
+    import std.format : fmt = format;
 
-    import vibe.core.log;
+    import vibe.core.log : Logger, LogLevel, LogLine;
+    import termcolor : C, fg, bg, resetColor;
 
     import dango.system.logging.core;
-}
-
-
-enum AnsiColor
-{
-    black = 30,
-    red = 31,
-    green = 32,
-    yellow = 33,
-    blue = 34,
-    magenta = 35,
-    cyan = 36,
-    white = 37,
-    defaultColor = 39
-}
-
-
-struct StringWithBoth(T)
-{
-    string s;
-    T fg;
-    T bg;
-
-    this(string s, T fg, T bg)
-    {
-        this.s = s;
-        this.fg = fg;
-        this.bg = bg;
-    }
-
-
-    string toString()
-    {
-        return "\033[%dm\033[%dm%s\033[0m".format(fg, bg + 10, s);
-    }
 }
 
 
@@ -59,7 +25,7 @@ struct StringWithBoth(T)
  */
 class ConsoleLoggerFactory : LoggerFactory
 {
-    shared(Logger) createLogger(Config config)
+    shared(Logger) createComponent(Config config)
     {
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
         bool isSync = config.getOrElse("sync", false);
@@ -74,20 +40,6 @@ class ConsoleLoggerFactory : LoggerFactory
 class ConsoleLogger : Logger
 {
     private bool isSync;
-    alias ColorTheme = Tuple!(AnsiColor, AnsiColor);
-
-    enum themes = [
-        LogLevel.trace: ColorTheme(AnsiColor.cyan, AnsiColor.defaultColor),
-        LogLevel.debugV: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
-        LogLevel.debug_: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
-        LogLevel.diagnostic: ColorTheme(AnsiColor.green, AnsiColor.defaultColor),
-        LogLevel.info: ColorTheme(AnsiColor.defaultColor, AnsiColor.defaultColor),
-        LogLevel.warn: ColorTheme(AnsiColor.yellow, AnsiColor.defaultColor),
-        LogLevel.error: ColorTheme(AnsiColor.red, AnsiColor.defaultColor),
-        LogLevel.critical: ColorTheme(AnsiColor.white, AnsiColor.red),
-        LogLevel.fatal: ColorTheme(AnsiColor.white, AnsiColor.red),
-        LogLevel.none: ColorTheme(AnsiColor.defaultColor, AnsiColor.defaultColor),
-    ];
 
 
     this(LogLevel level, bool isSync) {
@@ -95,11 +47,28 @@ class ConsoleLogger : Logger
         minLevel = level;
     }
 
+    alias ColorTheme = Tuple!(AnsiColor, AnsiColor);
+    alias AnsiColor = C;
+
+    enum themes = [
+        LogLevel.trace: ColorTheme(AnsiColor.cyan, AnsiColor.reset),
+        LogLevel.debugV: ColorTheme(AnsiColor.green, AnsiColor.reset),
+        LogLevel.debug_: ColorTheme(AnsiColor.green, AnsiColor.reset),
+        LogLevel.diagnostic: ColorTheme(AnsiColor.green, AnsiColor.reset),
+        LogLevel.info: ColorTheme(AnsiColor.reset, AnsiColor.reset),
+        LogLevel.warn: ColorTheme(AnsiColor.yellow, AnsiColor.reset),
+        LogLevel.error: ColorTheme(AnsiColor.red, AnsiColor.reset),
+        LogLevel.critical: ColorTheme(AnsiColor.white, AnsiColor.red),
+        LogLevel.fatal: ColorTheme(AnsiColor.white, AnsiColor.red),
+        LogLevel.none: ColorTheme(AnsiColor.reset, AnsiColor.reset),
+    ];
+
 
     override void beginLine(ref LogLine msg) @trusted
     {
         string pref;
-        final switch (msg.level) {
+        final switch (msg.level)
+        {
             case LogLevel.trace: pref = "trc"; break;
             case LogLevel.debugV: pref = "dbv"; break;
             case LogLevel.debug_: pref = "dbg"; break;
@@ -112,6 +81,7 @@ class ConsoleLogger : Logger
             case LogLevel.none: assert(false);
         }
         ColorTheme theme = themes[msg.level];
+
         auto tm = msg.time;
         static if (is(typeof(tm.fracSecs)))
             auto msecs = tm.fracSecs.total!"msecs";
@@ -120,8 +90,7 @@ class ConsoleLogger : Logger
         writef("[%08X:%08X %d.%02d.%02d %02d:%02d:%02d.%03d ",
                 msg.threadID, msg.fiberID,
                 tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, msecs);
-
-        write(StringWithBoth!AnsiColor(pref, theme[0], theme[1]));
+        write(theme[0].fg, theme[1].bg, pref, resetColor);
         write("] ");
     }
 

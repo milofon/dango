@@ -15,8 +15,6 @@ private
 
     import poodinis : ApplicationContext, DependencyContainer,
            registerContextComponents, autowire, existingInstance;
-
-    import dango.system.container : ApplicationContainer;
 }
 
 
@@ -31,7 +29,7 @@ interface ConfigurableContext
      * container = DI контейнер
      * config    = Конфигурация
      */
-    void registerDependencies(ApplicationContainer, Config config);
+    void registerDependencies(shared(DependencyContainer) container, Config config);
 }
 
 
@@ -41,8 +39,9 @@ interface ConfigurableContext
  * container = DI контейнер
  * config    = Конфигурация
  */
-void registerConfigurableContext(Context : ApplicationContext)(ApplicationContainer container,
-        Config config) if (is(Context : ConfigurableContext))
+void registerConfigurableContext(Context : ApplicationContext)(
+        shared(DependencyContainer) container, Config config)
+if (is(Context : ConfigurableContext))
 {
     auto context = new Context();
     context.registerDependencies(container, config);
@@ -59,24 +58,26 @@ version(unittest)
 
     class TestContext : ApplicationContext, ConfigurableContext
     {
-        void registerDependencies(ApplicationContainer container, Config config)
+        void registerDependencies(shared(DependencyContainer) container, Config config)
         {
-            int a = cast(int)config.get!long("key").get;
-            container.register!(IItem, Item).factoryInstance!ItemFactory(a);
+            auto factory = new TestFactory();
+            container.register!(IItem, Item).factoryInstance(factory,
+                config.get!string("key").get,
+                config.get!double("val").get);
         }
     }
 }
 
 
 
-unittest
+@system unittest
 {
     auto cnt = createContainer();
-    Config config = Config(["key": Config(11)]);
+    Config config = Config(["key": Config("ITEM"), "val": Config(1.1)]);
 
     cnt.registerConfigurableContext!TestContext(config);
     auto item = cnt.resolve!IItem;
-    assert(item.name == "ITEM");
-    assert(item.val == 11);
+    assert(item.key == "ITEM");
+    assert(item.value == 1.1);
 }
 

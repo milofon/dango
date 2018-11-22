@@ -15,6 +15,7 @@ public
     import dango.system.container.component;
     import dango.system.container.context : registerConfigurableContext,
            ConfigurableContext;
+    import dango.system.container.exception;
 }
 
 private

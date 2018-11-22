@@ -16,43 +16,25 @@ private
 {
     import std.uni: toUpper;
     import std.functional: toDelegate;
-    import std.format: format, formattedWrite;
+    import std.format: fmt = format;
 
-    import poodinis : ApplicationContext;
-    import vibe.core.log;
+    import vibe.core.log : Logger, LogLevel, FileLogger, setLogLevel;
 
-    import dango.system.container : resolveNamed, registerNamed, ApplicationContainer;
+    import dango.system.container : ComponentFactory, ApplicationContainer,
+            resolveNamed;
     import dango.system.properties : getNameOrEnforce;
-    import dango.system.logging.loggers.console;
-    import dango.system.logging.loggers.file;
-    import dango.system.logging.loggers.html;
-}
-
-
-/**
- * Контекст для регистрации компонентов отвечающих к логированию
- */
-class LoggingContext : ApplicationContext
-{
-    override void registerDependencies(ApplicationContainer container)
-    {
-        container.registerNamed!(LoggerFactory, HTMLLoggerFactory, "HTML");
-        container.registerNamed!(LoggerFactory, FileLoggerFactory, "FILE");
-        container.registerNamed!(LoggerFactory, ConsoleLoggerFactory, "CONSOLE");
-    }
 }
 
 
 /**
  * Интерфейс фабрики для создания объекта логгера
  */
-interface LoggerFactory
-{
-    shared(Logger) createLogger(Config config);
-}
+alias LoggerFactory = ComponentFactory!(shared(Logger), Config);
 
 
-
+/**
+ * Преобразует строку в уровеь логирования
+ */
 package LogLevel matchLogLevel(string level)
 {
     switch (level.toUpper) with (LogLevel)
@@ -77,7 +59,9 @@ package LogLevel matchLogLevel(string level)
 }
 
 
-
+/**
+ * Преобразует строку в формат лога
+ */
 package FileLogger.Format matchLogFormat(string logFormat)
 {
     switch (logFormat.toUpper) with (FileLogger.Format)
@@ -138,8 +122,7 @@ void configureLogging(ApplicationContainer container, Config config,
     {
         auto appender = loggerConf.get!Config("appender");
         if (appender.isNull)
-            throw new Exception("В конфигурации логера не указан тип ('%s')"
-                    .format(loggerConf));
+            throw new Exception(fmt!"В конфигурации логера не указан тип ('%s')"(loggerConf));
 
         string appenderName = appender.get.getNameOrEnforce(
                 "Не указано наименование логгера").toUpper;
@@ -148,7 +131,7 @@ void configureLogging(ApplicationContainer container, Config config,
         if (factory is null)
             throw new Exception("Не зарегистрирован логгер с именем " ~ appenderName);
 
-        shared(Logger) logger = factory.createLogger(loggerConf);
+        shared(Logger) logger = factory.createComponent(loggerConf);
         if (logger && dg)
             dg(logger);
     }

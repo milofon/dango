@@ -13,9 +13,12 @@ private
 {
     import std.algorithm.searching : find;
     import std.format : fmt = format;
+    import std.traits : isFunction, hasUDA;
     import std.uni : toUpper;
 
     import poodinis;
+
+    import dango.system.container.exception : DangoContainerException;
 }
 
 
@@ -25,7 +28,7 @@ private
  * Params:
  *
  * container = Контейнер управляющий зависимостями
- * name      = Имя(метка) типа
+ * Name      = Имя(метка) типа
  * options   = Опции для регистрации зависимости
  *
  * Returns: Объект регистрации
@@ -34,10 +37,39 @@ Registration registerNamed(SuperType, ConcreteType : SuperType, string Name)(
             shared(DependencyContainer) container,
             RegistrationOption options = RegistrationOption.none)
 {
-    auto ret = container.register!(SuperType, ConcreteType)(options);
+    TypeInfo registeredType = typeid(SuperType);
+
+    auto instanceFactory = new ConstructorInjectingInstanceFactory!ConcreteType(container);
+    auto newRegistration = new AutowiredRegistration!ConcreteType(registeredType,
+            instanceFactory, container);
+    newRegistration.singleInstance();
+
     alias W = NamedWrapper!(ConcreteType, Name.toUpper).Wrapper!SuperType;
-    container.register!(Named!SuperType, W)(options);
-    return ret;
+    auto wrapper = new W(newRegistration);
+
+    container.register!(Named!SuperType, W)(options)
+        .existingInstance(wrapper);
+
+    return newRegistration;
+}
+
+
+/**
+ * Метод добавляет возможность регистрировать именованные зависимости
+ *
+ * Params:
+ *
+ * container = Контейнер управляющий зависимостями
+ * Name      = Имя(метка) типа
+ * options   = Опции для регистрации зависимости
+ *
+ * Returns: Объект регистрации
+ */
+Registration registerNamed(ConcreteType, string Name)(
+            shared(DependencyContainer) container,
+            RegistrationOption options = RegistrationOption.none)
+{
+    return registerNamed!(ConcreteType, ConcreteType, Name)(container, options);
 }
 
 
@@ -77,13 +109,13 @@ QualifierType resolveNamed(RegistrationType, QualifierType : RegistrationType)(
     TypeInfo resolveType = typeid(RegistrationType);
     auto uName = name.toUpper;
 
-    auto objects = container.resolveAll!(Named!RegistrationType);
+    auto objects = container.resolveAll!(Named!RegistrationType)(resolveOptions);
     auto findResult = objects.find!((o) => o.name == uName);
     if (!findResult.length)
         throw new ResolveException(fmt!"Type not registered or name '%s' found."(uName),
                 resolveType);
 
-    return findResult[0].value;
+    return findResult[0].value();
 }
 
 
@@ -95,7 +127,7 @@ private:
  */
 interface Named(T)
 {
-    string name() @property;
+    string name() @property const;
 
     T value() @property;
 }
@@ -114,10 +146,16 @@ template NamedWrapper(ConcreteType, string NAME)
     class Wrapper(SuperType) : Named!SuperType
     {
         @Autowire
-        private ConcreteType _registrationType;
+        private Registration _registration;
 
 
-        string name() @property
+        this(Registration registration)
+        {
+            this._registration = registration;
+        }
+
+
+        string name() @property const
         {
             return NAME;
         }
@@ -125,8 +163,156 @@ template NamedWrapper(ConcreteType, string NAME)
 
         ConcreteType value() @property
         {
-            return this._registrationType;
+            try
+            {
+                ConcreteType newInstance = cast(ConcreteType)_registration
+                    .getInstance(new AutowireInstantiationContext());
+                callPostConstructors(newInstance);
+                return newInstance;
+            }
+            catch (ValueInjectionException e)
+            {
+                throw new ResolveException(e, typeid(ConcreteType));
+            }
+        }
+
+
+        private void callPostConstructors(Type)(Type instance)
+        {
+            foreach (memberName; __traits(allMembers, Type))
+            {
+                static if (__traits(compiles, __traits(getProtection, __traits(getMember, instance, memberName)))
+                        && __traits(getProtection, __traits(getMember, instance, memberName)) == "public"
+                        && isFunction!(__traits(getMember, instance, memberName))
+                        && hasUDA!(__traits(getMember, instance, memberName), PostConstruct))
+                {
+                    __traits(getMember, instance, memberName)();
+                }
+            }
         }
     }
+}
+
+
+
+version (unittest)
+{
+    class StringValueInjector : ValueInjector!string
+    {
+        private string _prefix;
+
+
+        this(string prefix)
+        {
+            this._prefix = prefix;
+        }
+
+
+        string get(string key)
+        {
+            return _prefix ~ key;
+        }
+    }
+
+
+    interface Animal
+    {
+        string say();
+    }
+
+
+    class Cat : Animal
+    {
+        @Value("cat")
+        string name;
+
+        string say()
+        {
+            return name ~ ", meow";
+        }
+    }
+
+
+    class Leon : Animal
+    {
+        string name;
+
+        this(string name)
+        {
+            this.name = name;
+        }
+
+        string say()
+        {
+            return name ~ ", meow";
+        }
+
+        @PostConstruct
+        void postConst()
+        {
+            this.name = "super " ~ name;
+        }
+    }
+
+
+    class Dog : Animal
+    {
+        @Value("dog")
+        string name;
+
+        string say()
+        {
+            return name ~ ", wow";
+        }
+    }
+}
+
+
+
+@system unittest
+{
+
+    auto cnt = new shared(DependencyContainer);
+    cnt.register!(ValueInjector!string, StringValueInjector)
+        .existingInstance(new StringValueInjector("super "));
+
+    cnt.registerNamed!(Animal, Cat, "barsik")();
+    cnt.registerNamed!(Animal, Dog, "tuzik")();
+    cnt.registerNamed!(Animal, Leon, "murzik")()
+        .existingInstance(new Leon("leon"));
+
+    assert(cnt.resolveNamed!Animal("murzik").say == "super leon, meow");
+    assert(cnt.resolveNamed!Animal("Tuzik").say == "super dog, wow");
+    assert(cnt.resolveNamed!Animal("barsik").say == "super cat, meow");
+}
+
+
+
+version (unittest)
+{
+    private void registerAnimals(shared(DependencyContainer) cnt)
+    {
+        class Cow : Animal
+        {
+            string say()
+            {
+                return "myy";
+            }
+        }
+
+        cnt.registerNamed!(Animal, Cow, "burenka")();
+    }
+}
+
+
+
+@system unittest
+{
+    auto cnt = new shared(DependencyContainer);
+    cnt.register!(ValueInjector!string, StringValueInjector)
+        .existingInstance(new StringValueInjector("super "));
+    registerAnimals(cnt);
+
+    assert(cnt.resolveNamed!Animal("burenka").say == "myy");
 }
 
