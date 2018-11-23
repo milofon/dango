@@ -23,7 +23,8 @@ private template ValueTuple(T...) { alias ValueTuple = T; }
 
 private alias getoptConfig = ValueTuple!(std.getopt.config.passThrough, std.getopt.config.bundling);
 
-private alias getoptRequireConfig = ValueTuple!(std.getopt.config.passThrough, std.getopt.config.bundling, std.getopt.config.required);
+private alias getoptRequireConfig = ValueTuple!(std.getopt.config.passThrough,
+        std.getopt.config.bundling, std.getopt.config.required);
 
 
 /**
@@ -41,7 +42,9 @@ class CommandLineProcessor
         bool errorWanted;
     }
 
-
+    /**
+     * Construct from arguments
+     */
     this(string[] args)
     {
         this.config = Config.emptyObject;
@@ -62,9 +65,7 @@ class CommandLineProcessor
                     sp[0] : sp[1]);
         }
         else
-        {
             ret.optLong = "--" ~ sp[0];
-        }
 
         return ret;
     }

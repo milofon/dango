@@ -15,13 +15,13 @@ public
 }
 
 
-
+/**
+ * Mixin for generate contructor for Exception
+ */
 mixin template ExceptionMixin()
 {
     this(string msg, string file = __FILE__, size_t line = __LINE__, Throwable next = null)
     {
-        import vibe.core.log : logError;
-        logError(msg);
         super(msg, file, line, next);
     }
 }

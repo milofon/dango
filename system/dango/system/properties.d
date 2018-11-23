@@ -16,9 +16,12 @@ public
 
 /**
  * Извление имени из объекта конфигурации
+ *
  * Params:
  * config = Объект содержащий необходимы ключ конфигурации
  * msg = Сообщение об ошибке
+ *
+ * Returns: name
  */
 string getNameOrEnforce(Config config, string msg)
 {

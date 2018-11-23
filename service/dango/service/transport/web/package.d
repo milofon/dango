@@ -27,8 +27,8 @@ class WebTransportContext(string N) : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(RouterWebApplicationServerFactory,
-                RouterWebApplicationServer);
+        container.registerNamedFactory!(RouterWebApplicationServerFactory,
+                RouterWebApplicationServer, "ROUTER");
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
 

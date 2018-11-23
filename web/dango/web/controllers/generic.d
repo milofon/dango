@@ -11,6 +11,8 @@ module dango.web.controllers.generic;
 
 public
 {
+    import vibe.internal.meta.funcattr;
+    import vibe.internal.meta.traits : RecursiveFunctionAttributes;
     import dango.web.controller;
 }
 
@@ -74,15 +76,12 @@ template GetWebControllerHandlers(C)
  * controller = Объект контроллера
  * hdl = Реализация функции обработчика
  */
-HTTPServerRequestDelegate createSimpleHandler(IType, HandlerType, alias Member)(
-        BaseWebController controller, HandlerType hdl)
+HTTPServerRequestDelegate createHandler(IType, HandlerType, alias Member)(
+        IType controller, HandlerType hdl)
 {
     return (HTTPServerRequest req, HTTPServerResponse res) @safe
     {
-        static if (hasFunctionAttributes!(HandlerType, "@safe"))
-            hdl(req, res);
-        else
-            () @trusted { hdl(req, res); } ();
+        assumeSafe!HandlerType(hdl)(req, res);
     };
 }
 
@@ -92,8 +91,8 @@ HTTPServerRequestDelegate createSimpleHandler(IType, HandlerType, alias Member)(
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(IType, alias CH = createSimpleHandler)
-    : BaseWebController, IType if (is(IType == interface))
+abstract class GenericWebController(IType) : BaseWebController, IType
+    if (is(IType == interface))
 {
     static assert(is(IType == interface),
             IType.stringof ~ " is not interface");
@@ -105,32 +104,6 @@ abstract class GenericWebController(IType, alias CH = createSimpleHandler)
 
     static assert(Handlers.length, "The controller must contain handlers");
 
-    static if (Handlers.length)
-        alias HandlerType = typeof(toDelegate(&Handlers[0]));
-
-    private template __isHandler(alias T)
-    {
-        enum __isHandler = is(typeof(toDelegate(&T)) == HandlerType);
-    }
-
-    static assert(allSatisfy!(__isHandler, Handlers),
-            "Handlers must meet the '" ~ HandlerType.stringof ~ "'");
-
-    enum __errorMsg = "The handler creation function must match '"
-        ~ createSimpleHandler.stringof ~ "'";
-
-    static assert(__traits(compiles, CH!(IType, HandlerType, Handlers[0])), __errorMsg);
-
-    alias __CH = CH!(IType, HandlerType, Handlers[0]);
-
-    static assert(is(ReturnType!__CH == HTTPServerRequestDelegate),
-            "createHandler must return HTTPServerRequestDelegate");
-
-    alias __P = Parameters!__CH;
-    static assert(__P.length == 2, __errorMsg);
-    static assert(is(__P[0] : BaseWebController), __errorMsg);
-    static assert(is(__P[1] == HandlerType), __errorMsg);
-
 
     void registerChains(ChainRegisterCallback dg)
     {
@@ -140,7 +113,7 @@ abstract class GenericWebController(IType, alias CH = createSimpleHandler)
             enum fName = __traits(identifier, Member);
             auto HDL = &__traits(getMember, this, fName);
             alias MemberType = typeof(toDelegate(&Member));
-            auto hdl= CH!(IType, MemberType, Member)(this, HDL);
+            auto hdl= createHandler!(IType, MemberType, Member)(this, HDL);
             if (hdl !is null)
                 dg(new ChainHandler!(IType, Member)(this, udas[0], hdl));
         }

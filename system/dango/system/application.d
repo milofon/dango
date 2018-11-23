@@ -12,10 +12,9 @@ public
     import BrightProof : SemVer;
     import uniconf.core.config : Config;
 
-    import vibe.core.log;
-
     import dango.system.commandline : CommandLineProcessor;
     import dango.system.container : ApplicationContainer;
+    import dango.system.logging;
 }
 
 private
@@ -25,11 +24,16 @@ private
 
     import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
+    import vibe.core.log : registerLogger, logDiagnostic;
 
-    import uniconf.core.loader: ConfigLoader, LangConfigLoader, createConfigLoader;
+    import uniconf.core: ConfigLoaderMixin, ConfigLoader,
+           LangConfigLoader, createConfigLoader;
 
-    import dango.system.logging : configureLogging, LoggingContext;
-    import dango.system.scheduler : JobScheduler, createScheduler, PostJobFactory;
+    import dango.system.logging.core : configureLogging;
+    import dango.system.logging : LoggingContext;
+    import dango.system.container : registerContext;
+    import dango.system.scheduler : JobScheduler, resolveScheduler,
+            resolveSystemSchedulers;
 }
 
 
@@ -66,7 +70,7 @@ interface Application
      *
      * Returns: Объект свойств
      */
-    Config loadConfig(string filePath);
+    Config loadConfigFile(string filePath);
 
     /**
      * Контейнер DI приложения
@@ -78,7 +82,7 @@ interface Application
 /**
  * Интерфейс системного приложения
  */
-interface SystemApplication
+interface ConsoleApplication : Application
 {
     /**
      * Запуск приложения
@@ -88,7 +92,6 @@ interface SystemApplication
      *
      * Returns: Код завершения работы приложения
      */
-
     int runApplication(Config config);
 
     /**
@@ -125,7 +128,7 @@ interface SystemApplication
 /**
  * Базовый класс системного приложения
  */
-abstract class BaseSystemApplication : Application, SystemApplication
+abstract class BaseSystemApplication : ConsoleApplication
 {
     private
     {
@@ -148,35 +151,8 @@ abstract class BaseSystemApplication : Application, SystemApplication
         _applicationVersion = _version;
         _container = new ApplicationContainer();
 
-        LangConfigLoader[] loaders;
-
-        version(Have_uniconf_sdlang)
-        {
-            import uniconf.sdlang;
-            loaders ~= new SdlangConfigLoader();
-        }
-        version (Have_uniconf_properd)
-        {
-            import uniconf.properd;
-            loaders ~= new PropertiesConfigLoader();
-        }
-        version (Have_uniconf_json)
-        {
-            import uniconf.json;
-            loaders ~= new JsonConfigLoader();
-        }
-        version (Have_uniconf_yaml)
-        {
-            import uniconf.yaml;
-            loaders ~= new YamlConfigLoader();
-        }
-        version (Have_uniconf_toml)
-        {
-            import uniconf.toml;
-            loaders ~= new TomlConfigLoader();
-        }
-
-        _propLoader = createConfigLoader(loaders);
+        mixin ConfigLoaderMixin!();
+        _propLoader = createConfigLoader(getAvailableLoaders());
     }
 
 
@@ -215,7 +191,7 @@ abstract class BaseSystemApplication : Application, SystemApplication
 
         Config config;
         foreach(string cFile; configFiles)
-            config = config ~ loadConfig(cFile);
+            config = config ~ loadConfigFile(cFile);
 
         config = config ~ cProcessor.getOptionConfig();
         config = config ~ cProcessor.getEnvironmentConfig();
@@ -230,7 +206,7 @@ abstract class BaseSystemApplication : Application, SystemApplication
     }
 
 
-    Config loadConfig(string filePath)
+    Config loadConfigFile(string filePath)
     {
         return _propLoader(filePath);
     }
@@ -371,23 +347,16 @@ private:
 
         lowerPrivileges();
 
-        _schedulers = config.getArray("job")
-            .filter!(c => c.getOrElse!bool("enabled", false))
-            .map!(c => createScheduler(c, container))
-            .array;
-
-        try
-            _schedulers ~= container.resolveAll!PostJobFactory
-                .map!(f => f.create(container))
-                .array;
-        catch(ResolveException e)
-            logError(e.msg);
+        _schedulers = resolveSystemSchedulers(container);
+        foreach (Config jobConf; config.getArray("job").filter!(
+                    c => c.getOrElse!bool("enabled", false)))
+            _schedulers ~= resolveScheduler(container, jobConf);
 
         initializeDaemon(config);
 
         foreach (JobScheduler job; _schedulers)
         {
-            logInfo("Start job %s", job);
+            logInfo("Start job %s", job.name);
             job.start();
         }
 

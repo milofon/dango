@@ -15,33 +15,17 @@ private
 
     import std.datetime : DateTime, Clock;
     import std.format : fmt = format;
+    import std.array : appender;
 
-    import vibe.core.core;
+    import vibe.core.core : Timer, setTimer;
+    import poodinis : Registration, ResolveOption, autowire;
 
-    import uniconf.core.exception : ConfigException;
     import uniconf.core : Config;
-
+    import uniconf.core.exception : ConfigException;
     import cronexp : CronExpr, CronException;
 
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, enforceConfig;
-}
-
-
-/**
- * Создает на основе конфигов новый объект планировщика
- */
-JobScheduler createScheduler(Config config, ApplicationContainer container)
-{
-    string jobName = getNameOrEnforce(config,
-            "Не определено имя задачи");
-    auto jobFactory = container.resolveFactory!(JobScheduler,
-            Config, ApplicationContainer)(jobName);
-
-    enforceConfig(jobFactory !is null,
-            fmt!"Job '%s' not register"(jobName));
-
-    return jobFactory.create(config, container);
 }
 
 
@@ -57,71 +41,49 @@ interface Job
 }
 
 
-
+/**
+ * Фабрика задачи планировщика
+ */
 alias JobFactory = ComponentFactory!(Job, Config);
-alias PostJobFactory = PostComponentFactory!(JobScheduler, ApplicationContainer);
 
 
 
-class SimpleJobFactory(J : Job) : JobFactory
+/**
+ * Интерфейс планировщика задач
+ */
+interface JobScheduler : NamedComponent
 {
-    J createComponent(Config config)
-    {
-        return createSimpleComponent!J(config);
-    }
-}
-
-
-
-alias SystemJobFactory = ComponentFactory!Job;
-
-
-
-class SimpleSystemJobFactory(J : Job) : SystemJobFactory
-{
-    J createComponent()
-    {
-        return new J();
-    }
-}
-
-
-
-interface JobScheduler
-{
+    /**
+     * Запуск задачи
+     */
     void start();
 
-
+    /**
+     * Остановка задачи
+     */
     void stop();
-
-
-    string name() @property;
 }
 
 
-
-class TimerJobScheduler(string N) : JobScheduler
+/**
+ * Реализация планировщика задач на основе таймера vibed
+ */
+class TimerJobScheduler : JobScheduler
 {
     private
     {
+        string _name;
         Job _job;
         CronExpr _cron;
-        string _cronExp;
         Timer _timer;
     }
 
 
-    this(Job job, string exp)
+    this(Job job, CronExpr exp, string name)
     {
+        this._name = name;
+        this._cron = exp;
         this._job = job;
-        this._cronExp = exp;
-        this._cron = CronExpr(exp);
-    }
-
-
-    string name() @property
-    {
-        return N;
     }
 
 
@@ -143,9 +105,9 @@ class TimerJobScheduler(string N) : JobScheduler
     }
 
 
-    override string toString()
+    string name() @property const
     {
-        return name ~ "(" ~ _cronExp ~ ")";
+        return _name;
     }
 
 
@@ -161,82 +123,182 @@ private:
 
 
 
-class JobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
-        Config, ApplicationContainer)
+/**
+ * Фабрика по созданию планировщика задачи на основе конфига
+ *
+ * Params:
+ * J = Тип задачи
+ */
+class JobSchedulerFactory(J : Job) : ComponentFactory!(JobScheduler,
+        ApplicationContainer, Config)
 {
-    JobScheduler createComponent(Config config, ApplicationContainer container)
+    private
     {
-        auto jobFactory = container.resolveFactory!(Job, Config)(N);
-        auto job = jobFactory.create(config);
+        JobFactory _jobFactory;
+        string _name;
+    }
+
+
+    this(JobFactory jobFactory, string name)
+    {
+        this._jobFactory = jobFactory;
+        this._name = name;
+    }
+
+
+    final JobScheduler createComponent(ApplicationContainer container, Config config)
+    {
+        J job = cast(J)_jobFactory.createComponent(config);
+        container.autowire!J(job);
 
         auto exp = config.getOrEnforce!string("cron",
-                fmt!"Не определено cron выражение в задаче %s"(N));
-
+                fmt!"Не определено cron выражение в задаче %s"(_name));
         try
-            return new TimerJobScheduler!N(job, exp);
+            return new TimerJobScheduler(job, CronExpr(exp), _name);
         catch (CronException e)
             throw new ConfigException(
-                    fmt!"Не верное cron выражение для задачи %s"(N));
+                    fmt!"Не верное cron выражение для задачи %s"(_name));
     }
 }
 
 
-
-class SystemJobSchedulerFactory(string N) : ComponentFactory!(JobScheduler,
-        ApplicationContainer)
+/**
+ * Фабрика по созданию планировщика задачи на основе строки cron
+ *
+ * Params:
+ * J = Тип задачи
+ */
+class SystemJobSchedulerFactory(J : Job) : ComponentFactory!(JobScheduler,
+        ApplicationContainer, string)
 {
-    private string _cronExp;
-
-
-    this(string cronExp)
+    private
     {
-        this._cronExp = cronExp;
+        JobFactory _jobFactory;
+        string _name;
     }
 
 
-    JobScheduler createComponent(ApplicationContainer container)
+    this(JobFactory jobFactory, string name)
     {
-        auto jobFactory = container.resolveFactory!(Job)(N);
-        auto job = jobFactory.create();
+        this._jobFactory = jobFactory;
+        this._name = name;
+    }
+
+
+    final JobScheduler createComponent(ApplicationContainer container, string cronExp)
+    {
+        Config config = Config(["cron": Config(cronExp)]);
+        J job = cast(J)_jobFactory.createComponent(config);
+        container.autowire!J(job);
 
         try
-            return new TimerJobScheduler!N(job, _cronExp);
+            return new TimerJobScheduler(job, CronExpr(cronExp), _name);
         catch (CronException e)
             throw new ConfigException(
-                    fmt!"Не верное cron выражение для задачи %s"(N));
+                    fmt!"Не верное cron выражение для системной задачи %s"(_name));
     }
 }
 
 
-
-void registerJob(F : JobFactory, J : Job, string N)(ApplicationContainer container)
+/**
+ * Регистрация задачи с использованием пользовательской фабрики
+ *
+ * Params:
+ * J         = Тип задачи
+ * Name      = Имя задачи
+ * container = Контейнер DI
+ * factory   = Пользовательская фабрика
+ */
+Registration registerJob(J : Job, string Name)(ApplicationContainer container,
+        JobFactory factory)
 {
-    container.registerNamedFactory!(F, J, N);
-    auto f = new JobSchedulerFactory!N();
-    container.registerNamedFactory!(JobSchedulerFactory!N, TimerJobScheduler!N, N)(f);
+    auto jobSchFactory = new JobSchedulerFactory!J(factory, Name);
+    return registerNamedComponent!(TimerJobScheduler, Name)(container, jobSchFactory);
 }
 
 
-
-void registerSystemJob(F : SystemJobFactory, J : Job, string N)(
-        ApplicationContainer container, string cronExp)
+/**
+ * Регистрация задачи с использованием встроенной фабрики на основе конструктора
+ * задачи
+ *
+ * Params:
+ * J         = Тип задачи
+ * Name      = Имя задачи
+ * container = Контейнер DI
+ */
+Registration registerJob(J : Job, string Name)(ApplicationContainer container)
 {
-    container.registerNamedFactory!(F, J, N);
-    auto f = new SystemJobSchedulerFactory!N(cronExp);
-    container.registerNamedFactory!(SystemJobSchedulerFactory!N, TimerJobScheduler!N, N)(f);
+    auto factory = new ComponentFactoryCtor!(Job, J, Config);
+    return registerJob!(J, Name)(container, factory);
 }
 
 
-
-void registerJob(J : Job, string N)(ApplicationContainer container)
+/**
+ * Регистрация системной задачи с использованием пользовательской фабрики
+ *
+ * Params:
+ * J         = Тип задачи
+ * container = Контейнер DI
+ * factory   = Пользовательская фабрика
+ * cronExp   = Выражение cron
+ */
+Registration registerSystemJob(J : Job)(ApplicationContainer container,
+        JobFactory factory, string cronExp)
 {
-    container.registerJob!(SimpleJobFactory!J, J, N);
+    auto jobSchFactory = new SystemJobSchedulerFactory!J(factory, J.stringof);
+    return registerComponent!(TimerJobScheduler)(container, jobSchFactory, container, cronExp);
 }
 
 
-
-void registerSystemJob(J : Job, string N)(ApplicationContainer container, string cronExp)
+/**
+ * Регистрация системной задачи с использованием встроееной фабрики на основе
+ * конструктора задачи
+ *
+ * Params:
+ * J         = Тип задачи
+ * container = Контейнер DI
+ * cronExp   = Выражение cron
+ */
+Registration registerSystemJob(J : Job)(ApplicationContainer container, string cronExp)
 {
-    container.registerSystemJob!(SimpleSystemJobFactory!J, J, N)(cronExp);
+    auto factory = new ComponentFactoryCtor!(Job, J, Config);
+    return registerSystemJob!(J)(container, factory, cronExp);
+}
+
+
+/**
+ * Резолвинг ранее зарегистрированных фабрик планировщиков
+ *
+ * Params:
+ * container = Контейнер DI
+ */
+JobScheduler[] resolveSystemSchedulers(ApplicationContainer container)
+{
+    auto ret = appender!(JobScheduler[]);
+
+    foreach (factory; container.resolveAll!(ComponentFactoryAdapter!JobScheduler)(
+                ResolveOption.noResolveException))
+    {
+        ret.put(factory.create());
+    }
+
+    return ret.data;
+}
+
+
+/**
+ * Создает на основе конфигов новый объект планировщика
+ *
+ * Params:
+ * container = контейнер DI
+ * config    = конфигурация задачи
+ */
+JobScheduler resolveScheduler(ApplicationContainer container, Config config)
+{
+    string jobName = getNameOrEnforce(config, "Не определено имя задачи");
+    auto jobFactory = container.resolveNamed!(ComponentFactoryAdapter!JobScheduler)(
+            jobName, ResolveOption.noResolveException);
+    enforceConfig(jobFactory !is null, fmt!"Job '%s' not register"(jobName));
+    return jobFactory.create(container, config);
 }
 

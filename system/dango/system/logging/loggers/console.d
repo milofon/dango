@@ -39,10 +39,11 @@ class ConsoleLoggerFactory : LoggerFactory
  */
 class ConsoleLogger : Logger
 {
-    private bool isSync;
+    private immutable bool isSync;
 
 
-    this(LogLevel level, bool isSync) {
+    this(LogLevel level, bool isSync)
+    {
         this.isSync = isSync;
         minLevel = level;
     }

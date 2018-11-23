@@ -17,6 +17,7 @@ private
 }
 
 
+/+
 /**
  * Проверка на публичность методов
  * Params:
@@ -80,4 +81,18 @@ template byPair(NList...)
     else
         alias byPair = AliasSeq!();
 }
+
+
+
+auto assumeSafe(F)(F fun) @safe
+    if (isFunctionPointer!F || isDelegate!F)
+{
+    static if (hasFunctionAttributes!(F, "@safe"))
+        return fun;
+    else
+        return (ParameterTypeTuple!F args) @trusted {
+            return fun(args);
+        };
+}
++/
 

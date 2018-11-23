@@ -9,12 +9,13 @@ module dango.system.container;
 
 public
 {
-    import poodinis : ApplicationContext, Autowire, autowire, CreatesSingleton;
+    import poodinis : ApplicationContext, Autowire, autowire, CreatesSingleton,
+            registerContext;
 
     import dango.system.container.named : registerNamed, resolveNamed;
     import dango.system.container.component;
     import dango.system.container.context : registerConfigurableContext,
-           ConfigurableContext;
+            ConfigurableContext;
     import dango.system.container.exception;
 }
 

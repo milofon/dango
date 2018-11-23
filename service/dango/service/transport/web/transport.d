@@ -71,7 +71,7 @@ class WebServerTransportFactory : BaseServerTransportFactory
                 RpcWebController, "RPC")(rpcFactory);
 
         auto serverFactory = container.resolveFactory!(WebApplicationServer, Config,
-                ApplicationContainer);
+                ApplicationContainer)("ROUTER");
         auto server = serverFactory.create(config, container);
 
         return new WebServerTransport(server);

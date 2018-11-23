@@ -60,8 +60,8 @@ version(unittest)
     {
         void registerDependencies(shared(DependencyContainer) container, Config config)
         {
-            auto factory = new TestFactory();
-            container.register!(IItem, Item).factoryInstance(factory,
+            auto factory = new IItemFactory();
+            container.register!(IItem, Item).factoryInstance!Item(factory,
                 config.get!string("key").get,
                 config.get!double("val").get);
         }
@@ -77,7 +77,6 @@ version(unittest)
 
     cnt.registerConfigurableContext!TestContext(config);
     auto item = cnt.resolve!IItem;
-    assert(item.key == "ITEM");
-    assert(item.value == 1.1);
+    assert (item.verify("ITEM", 1.1, 1));
 }
 
