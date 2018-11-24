@@ -10,6 +10,7 @@ module dango.system.application;
 public
 {
     import BrightProof : SemVer;
+    import uniconf.core : ConfigLoader;
     import uniconf.core.config : Config;
 
     import dango.system.commandline : CommandLineProcessor;
@@ -26,8 +27,8 @@ private
     import vibe.core.core : runEventLoop, lowerPrivileges;
     import vibe.core.log : registerLogger, logDiagnostic;
 
-    import uniconf.core: ConfigLoaderMixin, ConfigLoader,
-           LangConfigLoader, createConfigLoader;
+    import uniconf.core: ConfigLoaderMixin, LangConfigLoader,
+            createUniConfigLoader = createConfigLoader;
 
     import dango.system.logging.core : configureLogging;
     import dango.system.logging : LoggingContext;
@@ -126,6 +127,24 @@ interface ConsoleApplication : Application
 
 
 /**
+ * Миксин для упрощенного создания метода создания загрузчика конфигов
+ *
+ * Это позволяет инициализировать все подключенные к проекту загрузчики из uniconf
+ * Dub добавляет version типа Have_*, что позволяет формировать список загрузчиков
+ */
+mixin template InitializeConfigLoader()
+{
+    override ConfigLoader createConfigLoader()
+    {
+        import uniconf.core: ConfigLoaderMixin, LangConfigLoader,
+                createUniConfigLoader = createConfigLoader;
+        mixin ConfigLoaderMixin!();
+        return createUniConfigLoader(getAvailableLoaders());
+    }
+}
+
+
+/**
  * Базовый класс системного приложения
  */
 abstract class BaseSystemApplication : ConsoleApplication
@@ -135,7 +154,7 @@ abstract class BaseSystemApplication : ConsoleApplication
         string _applicationName;
         SemVer _applicationVersion;
         ApplicationContainer _container;
-        ConfigLoader _propLoader;
+        ConfigLoader _configLoader;
     }
 
 
@@ -150,9 +169,7 @@ abstract class BaseSystemApplication : ConsoleApplication
         _applicationName = name;
         _applicationVersion = _version;
         _container = new ApplicationContainer();
-
-        mixin ConfigLoaderMixin!();
-        _propLoader = createConfigLoader(getAvailableLoaders());
+        _configLoader = createConfigLoader();
     }
 
 
@@ -172,7 +189,6 @@ abstract class BaseSystemApplication : ConsoleApplication
     {
         return _container;
     }
-
 
     /**
      * See_Also: Application.run
@@ -208,7 +224,7 @@ abstract class BaseSystemApplication : ConsoleApplication
 
     Config loadConfigFile(string filePath)
     {
-        return _propLoader(filePath);
+        return _configLoader(filePath);
     }
 
 
@@ -249,6 +265,13 @@ protected:
 protected:
 
     // Методы для изменения поведения в системных потомках
+
+    ConfigLoader createConfigLoader()
+    {
+        mixin ConfigLoaderMixin!();
+        return createUniConfigLoader(getAvailableLoaders());
+    }
+
 
     void doInitializeDependencies(Config config)
     {
