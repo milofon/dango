@@ -4,11 +4,12 @@ copyright "Copyright (c) 2015-2018, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD"
 
+
 dependency "uniconf:sdlang" version="~>0.0.1"
 dependency "brightproof" version="~>2.4.0"
 dependency "poodinis" version="~>8.0.3"
-dependency "vibe-core" version="~>1.4.4"
-dependency "bolts" version="~>0.7.1"
+dependency "vibe-core" version="~>1.4.5"
+dependency "bolts" version="~>0.8.1"
 dependency "termcolor-d" version="~>0.0.1"
 dependency "cronexp" version="~>0.1.0-beta3"
 
