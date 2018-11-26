@@ -10,7 +10,7 @@ module dango.system.properties;
 public
 {
     import uniconf.core.config : Config;
-    import uniconf.core.exception : enforceConfig;
+    import uniconf.core.exception : enforceConfig, ConfigException;
 }
 
 

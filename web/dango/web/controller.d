@@ -12,122 +12,88 @@ module dango.web.controller;
 public
 {
     import vibe.http.server : HTTPMethod, HTTPServerRequestHandler,
-            HTTPServerRequestDelegate, HTTPServerRequest, HTTPServerResponse;
+            HTTPServerRequestDelegate, HTTPServerRequestDelegateS,
+            HTTPServerRequest, HTTPServerResponse;
 
     import uniconf.core : Config;
 
     import dango.web.middleware : WebMiddleware;
-    import dango.web.controllers.generic;
 }
 
 private
 {
+    import vibe.http.router : URLRouter;
+    alias isValidHandler = URLRouter.isValidHandler;
+    alias handlerDelegate = URLRouter.handlerDelegate;
+
     import dango.system.container;
-
-    import dango.web.middleware;
 }
 
 
 /**
- * Аннотация для обозначение объекта контроллера
- * Params:
- *
- * prefix = Префикс для всех путей
- */
-struct Controller
-{
-    string prefix;
-}
-
-
-/**
- * Аннотация для обозначения метода для обработки входящих запросов
- * Params:
- *
- * path   = Путь
- * method = Метод
- */
-struct Handler
-{
-    string path;
-    HTTPMethod method = HTTPMethod.GET;
-}
-
-
-/**
- * Интерфейс цепочки обработки запроса
+ * Декоратор обработчика запросов добавляющий функционал цепочки вызовов
  * На основе обработчика формируется цепочка обработки вызова
  */
-interface Chain : HTTPServerRequestHandler
+class Chain : HTTPServerRequestHandler
 {
-    /**
-     * Возврщает HTTPMethod
-     */
-    HTTPMethod method() @property;
-
-    /**
-     * Возврщает uri
-     */
-    string path() @property;
-
-    /**
-     * Активирует указанный middleware для текущего обработчика
-     * Params:
-     * mdw = middleware
-     */
-    void attachMiddleware(WebMiddleware mdw);
-}
+    private HTTPServerRequestDelegate _head;
 
 
-/**
- * Базовый класс для цепочки обработки запроса
- */
-abstract class BaseChain : Chain
-{
-    private
+    this(Handler)(Handler handler)
+        if (isValidHandler!Handler)
     {
-        WebMiddleware _headMiddleware;
+        _head = handlerDelegate(handler);
+    }
 
+
+    /**
+     * Прикреаляет Middleware для текущего обработчика
+     * Params:
+     * handler = Обработчик
+     */
+    void attachMiddleware(WebMiddleware middleware)
+    {
+        _head = handlerMiddleware(middleware, _head);
     }
 
 
     final void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
     {
-        _headMiddleware.handleRequest(req, res);
+        _head(req, res);
     }
+}
 
 
-protected:
 
-
-    void registerChainHandler(HTTPServerRequestDelegate dg)
+@system unittest
+{
+    bool running = false;
+    void testDelegate (scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
     {
-        pushMiddleware(new class BaseWebMiddleware {
-            void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
-            {
-                dg(req, res);
-            }
-        });
+        running = true;
     }
 
+    import dango.web.middleware : TestMiddleware;
+    import vibe.http.server;
+    import vibe.inet.url;
 
-    void pushMiddleware(WebMiddleware next)
-    {
-        if (_headMiddleware is null)
-            _headMiddleware = next;
-        else
-        {
-            next.setNext(_headMiddleware);
-            _headMiddleware = next;
-        }
-    }
+    auto mdl = new TestMiddleware();
+    auto req = createTestHTTPServerRequest(URL("http://localhost/"));
+    auto res = createTestHTTPServerResponse();
+
+    auto ch = new Chain(&testDelegate);
+    ch.attachMiddleware(mdl);
+    ch.handleRequest(req, res);
+
+    assert (mdl.running);
+    assert (running);
 }
 
 
 /**
  * Функция регистрации цепочки оработки запроса
  */
-alias ChainRegisterCallback = void delegate(Chain chain);
+alias RegisterChainCallback = void delegate(HTTPMethod, string, Chain);
 
 
 /**
@@ -141,7 +107,7 @@ interface WebController : ActivatedComponent
      * Params:
      * dg = Функция регистрации цепочки
      */
-    void registerChains(ChainRegisterCallback dg);
+    void registerChains(RegisterChainCallback dg);
 
     /**
      * Возвращает префикс контроллера
@@ -151,12 +117,11 @@ interface WebController : ActivatedComponent
 
 
 /**
- * Базовый класс web контроллера
+ * Базовая реализация для контроллера
  */
 abstract class BaseWebController : WebController
 {
     mixin ActivatedComponentMixin!();
-
     private string _prefix;
 
 
@@ -168,7 +133,7 @@ abstract class BaseWebController : WebController
 
 
 
-alias ControllerFactory = ComponentFactory!(WebController, Config);
+alias ControllerComponentFactory = ComponentFactory!(WebController, Config);
 
 
 /**
@@ -176,7 +141,7 @@ alias ControllerFactory = ComponentFactory!(WebController, Config);
  * Params:
  * CType = Тип контроллера
  */
-abstract class BaseWebControllerFactory : ControllerFactory
+abstract class WebControllerFactory : ControllerComponentFactory
 {
     BaseWebController createController(Config config);
 
@@ -192,24 +157,12 @@ abstract class BaseWebControllerFactory : ControllerFactory
 
 
 /**
- * Урощенная фабрика контроллера
- */
-class SimpleWebControllerFactory(C : BaseWebController) : BaseWebControllerFactory
-{
-    override BaseWebController createController(Config config)
-    {
-        return createSimpleComponent!C(config);
-    }
-}
-
-
-/**
  * Регистрация компонента Middleware
  */
-void registerController(F : ControllerFactory, C : WebController, string N)(
+void registerController(C : WebController, F : ControllerComponentFactory, string N)(
         ApplicationContainer container)
 {
-    container.registerNamedFactory!(F, C, N);
+    container.registerNamedComponent!(C, N, F);
 }
 
 
@@ -218,6 +171,30 @@ void registerController(F : ControllerFactory, C : WebController, string N)(
  */
 void registerController(C : WebController, string N)(ApplicationContainer container)
 {
-    container.registerController!(SimpleWebControllerFactory!(C), C, N);
+    class DefaultWebControllerFactory : WebControllerFactory
+    {
+        override BaseWebController createController(Config config)
+        {
+            return new C();
+        }
+    }
+    auto factory = new DefaultWebControllerFactory();
+    container.registerNamedComponentInstance!(C, N)(factory);
+}
+
+
+private:
+
+
+/**
+ * Создание обработчика на основе WebMiddleware
+ */
+HTTPServerRequestDelegateS handlerMiddleware(Handler)(WebMiddleware middleware,
+        Handler next) if (isValidHandler!Handler)
+{
+    return (scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
+    {
+        middleware.handleRequest(req, res, handlerDelegate(next));
+    };
 }
 

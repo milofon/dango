@@ -11,21 +11,15 @@ module dango.web.middlewares.cors;
 
 private
 {
-    import std.algorithm.iteration : map, splitter, filter;
+    import std.algorithm.iteration : splitter, filter;
     import std.algorithm.searching : canFind;
-    import std.format : fmt = format;
     import std.array : array, join;
     import std.uni : toLower, toUpper;
     import std.conv : to;
 
-    import vibe.http.server : HTTPMethod;
-    import vibe.inet.url : URL;
-
-    import uniconf.core.exception : enforceConfig;
-
+    import dango.system.properties : enforceConfig;
     import dango.web.middleware;
 }
-
 
 
 alias AllowChecker = bool delegate(string val) @safe;
@@ -41,22 +35,21 @@ class CorsWebMiddleware : BaseWebMiddleware
         AllowChecker _originChecker;
         AllowChecker _methodChecker;
         AllowChecker _headerChecker;
-        Chain _chain;
         ulong _maxAge;
     }
 
 
-    this(Chain chain, AllowChecker oCk, AllowChecker mCk, AllowChecker hCk, long maxAge)
+    this(AllowChecker oCk, AllowChecker mCk, AllowChecker hCk, long maxAge)
     {
         this._originChecker = oCk;
         this._methodChecker = mCk;
         this._headerChecker = hCk;
         this._maxAge = maxAge;
-        this._chain = chain;
     }
 
 
-    void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
+    void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res,
+            HTTPServerRequestDelegate next) @safe
     {
         auto origin = "Origin" in req.headers;
 
@@ -70,16 +63,16 @@ class CorsWebMiddleware : BaseWebMiddleware
     }
 
 
-    override void registerAdditionalHandlers(RegisterHandlerCallback dg)
+    override void registerHandlers(HTTPMethod method, string path, RegisterHandlerCallback dg)
     {
-        dg(HTTPMethod.OPTIONS, _chain.path, &handleOptionsRequest);
+        dg(HTTPMethod.OPTIONS, path, &handleOptionsRequest);
     }
 
 
 private:
 
 
-    void handleOptionsRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
+    void handleOptionsRequest(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
     {
         auto origin = "Origin" in req.headers;
 
@@ -106,16 +99,18 @@ private:
 }
 
 
-
-class CorsWebMiddlewareFactory : BaseWebMiddlewareFactory
+/**
+ * Фабрика Middleware CORS
+ */
+class CorsWebMiddlewareFactory : WebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Config config, Chain chain)
+    override BaseWebMiddleware createMiddleware(Config config)
     {
         AllowChecker oCk = createOriginChecker(config.getArray("origin"));
         AllowChecker mCk = createMethodChecker(config.getArray("method"));
         AllowChecker hCk = createHeaderChecker(config.getArray("header"));
         long maxAge = config.getOrElse!long("maxAge", 300);
-        return new CorsWebMiddleware(chain, oCk, mCk, hCk, maxAge);
+        return new CorsWebMiddleware(oCk, mCk, hCk, maxAge);
     }
 
 

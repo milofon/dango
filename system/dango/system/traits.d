@@ -17,7 +17,6 @@ private
 }
 
 
-/+
 /**
  * Проверка на публичность методов
  * Params:
@@ -42,6 +41,26 @@ template IsPublicMember(C, string N)
 }
 
 
+/**
+ * В случае необходимости преобразует unsafe функцию в safe
+ *
+ * Params:
+ * fun = Указатель на функцию или делегат
+ */
+auto assumeSafe(F)(F fun) @safe
+    if (isFunctionPointer!F || isDelegate!F)
+{
+    static if (hasFunctionAttributes!(F, "@safe"))
+        return fun;
+    else
+        return (ParameterTypeTuple!F args) @trusted {
+            return fun(args);
+        };
+}
+
+
+
+/+
 /**
  * Обработка мемберов указанного типа.
  * На каждый публичный мембер вызывается делегат
@@ -80,19 +99,6 @@ template byPair(NList...)
                 byPair!(NList[2..$]));
     else
         alias byPair = AliasSeq!();
-}
-
-
-
-auto assumeSafe(F)(F fun) @safe
-    if (isFunctionPointer!F || isDelegate!F)
-{
-    static if (hasFunctionAttributes!(F, "@safe"))
-        return fun;
-    else
-        return (ParameterTypeTuple!F args) @trusted {
-            return fun(args);
-        };
 }
 +/
 

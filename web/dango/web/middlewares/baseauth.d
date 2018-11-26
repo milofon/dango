@@ -11,7 +11,6 @@ module dango.web.middlewares.baseauth;
 
 private
 {
-    import std.uni : toUpper;
     import std.string : strip;
     import std.format : fmt = format;
 
@@ -42,7 +41,8 @@ class BaseAuthWebMiddleware : BaseWebMiddleware
     }
 
 
-    void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
+    void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res,
+            HTTPServerRequestDelegate next) @safe
     {
         if (!checkBasicAuth(req, &passwordCheck))
         {
@@ -64,10 +64,12 @@ private:
 }
 
 
-
-class BaseAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
+/**
+ * Фабрика Middleware baseauth
+ */
+class BaseAuthWebMiddlewareFactory : WebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Config config, Chain chain)
+    override BaseWebMiddleware createMiddleware(Config config)
     {
         string username = config.getOrEnforce!string("username",
                 "Not defined username parameter").strip;

@@ -11,49 +11,84 @@ module dango.web.middleware;
 
 public
 {
-    import vibe.http.server : HTTPServerRequest, HTTPServerResponse, HTTPMethod;
-
+    import vibe.http.server : HTTPServerRequest, HTTPServerResponse, HTTPMethod,
+            HTTPServerRequestDelegate;
     import uniconf.core : Config;
+
     import dango.web.controller : Chain;
 }
 
 private
 {
-    import std.traits;
-    import std.meta : Alias;
-
-    import vibe.http.server : HTTPServerRequestDelegate, HTTPServerRequestHandler;
+    import vibe.http.server : HTTPServerRequestHandler;
 
     import dango.system.container;
 }
 
 
-
-alias RegisterHandlerCallback = void delegate(
-        HTTPMethod, string, HTTPServerRequestDelegate);
+/**
+ * Функция регистрации обработчика
+ */
+alias RegisterHandlerCallback = void delegate(HTTPMethod, string,
+        HTTPServerRequestDelegate);
 
 
 /**
  * Интерфейс для Middleware HTTP
  * Позволяет производить предобработку входязих запросов
  */
-interface WebMiddleware : ActivatedComponent, HTTPServerRequestHandler
+interface WebMiddleware : ActivatedComponent
 {
-    /**
-     * Установка след. елемента в цепочке
-     */
-    WebMiddleware setNext(WebMiddleware);
+    void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res,
+            HTTPServerRequestDelegate next) @safe;
 
     /**
-     * Передача управления в след. цепочку
+     * Регистрация цепочек маршрутов middleware
+     * На каждый обработчик формируется вызов dg
+     * Params:
+     * dg = Функция регистрации цепочки
      */
-    void next(HTTPServerRequest req, HTTPServerResponse res) @safe;
+    void registerHandlers(HTTPMethod method, string path, RegisterHandlerCallback dg);
+}
 
-    /**
-     * Регистрация дополнительных обработчиков
-     * Middleware может добавлять свои обработчики в роутер
-     */
-    void registerAdditionalHandlers(RegisterHandlerCallback cb);
+
+
+version (unittest)
+{
+    class TestMiddleware : BaseWebMiddleware
+    {
+        bool running = false;
+
+        void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res,
+                HTTPServerRequestDelegate next) @safe
+        {
+            running = true;
+            next(req, res);
+        }
+
+        override void registerHandlers(HTTPMethod method, string path,
+                RegisterHandlerCallback dg) {}
+    }
+}
+
+
+
+@system unittest
+{
+    import vibe.http.server;
+    import vibe.inet.url;
+
+    auto req = createTestHTTPServerRequest(URL("http://localhost/"));
+    auto res = createTestHTTPServerResponse();
+
+    auto mdl = new TestMiddleware();
+    bool running = false;
+    void testDelegate (scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
+    {
+        running = true;
+    }
+    mdl.handleRequest(req, res, &testDelegate);
+    assert (running);
 }
 
 
@@ -64,45 +99,26 @@ abstract class BaseWebMiddleware : WebMiddleware
 {
     mixin ActivatedComponentMixin!();
 
-    private
-    {
-        WebMiddleware _next;
-    }
 
-
-    WebMiddleware setNext(WebMiddleware next)
-    {
-        _next = next;
-        return next;
-    }
-
-
-    void next(HTTPServerRequest req, HTTPServerResponse res) @safe
-    {
-        if (_next !is null)
-            _next.handleRequest(req, res);
-    }
-
-
-    void registerAdditionalHandlers(RegisterHandlerCallback cb) {}
+    void registerHandlers(HTTPMethod method, string path, RegisterHandlerCallback dg) {}
 }
 
 
 
-alias MiddlewareFactory = ComponentFactory!(WebMiddleware, Config, Chain);
+alias MiddlewareComponentFactory = ComponentFactory!(WebMiddleware, Config);
 
 
 /**
  * Базовая фабрика для web контроллеров
  */
-abstract class BaseWebMiddlewareFactory : MiddlewareFactory
+abstract class WebMiddlewareFactory : MiddlewareComponentFactory
 {
-    WebMiddleware createMiddleware(Config config, Chain chain);
+    BaseWebMiddleware createMiddleware(Config config);
 
 
-    WebMiddleware createComponent(Config config, Chain chain)
+    WebMiddleware createComponent(Config config)
     {
-        auto ret = createMiddleware(config, chain);
+        auto ret = createMiddleware(config);
         ret.enabled = config.getOrElse!bool("enabled", false);
         return ret;
     }
@@ -110,24 +126,12 @@ abstract class BaseWebMiddlewareFactory : MiddlewareFactory
 
 
 /**
- * Урощенная фабрика middleware
- */
-class SimpleWebMiddlewareFactory(M : BaseWebMiddleware) : BaseWebMiddlewareFactory
-{
-    WebMiddleware createMiddleware(Config config, Chain chain)
-    {
-        return createSimpleComponent!C(config);
-    }
-}
-
-
-/**
  * Регистрация компонента Middleware
  */
-void registerMiddleware(F : MiddlewareFactory, M : WebMiddleware, string N)(
+void registerMiddleware(M : WebMiddleware, F : MiddlewareComponentFactory, string N)(
         ApplicationContainer container)
 {
-    container.registerNamedFactory!(F, M, N);
+    container.registerNamedComponent!(M, N, F);
 }
 
 
@@ -136,7 +140,15 @@ void registerMiddleware(F : MiddlewareFactory, M : WebMiddleware, string N)(
  */
 void registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer container)
 {
-    container.registerMiddleware!(SimpleWebMiddlewareFactory!M, M, N);
+    class DefaultWebMiddlewareFactory : WebMiddlewareFactory
+    {
+        override BaseWebMiddleware createMiddleware(Config config)
+        {
+            return new M();
+        }
+    }
+    auto factory = new DefaultWebMiddlewareFactory();
+    container.registerNamedComponentInstance!(M, N)(factory);
 }
 
 
@@ -145,11 +157,15 @@ void registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer contai
  */
 template isInitializedMiddleware(MType, IType, alias Member)
 {
+    import std.meta : Alias;
+    import std.traits : hasMember, Parameters, ReturnType;
+
     enum __existsMethod = hasMember!(MType, "initMiddleware");
     static if (__existsMethod)
     {
         alias __initMiddleware = Alias!(__traits(getMember, MType, "initMiddleware"));
         alias __IM = __initMiddleware!(IType, Member);
+
         static assert(is(ReturnType!__IM == void),
                 "initMiddleware must return void");
 

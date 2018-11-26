@@ -23,17 +23,19 @@ private
 }
 
 
-
+/**
+ * Контектс DI для встроенных middleware
+ */
 class WebMiddlewaresContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerMiddleware!(TokenAuthWebMiddlewareFactory,
-                TokenAuthWebMiddleware, "TOKENAUTH");
-        container.registerMiddleware!(BaseAuthWebMiddlewareFactory,
-                BaseAuthWebMiddleware, "BASEAUTH");
-        container.registerMiddleware!(CorsWebMiddlewareFactory,
-                CorsWebMiddleware, "CORS");
+        container.registerMiddleware!(BaseAuthWebMiddleware,
+                BaseAuthWebMiddlewareFactory, "BASEAUTH");
+        container.registerMiddleware!(TokenAuthWebMiddleware,
+                TokenAuthWebMiddlewareFactory, "TOKENAUTH");
+        container.registerMiddleware!(CorsWebMiddleware,
+                CorsWebMiddlewareFactory, "CORS");
     }
 }
 

@@ -60,8 +60,7 @@ version(unittest)
     {
         void registerDependencies(shared(DependencyContainer) container, Config config)
         {
-            auto factory = new IItemFactory();
-            container.register!(IItem, Item).factoryInstance!Item(factory,
+            container.register!(IItem, Item).factoryInstance!IItemFactory(
                 config.get!string("key").get,
                 config.get!double("val").get);
         }

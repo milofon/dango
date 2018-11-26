@@ -18,18 +18,18 @@ private
     import dango.web.controller : registerController;
 
     import dango.web.controllers.fileshare;
-    // import dango.web.controllers.fileupload;
 }
 
 
-
+/**
+ * Контектс DI для встроенных контроллеров
+ */
 class WebControllersContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerController!(FileShareWebControllerFactory,
-                FileShareWebController, "SHARE");
-        // container.registerFactory!(FileUploadWebControllerFactory, FileUploadWebController);
+        container.registerController!(FileShareWebController,
+                FileShareWebControllerFactory, "SHARE");
     }
 }
 

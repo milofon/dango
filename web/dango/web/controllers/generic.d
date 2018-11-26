@@ -12,17 +12,74 @@ module dango.web.controllers.generic;
 public
 {
     import vibe.internal.meta.funcattr;
-    import vibe.internal.meta.traits : RecursiveFunctionAttributes;
+    // import vibe.internal.meta.traits : RecursiveFunctionAttributes;
     import dango.web.controller;
 }
 
 private
 {
     import std.functional : toDelegate;
-    import std.traits;
+    import std.traits : hasUDA, getUDAs, isCallable, TemplateArgsOf;
     import std.meta;
 
     import dango.system.traits;
+    import dango.web.middleware : isInitializedMiddleware;
+}
+
+
+/**
+ * Аннотация для обозначение объекта контроллера
+ * Params:
+ *
+ * prefix = Префикс для всех путей
+ */
+struct Controller
+{
+    string prefix;
+}
+
+
+/**
+ * Аннотация для обозначения метода для обработки входящих запросов
+ * Params:
+ *
+ * path   = Путь
+ * method = Метод
+ */
+struct Handler(HTTPMethod M = HTTPMethod.GET)
+{
+    string path;
+    enum method = M;
+}
+
+
+
+alias Get = Handler!(HTTPMethod.GET);
+alias Post = Handler!(HTTPMethod.POST);
+alias Put = Handler!(HTTPMethod.PUT);
+alias Delete = Handler!(HTTPMethod.DELETE);
+
+
+
+@system unittest
+{
+    auto hdl = Post("/");
+    assert (hdl.method == HTTPMethod.POST);
+
+    @Post("/")
+    void handler() {}
+    assert (hasUDA!(handler, Handler));
+
+    void noHandler() {}
+    assert (!hasUDA!(noHandler, Handler));
+
+    @Handler!(HTTPMethod.HEAD)("/h")
+    void customHandler() {}
+
+    enum udas = getUDAs!(customHandler, Handler);
+    assert (udas.length);
+    assert (udas[0].method == HTTPMethod.HEAD);
+    assert (udas[0].path == "/h");
 }
 
 
@@ -31,6 +88,82 @@ private
  * доступны аннотации обработчиков
  */
 struct Middleware(MTypes...) {}
+
+
+/**
+ * Базовый класс web контроллера
+ * Params:
+ * CType = Объект с определенными в нем обработчиками
+ */
+abstract class GenericWebController(IType) : BaseWebController, IType
+    if (is(IType == interface))
+{
+    static assert(hasUDA!(IType, Controller),
+            IType.stringof ~ " is not marked with a Controller");
+
+
+    void registerChains(RegisterChainCallback dg)
+    {
+        alias Handlers = GetWebControllerHandlers!IType;
+        static assert(Handlers.length, "The controller must contain handlers");
+
+        foreach(Member; Handlers)
+        {
+            enum hdlUDA = getUDAs!(Member, Handler)[0];
+            enum fName = __traits(identifier, Member);
+            auto HDL = &__traits(getMember, this, fName);
+            alias MemberType = typeof(toDelegate(&Member));
+            auto hdl = createHandler!(IType, MemberType, Member)(this, HDL);
+            if (hdl !is null)
+                dg(hdlUDA.method, getFullPath(hdlUDA.path),
+                        new GenericChain!(IType, Member)(hdl));
+        }
+    }
+
+
+private:
+
+
+    string getFullPath(string path)
+    {
+        import vibe.core.path : InetPath;
+
+        enum udas = getUDAs!(IType, Controller);
+        static if (udas.length > 0)
+            string ctrlPath = joinPath(udas[0].prefix, path);
+        else
+            string ctrlPath = path;
+
+        return joinPath(this.prefix, ctrlPath);
+    }
+
+
+    static string joinPath(string prefix, string path)
+    {
+        import vibe.core.path : InetPath;
+
+        auto parent = InetPath(prefix);
+        auto child = InetPath(path);
+
+        if (!parent.absolute)
+            parent = InetPath("/") ~ parent;
+
+        if (child.absolute)
+        {
+            auto childSegments = child.bySegment();
+            childSegments.popFront();
+            child = InetPath(childSegments);
+        }
+
+        if (!child.empty)
+            parent ~= child;
+
+        return parent.toString;
+    }
+}
+
+
+private:
 
 
 /**
@@ -68,7 +201,8 @@ template GetWebControllerHandlers(C)
 
 
 /**
- * Упроценная функция создания обработчика
+ * Функция создания обработчика
+ *
  * Params:
  * IType = Тип интерфейса контроллера
  * HandlerType = Тип функции обработчика
@@ -79,137 +213,31 @@ template GetWebControllerHandlers(C)
 HTTPServerRequestDelegate createHandler(IType, HandlerType, alias Member)(
         IType controller, HandlerType hdl)
 {
-    return (HTTPServerRequest req, HTTPServerResponse res) @safe
-    {
-        assumeSafe!HandlerType(hdl)(req, res);
-    };
+    return assumeSafe!HandlerType(hdl);
 }
 
 
-/**
- * Базовый класс web контроллера
- * Params:
- * CType = Объект с определенными в нем обработчиками
- */
-abstract class GenericWebController(IType) : BaseWebController, IType
-    if (is(IType == interface))
+
+class GenericChain(IType, alias Member) : Chain
 {
-    static assert(is(IType == interface),
-            IType.stringof ~ " is not interface");
-
-    static assert(hasUDA!(IType, Controller),
-            IType.stringof ~ " is not marked with a Controller");
-
-    alias Handlers = GetWebControllerHandlers!IType;
-
-    static assert(Handlers.length, "The controller must contain handlers");
-
-
-    void registerChains(ChainRegisterCallback dg)
+    this(Handler)(Handler handler)
     {
-        foreach(Member; Handlers)
-        {
-            enum udas = getUDAs!(Member, Handler);
-            enum fName = __traits(identifier, Member);
-            auto HDL = &__traits(getMember, this, fName);
-            alias MemberType = typeof(toDelegate(&Member));
-            auto hdl= createHandler!(IType, MemberType, Member)(this, HDL);
-            if (hdl !is null)
-                dg(new ChainHandler!(IType, Member)(this, udas[0], hdl));
-        }
-    }
-}
-
-
-/**
- * Цепочка обработки запроса
- * Params:
- * С      = Тип контроллера
- * Member = Функция обработчик
- */
-class ChainHandler(IType, alias Member) : BaseChain
-{
-    private
-    {
-        Handler _udaHandler;
-        BaseWebController _controller;
+        super(handler);
     }
 
 
-    this(BaseWebController controller, Handler uda, HTTPServerRequestDelegate hdl)
-    {
-        this._udaHandler = uda;
-        this._controller = controller;
-        registerChainHandler(hdl);
-    }
-
-
-    HTTPMethod method() @property
-    {
-        return _udaHandler.method;
-    }
-
-
-    string path() @property
-    {
-        return getFullPath(_udaHandler.path);
-    }
-
-
-    void attachMiddleware(WebMiddleware mdw)
+    override void attachMiddleware(WebMiddleware middleware)
     {
         foreach (mTypes; getUDAs!(IType, Middleware))
         {
             foreach(mType; TemplateArgsOf!mTypes)
             {
                 static if (isInitializedMiddleware!(mType, IType, Member))
-                    if (mType m = cast(mType)mdw)
+                    if (mType m = cast(mType)middleware)
                         m.initMiddleware!(IType, Member)();
             }
         }
-
-        pushMiddleware(mdw);
-    }
-
-
-private:
-
-
-    string getFullPath(string path)
-    {
-        import vibe.core.path : InetPath;
-
-        enum udas = getUDAs!(IType, Controller);
-        static if (udas.length > 0)
-            string ctrlPath = joinPath(udas[0].prefix, path);
-        else
-            string ctrlPath = path;
-
-        return joinPath(_controller.prefix, ctrlPath);
-    }
-
-
-    string joinPath(string prefix, string path)
-    {
-        import vibe.core.path : InetPath;
-
-        auto parent = InetPath(prefix);
-        auto child = InetPath(path);
-
-        if (!parent.absolute)
-            parent = InetPath("/") ~ parent;
-
-        if (child.absolute)
-        {
-            auto childSegments = child.bySegment();
-            childSegments.popFront();
-            child = InetPath(childSegments);
-        }
-
-        if (!child.empty)
-            parent ~= child;
-
-        return parent.toString;
+        super.attachMiddleware(middleware);
     }
 }
 

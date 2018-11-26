@@ -47,6 +47,13 @@ version (unittest)
 {
     import std.exception : assertThrown;
 
+
+    class Extruder
+    {
+
+    }
+
+
     class CheckValueInjector : ValueInjector!int
     {
         private int[string] _dict;
@@ -162,6 +169,9 @@ version (unittest)
 
     class ItemFactory : ComponentFactory!(Item, string, double)
     {
+        @Value("item")
+        int _chk;
+
         Item createComponent(string key, double val)
         {
             return new Item(key, val);
@@ -196,10 +206,33 @@ version (unittest)
     }
 
 
+    class CtorItemFactory : DepthItemFactory
+    {
+        @Autowire
+        Extruder cfgMember;
+
+        Extruder cfgCtor;
+
+        @AutowireConstructor
+        this(Extruder config)
+        {
+            cfgCtor = config;
+        }
+
+        override Item createComponent(string key, double val)
+        {
+            assert(cfgMember);
+            assert(cfgCtor);
+            return super.createComponent(key, val);
+        }
+    }
+
+
     shared(DependencyContainer) createContainer()
     {
         auto cnt = new shared(DependencyContainer)();
         cnt.register!(ValueInjector!int, CheckValueInjector);
+        cnt.register!Extruder;
         return cnt;
     }
 }
@@ -223,7 +256,7 @@ version (unittest)
 
 
 /**
- * Интерфейс фабрики с возможностью создать объект
+ * Интерфейс адаптера фабрики с возможностью создать объект
  * на основе преинициализированных данных, так и без них.
  *
  * Params:
@@ -233,7 +266,7 @@ interface ComponentFactoryAdapter(T)
 {
     private
     {
-        interface Functor
+        interface Wrapper
         {
             T execute() const;
 
@@ -243,7 +276,7 @@ interface ComponentFactoryAdapter(T)
         }
 
 
-        interface FunctorArgs(A...) : Functor
+        interface WrapperArgs(A...) : Wrapper
         {
             T execute(A args);
         }
@@ -254,56 +287,106 @@ interface ComponentFactoryAdapter(T)
      */
     final T create(A...)(A args)
     {
-        if (functor is null)
+        if (wrapper is null)
             throw new DangoComponentException("Factory not initialized");
 
-        if (args.length == functor.getInfoArgs.length)
+        if (args.length == wrapper.getInfoArgs.length)
         {
-            auto functorArgs = cast(FunctorArgs!A)functor;
-            if (functorArgs is null)
+            auto wrapperArgs = cast(WrapperArgs!A)wrapper;
+            if (wrapperArgs is null)
             {
                 throw new Exception(fmt!"Error creating object, use arguments %s"(
-                            functor.getInfoArgs()));
+                            wrapper.getInfoArgs()));
             }
-            return functorArgs.execute(args);
+            return wrapperArgs.execute(args);
         }
         else
-            return functor.execute();
+            return wrapper.execute();
     }
 
+    /**
+     * Возвращает обертку над аргументами
+     */
+    const(Wrapper) wrapper() @property;
 
-    const(Functor) functor() @property const;
-
-
+    /**
+     * Статус прединициализации
+     */
     bool initialized() @property const;
 
-
+    /**
+     * Резолвинг зависимостей
+     */
     void autowire(shared(DependencyContainer) container, T instance);
 }
 
 
 /**
- * Реализация фабрики с возможностью создать объект
- * на основе преинициализированных данных, так и без них
+ * Реализация адаптера фабрики с возможностью создать объект
+ * на основе преинициализированных данных, так и без них.
  *
  * Params:
- * T   = Конструируемый фабрикой тип
- * CT  = Текущий тип (необходим для резолвинга зависимостей)
+ * T - Конструируемый тип
  */
-private final class ComponentFactoryAdapterImpl(T, CT : T) : ComponentFactoryAdapter!T
+private class ComponentFactoryAdapterImpl(T) : ComponentFactoryAdapter!T
 {
-    private const(Functor) _factoryFunctor;
+    private const(Wrapper) _factoryWrapper;
 
 
-    this(Functor functor)
+    this(const(Wrapper) wrapper)
     {
-        this._factoryFunctor = cast(const)functor;
+        this._factoryWrapper = wrapper;
     }
 
 
-    const(Functor) functor() @property const
+    const(Wrapper) wrapper() @property
     {
-        return _factoryFunctor;
+        return _factoryWrapper;
+    }
+
+
+    bool initialized() @property const
+    {
+        return (_factoryWrapper !is null) && _factoryWrapper.initialized;
+    }
+
+
+    void autowire(shared(DependencyContainer) container, T instance)
+    {
+        throw new DangoComponentException(fmt!"ComponentFactory %s not autowired"(
+                    typeid(this)));
+    }
+}
+
+
+/**
+ * Реализация адаптера фабрики с возможностью создать объект
+ * на основе преинициализированных данных, так и без них, с поддержкой autowire
+ *
+ * Params:
+ * CT - Тип для autowire
+ * T  - Конструируемый тип
+ */
+private class ComponentFactoryAdapterAutowired(T, CT : T) : ComponentFactoryAdapter!T
+{
+    private ComponentFactoryAdapter!T _adapter;
+
+
+    this(ComponentFactoryAdapter!T adapter)
+    {
+        this._adapter = adapter;
+    }
+
+
+    const(Wrapper) wrapper() @property
+    {
+        return _adapter.wrapper;
+    }
+
+
+    override bool initialized() @property const
+    {
+        return _adapter.initialized();
     }
 
 
@@ -312,25 +395,22 @@ private final class ComponentFactoryAdapterImpl(T, CT : T) : ComponentFactoryAda
         static if (__traits(compiles, container.autowire!CT(cast(CT)instance)))
             container.autowire!CT(cast(CT)instance);
     }
-
-
-    bool initialized() @property const
-    {
-        return (_factoryFunctor !is null) && _factoryFunctor.initialized;
-    }
 }
+
 
 /**
  * Создает адаптер над фабрикой компонента
+ * используя делегат для ленивого создания фабрики
  *
  * Params:
- * CT = Конктретный тип (необходим для резолвина зависимостей)
  * F  = Тип фабрики
  * T  = Тип возвращаемого фабрикой компонента
  * A  = Параметры метода создания компонента
+ *
+ * componentFactoryDelegate = Делегат для ленивого создания фабрики
  */
-private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : ComponentFactory!(T), T, A...)(
-        F componentFactory, A argsInit) if (is(CT : T))
+private ComponentFactoryAdapterImpl!(T) createFactoryAdapterDelegate(F : ComponentFactory!(T), T, A...)(
+        F delegate() componentFactoryDelegate, A argsInit)
 {
     import std.meta : staticMap;
 
@@ -341,7 +421,7 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
         enum ByTypeId = typeid(D);
     }
 
-    template FunctorArgsMixin()
+    template WrapperArgsMixin()
     {
         final TypeInfo[] getInfoArgs() const
         {
@@ -357,7 +437,7 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
         }
     }
 
-    alias Functor = ComponentFactoryAdapter!T.FunctorArgs;
+    alias Wrapper = ComponentFactoryAdapter!T.WrapperArgs;
     alias PARENTS = Filter!(IsComponentFactory, TransitiveBaseTypeTuple!F);
     static assert (PARENTS.length, "Factory not ComponentFactory");
     alias FA = TemplateArgsOf!(PARENTS[0]);
@@ -369,13 +449,13 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
         static assert (A.length == 0, "Factory " ~ F.stringof ~ " takes no arguments");
         alias FAI = A;
 
-        class FunctorArgsImpl : Functor!FAI
+        class WrapperArgsImpl : Wrapper!FAI
         {
-            mixin FunctorArgsMixin!();
+            mixin WrapperArgsMixin!();
 
             T execute() const
             {
-                return componentFactory.createComponent();
+                return componentFactoryDelegate().createComponent();
             }
         }
     }
@@ -387,18 +467,18 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
                     FA[1..$].stringof));
         alias FAI = A;
 
-        class FunctorArgsImpl : Functor!FAI
+        class WrapperArgsImpl : Wrapper!FAI
         {
-            mixin FunctorArgsMixin!();
+            mixin WrapperArgsMixin!();
 
             T execute(FAI args) const
             {
-                return componentFactory.createComponent(args);
+                return componentFactoryDelegate().createComponent(args);
             }
 
             T execute() const
             {
-                return componentFactory.createComponent(argsInit);
+                return componentFactoryDelegate().createComponent(argsInit);
             }
         }
     }
@@ -406,9 +486,9 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
     {
         alias FAI = FA[1..$];
 
-        class FunctorArgsImpl : Functor!FAI
+        class WrapperArgsImpl : Wrapper!FAI
         {
-            mixin FunctorArgsMixin!();
+            mixin WrapperArgsMixin!();
 
             T execute() const
             {
@@ -418,32 +498,104 @@ private ComponentFactoryAdapterImpl!(T, CT) createFactoryAdapter(CT, F : Compone
 
             T execute(FAI args) const
             {
-                return componentFactory.createComponent(args);
+                return componentFactoryDelegate().createComponent(args);
             }
         }
     }
 
-    return new ComponentFactoryAdapterImpl!(T, CT)(new FunctorArgsImpl);
+    return new ComponentFactoryAdapterImpl!(T)(new WrapperArgsImpl);
 }
 
 
 
 @system unittest
 {
-    auto wFactory = createFactoryAdapter!(Item)(new DepthItemFactory(), "a", 1.1);
+    auto wFactory = createFactoryAdapterDelegate(() => new DepthItemFactory(), "a", 1.1);
+    assert (wFactory);
+    assert (wFactory.initialized);
+    assert (wFactory.create().verify("*a*", 2.2, 0));
+    assert (wFactory.create("s", 1.2).verify("*s*", 2.4, 0));
+}
+
+
+/**
+ * Создает адаптер над фабрикой компонента используя экземпляр фабрики
+ *
+ * Params:
+ * F  = Тип фабрики
+ * T  = Тип возвращаемого фабрикой компонента
+ * A  = Параметры метода создания компонента
+ */
+private ComponentFactoryAdapterImpl!(T) createFactoryAdapterInstance(F : ComponentFactory!(T), T, A...)(
+            F componentFactory, A argsInit)
+{
+    return createFactoryAdapterDelegate!(F, T, A)(() => componentFactory, argsInit);
+}
+
+
+
+@system unittest
+{
+    auto wFactory = createFactoryAdapterInstance(new DepthItemFactory(), "a", 1.1);
     assert (wFactory);
     assert (wFactory.initialized);
     assert (wFactory.create().verify("*a*", 2.2, 0));
     assert (wFactory.create("s", 1.2).verify("*s*", 2.4, 0));
 
-    auto eFactory = createFactoryAdapter!(IItem)(new IItemEmptyFactory());
+    auto eFactory = createFactoryAdapterInstance(new IItemEmptyFactory());
+    assert (eFactory);
+    assert (eFactory.initialized);
+    assert (eFactory.create().verify("empty", 1.0, 0));
+    assert (eFactory.create("s", 1.2).verify("empty", 1.0, 0));
+
+    auto aFactory = createFactoryAdapterInstance(new ItemFactory());
+    assert (!aFactory.initialized);
+    assert (aFactory.create("b", 4.4).verify("b", 4.4, 0));
+
+    assertThrown!DangoComponentException(aFactory.create());
+}
+
+
+/**
+ * Создает адаптер над фабрикой компонента используя контейнер DI
+ *
+ * Params:
+ * F  = Тип фабрики
+ * T  = Тип возвращаемого фабрикой компонента
+ * A  = Параметры метода создания компонента
+ */
+private ComponentFactoryAdapterImpl!T createFactoryAdapterAutowire(F : ComponentFactory!(T), T, A...)(
+            shared(DependencyContainer) container, A argsInit)
+{
+    return createFactoryAdapterDelegate!(F, T, A)(() {
+            auto cf = new ConstructorInjectingInstanceFactory!F(container);
+            cf.factoryParameters = InstanceFactoryParameters(
+                    typeid(F), CreatesSingleton.no);
+            F factory = cast(F)cf.getInstance();
+            container.autowire!F(factory);
+            return factory;
+        }, argsInit);
+}
+
+
+
+@system unittest
+{
+    auto cnt = createContainer();
+    auto wFactory = createFactoryAdapterAutowire!CtorItemFactory(cnt, "a", 1.1);
+    assert (wFactory);
+    assert (wFactory.initialized);
+    assert (wFactory.create().verify("*a*", 2.2, 0));
+    assert (wFactory.create("s", 1.2).verify("*s*", 2.4, 0));
+
+    auto eFactory = createFactoryAdapterAutowire!IItemEmptyFactory(cnt);
     assert (eFactory);
     assert (eFactory.initialized);
     assert (eFactory.create().verify("empty", 1.0, 0));
     assert (eFactory.create("s", 1.2).verify("empty", 1.0, 0));
 
 
-    auto aFactory = createFactoryAdapter!(Item)(new ItemFactory());
+    auto aFactory = createFactoryAdapterAutowire!ItemFactory(cnt);
     assert (!aFactory.initialized);
     assert (aFactory.create("b", 4.4).verify("b", 4.4, 0));
 
@@ -546,7 +698,10 @@ private Registration factoryAdapterInstance(F : ComponentFactoryAdapter!(I), I)(
 {
     auto cnt = createContainer();
     auto factory = new ItemFactory();
-    auto wFactory = createFactoryAdapter!Item(factory, "a", 1.1);
+    auto wFactory = createFactoryAdapterDelegate!(ItemFactory)(() {
+            cnt.autowire!ItemFactory(factory);
+            return factory;
+        }, "a", 1.1);
 
     auto reg = cnt.register!(IItem, Item).factoryAdapterInstance(wFactory);
     assert(reg);
@@ -562,10 +717,13 @@ private Registration factoryAdapterInstance(F : ComponentFactoryAdapter!(I), I)(
  * I = Интерфес компонента
  * F = Фабрика компонента
  */
-Registration factoryInstance(CT, F : ComponentFactory!(I, A), I, A...)(
-        Registration registration, F factory, A args) if (is(CT : I))
+Registration factoryExistingInstance(F : ComponentFactory!(I, A), I, A...)(
+        Registration registration, F factory, A args)
 {
-    auto wFactory = createFactoryAdapter!CT(factory, args);
+    auto wFactory = createFactoryAdapterDelegate!F(() {
+            registration.originatingContainer.autowire!F(factory);
+            return factory;
+        }, args);
     return registration.factoryAdapterInstance(wFactory);
 }
 
@@ -577,7 +735,35 @@ Registration factoryInstance(CT, F : ComponentFactory!(I, A), I, A...)(
     auto factory = new ItemFactory();
 
     auto reg = cnt.registerNamed!(Item, "one")
-        .factoryInstance!Item(factory, "b", 6.5);
+        .factoryExistingInstance(factory, "b", 6.5);
+    assert(reg);
+    auto item = cnt.resolveNamed!Item("one");
+    assert (item.verify("b", 6.5, 1));
+}
+
+
+/**
+ * Модификация регистрации компонента в DI
+ * Добавление возможности создавать компоненты при помощи фабрики
+ * Params:
+ * I = Интерфес компонента
+ * F = Фабрика компонента
+ */
+Registration factoryInstance(F : ComponentFactory!(I, A), I, A...)(
+        Registration registration, A args)
+{
+    auto wFactory = createFactoryAdapterAutowire!F(
+            registration.originatingContainer, args);
+    return registration.factoryAdapterInstance(wFactory);
+}
+
+
+
+@system unittest
+{
+    auto cnt = createContainer();
+    auto reg = cnt.registerNamed!(Item, "one")
+        .factoryInstance!ItemFactory("b", 6.5);
     assert(reg);
     auto item = cnt.resolveNamed!Item("one");
     assert (item.verify("b", 6.5, 1));
@@ -595,12 +781,16 @@ Registration factoryInstance(CT, F : ComponentFactory!(I, A), I, A...)(
  * I = Тип создаваемого компонента
  * A = Аргументы передаваемые в фабрику
  */
-Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
+Registration registerComponentInstance(CT, F : ComponentFactory!(T), T, A...)(
         shared(DependencyContainer) container, F factory, A args) if (is (CT : T))
 {
-    auto wFactory = createFactoryAdapter!CT(factory, args);
-    auto ret = container.register!(ComponentFactoryAdapter!T, ComponentFactoryAdapterImpl!(T, CT))
-            .existingInstance(wFactory);
+    auto wFactory = createFactoryAdapterDelegate!F(() {
+            container.autowire!F(factory);
+            return factory;
+        }, args);
+    auto wAuto = new ComponentFactoryAdapterAutowired!(T, CT)(wFactory);
+    auto ret = container.register!(ComponentFactoryAdapter!T,
+            ComponentFactoryAdapterAutowired!(T, CT)).existingInstance(wAuto);
     if (wFactory.initialized)
         container.register!(T, CT).factoryAdapterInstance(wFactory);
     return ret;
@@ -612,7 +802,7 @@ Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
 {
     auto cnt = createContainer();
     auto factory = new IItemFactory();
-    auto reg = cnt.registerComponent!(Item)(factory, "c", 7.3);
+    auto reg = cnt.registerComponentInstance!(Item)(factory, "c", 7.3);
     assert(reg);
     auto item = cnt.resolve!IItem();
     assert (item.verify("c", 7.3, 1));
@@ -624,7 +814,7 @@ Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
 {
     auto cnt = createContainer();
     auto factory = new DepthItemFactory();
-    auto reg = cnt.registerComponent!(Item)(factory, "c", 2.3);
+    auto reg = cnt.registerComponentInstance!(Item)(factory, "c", 2.3);
     assert(reg);
 
     auto item = cnt.resolve!Item();
@@ -642,7 +832,7 @@ Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
 {
     auto cnt = createContainer();
     auto factory = new IItemFactory();
-    auto reg = cnt.registerComponent!(Item)(factory);
+    auto reg = cnt.registerComponentInstance!(Item)(factory);
     assert(reg);
 
     assertThrown!ResolveException(cnt.resolve!IItem);
@@ -658,6 +848,50 @@ Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
 
 
 /**
+ * Регистрация компонента в контейнере DI
+ * с возможностью создавать компонент при помощи фабрики
+ *
+ * Params:
+ * C =
+ * F = Тип фабрики для создания компонента
+ * P = Родительский тип для создаваемого компонента
+ * I = Тип создаваемого компонента
+ * A = Аргументы передаваемые в фабрику
+ */
+Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
+        shared(DependencyContainer) container, A args) if (is (CT : T))
+{
+    auto wFactory = createFactoryAdapterAutowire!F(container, args);
+    auto wAuto = new ComponentFactoryAdapterAutowired!(T, CT)(wFactory);
+    auto ret = container.register!(ComponentFactoryAdapter!T,
+            ComponentFactoryAdapterAutowired!(T, CT)).existingInstance(wAuto);
+    if (wFactory.initialized)
+        container.register!(T, CT).factoryAdapterInstance(wFactory);
+    return ret;
+}
+
+
+
+@system unittest
+{
+    auto cnt = createContainer();
+    auto reg = cnt.registerComponent!(Item, IItemFactory)();
+    assert(reg);
+
+    assertThrown!ResolveException(cnt.resolve!IItem);
+
+    auto itemFact = cnt.resolve!(ComponentFactoryAdapter!IItem);
+    assert(itemFact);
+
+    auto item = itemFact.create("dd", 5.3);
+    assert (item.verify("dd", 5.3, 0));
+
+    assertThrown!DangoComponentException(itemFact.create());
+}
+
+
+
+/**
  * Регистрация компонента в контейнере DI с использованием имени
  * с возможностью создавать компонент при помощи фабрики
  *
@@ -668,12 +902,16 @@ Registration registerComponent(CT, F : ComponentFactory!(T), T, A...)(
  * I    = Тип создаваемого компонента
  * A    = Аргументы передаваемые в фабрику
  */
-Registration registerNamedComponent(CT, string Name, F : ComponentFactory!(T), T, A...)(
+Registration registerNamedComponentInstance(CT, string Name, F : ComponentFactory!(T), T, A...)(
         shared(DependencyContainer) container, F factory, A args) if (is(CT : T))
 {
-    auto wFactory = createFactoryAdapter!CT(factory, args);
+    auto wFactory = createFactoryAdapterDelegate!F(() {
+            container.autowire!F(factory);
+            return factory;
+        }, args);
+    auto wAuto = new ComponentFactoryAdapterAutowired!(T, CT)(wFactory);
     auto ret = container.registerNamed!(ComponentFactoryAdapter!T,
-            ComponentFactoryAdapterImpl!(T, CT), Name).existingInstance(wFactory);
+            ComponentFactoryAdapterAutowired!(T, CT), Name).existingInstance(wAuto);
     if (wFactory.initialized)
         container.registerNamed!(T, CT, Name).factoryAdapterInstance(wFactory);
     return ret;
@@ -685,7 +923,48 @@ Registration registerNamedComponent(CT, string Name, F : ComponentFactory!(T), T
 {
     auto cnt = createContainer();
     auto factory = new IItemFactory();
-    auto reg = cnt.registerNamedComponent!(Item, "two")(factory, "d", 7.4);
+    auto reg = cnt.registerNamedComponentInstance!(Item, "two")(factory, "d", 7.4);
+    assert(reg);
+
+    auto item = cnt.resolveNamed!IItem("two");
+    assert (item.verify("d", 7.4, 1));
+
+    auto itemFact = cnt.resolveNamed!(ComponentFactoryAdapter!IItem)("two");
+    assert(itemFact);
+    item = itemFact.create("dd", 5.3);
+    assert (item.verify("dd", 5.3, 0));
+}
+
+
+/**
+ * Регистрация компонента в контейнере DI с использованием имени
+ * с возможностью создавать компонент при помощи фабрики
+ *
+ * Params:
+ * F    = Тип фабрики для создания компонента
+ * P    = Родительский тип для создаваемого компонента
+ * Name = Имя компонента
+ * I    = Тип создаваемого компонента
+ * A    = Аргументы передаваемые в фабрику
+ */
+Registration registerNamedComponent(CT, string Name, F : ComponentFactory!(T), T, A...)(
+        shared(DependencyContainer) container, A args) if (is(CT : T))
+{
+    auto wFactory = createFactoryAdapterAutowire!F(container, args);
+    auto wAuto = new ComponentFactoryAdapterAutowired!(T, CT)(wFactory);
+    auto ret = container.registerNamed!(ComponentFactoryAdapter!T,
+            ComponentFactoryAdapterAutowired!(T, CT), Name).existingInstance(wAuto);
+    if (wFactory.initialized)
+        container.registerNamed!(T, CT, Name).factoryAdapterInstance(wFactory);
+    return ret;
+}
+
+
+
+@system unittest
+{
+    auto cnt = createContainer();
+    auto reg = cnt.registerNamedComponent!(Item, "two", IItemFactory)("d", 7.4);
     assert(reg);
 
     auto item = cnt.resolveNamed!IItem("two");
@@ -719,7 +998,7 @@ RegistrationType resolveComponent(RegistrationType, A...)(
 {
     auto cnt = createContainer();
     auto factory = new IItemFactory();
-    auto reg = cnt.registerComponent!(Item)(factory, "c", 7.3);
+    auto reg = cnt.registerComponentInstance!(Item)(factory, "c", 7.3);
     assert(reg);
 
     auto item = cnt.resolveComponent!IItem("r", 2.2);
@@ -727,11 +1006,12 @@ RegistrationType resolveComponent(RegistrationType, A...)(
 }
 
 
+
 @system unittest
 {
     auto cnt = createContainer();
     auto factory = new ItemSingleFactory();
-    auto reg = cnt.registerComponent!(ItemSingle)(factory, "c", 7.3);
+    auto reg = cnt.registerComponentInstance!(ItemSingle)(factory, "c", 7.3);
     assert(reg);
 
     auto item = cnt.resolveComponent!ItemSingle();
@@ -761,7 +1041,7 @@ RegistrationType resolveNamedComponent(RegistrationType, A...)(
 {
     auto cnt = createContainer();
     auto factory = new IItemFactory();
-    auto reg = cnt.registerNamedComponent!(Item, "four")(factory, "c", 7.3);
+    auto reg = cnt.registerNamedComponentInstance!(Item, "four")(factory, "c", 7.3);
     assert(reg);
 
     auto item = cnt.resolveNamedComponent!IItem("four", "t", 4.4);
@@ -778,11 +1058,11 @@ RegistrationType resolveNamedComponent(RegistrationType, A...)(
  * ConcreteType = Тип компонента
  * A            = Аргументы передаваемые в фабрику
  */
-Registration registerComponent(SuperType, ConcreteType : SuperType, A...)(
+Registration registerComponentByCtor(SuperType, ConcreteType : SuperType, A...)(
         shared(DependencyContainer) container, A args)
 {
     alias F = ComponentFactoryCtor!(SuperType, ConcreteType, A);
-    return registerComponent!(ConcreteType, F, SuperType, A)(container, new F(), args);
+    return registerComponentInstance!(ConcreteType, F, SuperType, A)(container, new F(), args);
 }
 
 
@@ -790,14 +1070,14 @@ Registration registerComponent(SuperType, ConcreteType : SuperType, A...)(
 @system unittest
 {
     auto cnt = createContainer();
-    auto reg = cnt.registerComponent!(Item, Item)("e", 9.1);
+    auto reg = cnt.registerComponentByCtor!(Item, Item)("e", 9.1);
     assert(reg);
 
     auto item = cnt.resolveComponent!Item();
     assert (item.verify("e", 9.1, 1));
     assertThrown!ResolveException(cnt.resolveComponent!IItem);
 
-    reg = cnt.registerComponent!(IItem, Item)("ee", 9.2);
+    reg = cnt.registerComponentByCtor!(IItem, Item)("ee", 9.2);
     assert(reg);
     auto iitem = cnt.resolveComponent!IItem();
     assert (iitem.verify("ee", 9.2, 1));
@@ -814,11 +1094,11 @@ Registration registerComponent(SuperType, ConcreteType : SuperType, A...)(
  * Name         = Имя компонента
  * A            = Аргументы передаваемые в фабрику
  */
-Registration registerNamedComponent(SuperType, ConcreteType : SuperType, string Name, A...)(
+Registration registerNamedComponentByCtor(SuperType, ConcreteType : SuperType, string Name, A...)(
         shared(DependencyContainer) container, A args)
 {
     alias F = ComponentFactoryCtor!(SuperType, ConcreteType, A);
-    return registerNamedComponent!(ConcreteType, Name, F, SuperType, A)(container,
+    return registerNamedComponentInstance!(ConcreteType, Name, F, SuperType, A)(container,
             new F(), args);
 }
 
@@ -828,7 +1108,7 @@ Registration registerNamedComponent(SuperType, ConcreteType : SuperType, string 
 {
     auto cnt = createContainer();
 
-    auto reg = cnt.registerNamedComponent!(IItem, Item, "four")("f", 56.1);
+    auto reg = cnt.registerNamedComponentByCtor!(IItem, Item, "four")("f", 56.1);
     assert(reg);
 
     auto item = cnt.resolveNamedComponent!IItem("four");
@@ -846,11 +1126,11 @@ Registration registerNamedComponent(SuperType, ConcreteType : SuperType, string 
  * Name         = Имя компонента
  * A            = Аргументы передаваемые в фабрику
  */
-Registration registerNamedComponent(SuperType, ConcreteType : SuperType, string Name, A...)(
+Registration registerNamedComponentByCtor(SuperType, ConcreteType : SuperType, string Name, A...)(
         shared(DependencyContainer) container)
 {
     alias F = ComponentFactoryCtor!(SuperType, ConcreteType, A);
-    return registerNamedComponent!(ConcreteType, Name, F, SuperType)(container,
+    return registerNamedComponentInstance!(ConcreteType, Name, F, SuperType)(container,
             new F());
 }
 
@@ -861,7 +1141,7 @@ Registration registerNamedComponent(SuperType, ConcreteType : SuperType, string 
     auto cnt = createContainer();
     auto factory = new IItemFactory();
 
-    auto reg = cnt.registerNamedComponent!(IItem, Item, "four", string, double)();
+    auto reg = cnt.registerNamedComponentByCtor!(IItem, Item, "four", string, double)();
     assert(reg);
 
     assertThrown!DangoComponentException(cnt.resolveNamedComponent!IItem("four"));
@@ -960,7 +1240,7 @@ mixin template ActivatedComponentMixin()
     auto factory = new IItemFactory();
 
     cnt.register!(IItem, Item)
-        .factoryInstance!Item(factory, "ITEM", 6.6);
+        .factoryExistingInstance(factory, "ITEM", 6.6);
 
     auto item = cnt.resolve!IItem;
     assert(item.verify("ITEM", 6.6, 1));

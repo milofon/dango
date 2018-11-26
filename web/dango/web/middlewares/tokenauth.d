@@ -29,7 +29,8 @@ class TokenAuthWebMiddleware : BaseWebMiddleware
     }
 
 
-    void handleRequest(HTTPServerRequest req, HTTPServerResponse res) @safe
+    void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res,
+            HTTPServerRequestDelegate next) @safe
     {
         auto token = "X-Auth-Token" in req.headers;
         if (!token || *token != _token)
@@ -43,10 +44,12 @@ class TokenAuthWebMiddleware : BaseWebMiddleware
 }
 
 
-
-class TokenAuthWebMiddlewareFactory : BaseWebMiddlewareFactory
+/**
+ * Фабрика Middleware tokenauth
+ */
+class TokenAuthWebMiddlewareFactory : WebMiddlewareFactory
 {
-    override WebMiddleware createMiddleware(Config config, Chain chain)
+    override BaseWebMiddleware createMiddleware(Config config)
     {
         string token = config.getOrEnforce!string("token",
                 "Token API is not defined");

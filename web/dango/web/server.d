@@ -13,25 +13,24 @@ private
 {
     import core.time : dur;
 
-    import std.format : fmt = format;
-    import std.typecons : Tuple;
     import std.algorithm.iteration : filter, map;
     import std.algorithm.searching : canFind;
     import std.algorithm.sorting : sort;
+    import std.format : fmt = format;
     import std.array : array;
 
+    import uniconf.core : Config;
     import uniconf.core.exception : enforceConfig, ConfigNotFoundException;
 
-    import vibe.core.log;
     import vibe.http.server;
     import vibe.http.router : URLRouter, HTTPListener;
     import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
 
-    import dango.system.properties : getNameOrEnforce;
+    import dango.system.properties : getNameOrEnforce, ConfigException;
     import dango.system.container;
 
     import dango.web.controller;
-    import dango.web.middleware;
+    import dango.system.logging;
 }
 
 
@@ -79,26 +78,26 @@ abstract class WebApplicationServerFactory : ComponentFactory!(WebApplicationSer
 /**
  * Класс веб сервера
  */
-class RouterWebApplicationServer : WebApplicationServer
+class HTTPApplicationServer : WebApplicationServer
 {
     private
     {
         HTTPListener _listener;
         HTTPServerSettings _httpSettings;
-        URLRouter _router;
+        HTTPServerRequestHandler _handler;
     }
 
 
-    this(HTTPServerSettings settings)
+    this(HTTPServerRequestHandler handler, HTTPServerSettings settings)
     {
-        this._router = new URLRouter();
         this._httpSettings = settings;
+        this._handler = handler;
     }
 
 
     void listen()
     {
-        _listener = listenHTTP(_httpSettings, _router);
+        _listener = listenHTTP(_httpSettings, _handler);
         logInfo("Web Application Server start");
     }
 
@@ -108,33 +107,22 @@ class RouterWebApplicationServer : WebApplicationServer
         _listener.stopListening();
         logInfo("Web Application Server stop");
     }
-
-
-    void registerHandler(HTTPMethod method, string path, HTTPServerRequestHandler hdl)
-    {
-        _router.match(method, path, hdl);
-    }
-
-
-    void registerHandler(HTTPMethod method, string path, HTTPServerRequestDelegate dg)
-    {
-        _router.match(method, path, dg);
-    }
 }
 
 
 /**
  * Фабрика сервера с роутингом
  */
-class RouterWebApplicationServerFactory : WebApplicationServerFactory
+class URLRouterApplicationServerFactory : WebApplicationServerFactory
 {
     override WebApplicationServer createServer(Config config, HTTPServerSettings settings,
             ApplicationContainer container)
     {
-        auto server = new RouterWebApplicationServer(settings);
+        URLRouter router = new URLRouter();
 
         string webName = config.getOrElse!string("name", "Undefined");
         logInfo("Configuring web application '%s'", webName);
+
         MiddlewareInfo[] middlewares;
 
         foreach (Config mdwConf; config.getArray("middleware"))
@@ -142,8 +130,8 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             string mdwName = mdwConf.getNameOrEnforce(
                     "Not defined middleware name");
 
-            auto mdwFactory = container.resolveFactory!(WebMiddleware,
-                    Config, Chain)(mdwName);
+            auto mdwFactory = container.resolveNamed!(
+                    ComponentFactoryAdapter!WebMiddleware)(mdwName);
             enforceConfig(mdwFactory !is null,
                     fmt!"Middleware '%s' not register"(mdwName));
 
@@ -162,13 +150,15 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            auto ctrlFactory = container.resolveFactory!(WebController,
-                    Config)(ctrName);
-            enforceConfig(ctrlFactory !is null,
-                    fmt!"Controller '%s' not register"(ctrName));
+            WebController ctrl;
+            try
+                ctrl = container.resolveNamedComponent!(WebController,
+                        Config)(ctrName, ctrConf);
+            catch (ResolveException e)
+                throw new ConfigException(fmt!"Controller '%s' not register"(ctrName));
 
             auto ctrlMiddlewares = ctrConf.getArray("middlewares")
-                .map!(pm => pm.get!string);
+                    .map!(pm => pm.get!string);
 
             // проверка на наличие конфигураций
             foreach (string mdwLabel; ctrlMiddlewares)
@@ -184,32 +174,35 @@ class RouterWebApplicationServerFactory : WebApplicationServerFactory
 
             activeMiddlewares.sort!((a, b) => a.ordering > b.ordering);
 
-            WebController ctrl = ctrlFactory.create(ctrConf);
             if (ctrl.enabled)
             {
                 logInfo("Register controller: %s", ctrName);
                 logInfo("  Activated middlewares: %s", activeMiddlewares
                         .map!(m => m.label));
 
-                ctrl.registerChains((Chain ch) {
-                    foreach (mdwConf; activeMiddlewares)
+                ctrl.registerChains((HTTPMethod method, string path, Chain ch) {
+                    foreach (mdwInfo; activeMiddlewares)
                     {
-                        WebMiddleware mdw = mdwConf.factory.create(mdwConf.config, ch);
+                        WebMiddleware mdw = mdwInfo.create();
                         if (mdw.enabled)
                         {
                             ch.attachMiddleware(mdw);
-                            mdw.registerAdditionalHandlers(&server.registerHandler);
+                            mdw.registerHandlers(method, path, (HTTPMethod mdwMethod,
+                                        string mdwPath, HTTPServerRequestDelegate mdwHdl) @safe {
+                                router.match(mdwMethod, mdwPath, mdwHdl);
+                            });
                         }
                     }
 
-                    server.registerHandler(ch.method, ch.path, ch);
+                    router.match(method, path, ch);
                 });
             }
         }
 
-        return server;
+        return new HTTPApplicationServer(router, settings);
     }
 }
+
 
 
 private:
@@ -219,8 +212,13 @@ struct MiddlewareInfo
 {
     long ordering;
     Config config;
-    PostComponentFactory!(WebMiddleware, Config, Chain) factory;
+    ComponentFactoryAdapter!WebMiddleware factory;
     string label;
+
+    WebMiddleware create()
+    {
+        return factory.create(config);
+    }
 }
 
 

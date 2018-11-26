@@ -16,7 +16,8 @@ public
 
 private
 {
-    import dango.system.container : registerFactory, resolveFactory;
+    import dango.system.container : registerNamedComponentInstance, resolveNamedComponent,
+            registerContext;
 
     import dango.web.server;
     import dango.web.middlewares;
@@ -24,6 +25,9 @@ private
 }
 
 
+/**
+ * Интерфейс web приложения
+ */
 interface WebApplication
 {
     /**
@@ -64,13 +68,18 @@ abstract class BaseWebApplication : BaseDaemonApplication, WebApplication
         super(name, release);
     }
 
+
 protected:
+
 
     override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
-        container.registerFactory!(RouterWebApplicationServerFactory,
-                RouterWebApplicationServer);
+
+        auto serverFactory = new URLRouterApplicationServerFactory();
+        container.registerNamedComponentInstance!(HTTPApplicationServer, "HTTP")(
+                serverFactory);
+
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
     }
@@ -97,9 +106,8 @@ protected:
         {
             if (webConf.getOrElse("enabled", false))
             {
-                auto serverFactory = container.resolveFactory!(WebApplicationServer,
-                        Config, ApplicationContainer);
-                auto server = serverFactory.create(webConf, container);
+                auto server = container.resolveNamedComponent!(WebApplicationServer,
+                        Config, ApplicationContainer)("HTTP", webConf, container);
                 server.listen();
                 _servers ~= server;
             }

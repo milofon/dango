@@ -12,10 +12,13 @@ module dango.web.controllers.fileshare;
 private
 {
     import std.algorithm.searching : endsWith;
+    import std.format : fmt = format;
+    import std.file : exists;
 
     import vibe.http.fileserver;
 
     import dango.system.container;
+    import dango.system.properties;
     import dango.web.controller;
 }
 
@@ -27,60 +30,23 @@ class FileShareWebController : BaseWebController
 {
     private
     {
-        string _path;
+        string _directory;
     }
 
 
-    this(string path)
+    this(string directory)
     {
-        this._path = path;
+        this._directory = directory;
     }
 
 
-    void registerChains(ChainRegisterCallback dg)
+    void registerChains(RegisterChainCallback dg)
     {
-        dg(new FilesChain(_path, prefix));
-    }
-}
-
-
-/**
- * Цепочка обработки запроса для загрузки файла
- */
-class FilesChain : BaseChain
-{
-    private
-    {
-        string _prefix;
-    }
-
-
-    this(string path, string prefix)
-    {
-        this._prefix = prefix;
-
         auto fsettings = new HTTPFileServerSettings;
         fsettings.serverPathPrefix = prefix;
 
-        registerChainHandler(serveStaticFiles(path, fsettings));
-    }
-
-
-    HTTPMethod method() @property
-    {
-        return HTTPMethod.GET;
-    }
-
-
-    string path() @property
-    {
-        return _prefix.endsWith("*") ? _prefix : _prefix ~ "*";
-    }
-
-
-    void attachMiddleware(WebMiddleware mdw)
-    {
-        pushMiddleware(mdw);
+        auto urlPath = prefix.endsWith("*") ? prefix : prefix ~ "*";
+        dg(HTTPMethod.GET, urlPath, new Chain(serveStaticFiles(_directory, fsettings)));
     }
 }
 
@@ -88,13 +54,14 @@ class FilesChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий раздавать статику из директории
  */
-class FileShareWebControllerFactory : BaseWebControllerFactory
+class FileShareWebControllerFactory : WebControllerFactory
 {
     override FileShareWebController createController(Config config)
     {
-        string path = config.getOrEnforce!string("path",
-                "Not defined path parameter");
-        return new FileShareWebController(path);
+        string directory = config.getOrEnforce!string("directory",
+                "Not defined 'directory' parameter");
+        enforceConfig(directory.exists, fmt!"Not exists directory '%s'"(directory));
+        return new FileShareWebController(directory);
     }
 }
 
