@@ -130,8 +130,7 @@ class URLRouterApplicationServerFactory : WebApplicationServerFactory
             string mdwName = mdwConf.getNameOrEnforce(
                     "Not defined middleware name");
 
-            auto mdwFactory = container.resolveNamed!(
-                    ComponentFactoryAdapter!WebMiddleware)(mdwName);
+            auto mdwFactory = container.resolveNamedFactory!(WebMiddleware)(mdwName);
             enforceConfig(mdwFactory !is null,
                     fmt!"Middleware '%s' not register"(mdwName));
 
@@ -150,12 +149,12 @@ class URLRouterApplicationServerFactory : WebApplicationServerFactory
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            WebController ctrl;
-            try
-                ctrl = container.resolveNamedComponent!(WebController,
-                        Config)(ctrName, ctrConf);
-            catch (ResolveException e)
-                throw new ConfigException(fmt!"Controller '%s' not register"(ctrName));
+            auto ctrlFactory = container.resolveNamedFactory!(WebController)(ctrName,
+                    ResolveOption.noResolveException);
+            enforceConfig(ctrlFactory !is null,
+                    fmt!"Controller '%s' not register"(ctrName));
+
+            auto ctrl = ctrlFactory.createInstance(ctrConf);
 
             auto ctrlMiddlewares = ctrConf.getArray("middlewares")
                     .map!(pm => pm.get!string);
@@ -183,7 +182,7 @@ class URLRouterApplicationServerFactory : WebApplicationServerFactory
                 ctrl.registerChains((HTTPMethod method, string path, Chain ch) {
                     foreach (mdwInfo; activeMiddlewares)
                     {
-                        WebMiddleware mdw = mdwInfo.create();
+                        WebMiddleware mdw = mdwInfo.createMiddleware();
                         if (mdw.enabled)
                         {
                             ch.attachMiddleware(mdw);
@@ -212,12 +211,12 @@ struct MiddlewareInfo
 {
     long ordering;
     Config config;
-    ComponentFactoryAdapter!WebMiddleware factory;
+    ComponentFactoryWrapper!WebMiddleware factory;
     string label;
 
-    WebMiddleware create()
+    WebMiddleware createMiddleware()
     {
-        return factory.create(config);
+        return factory.createInstance(config);
     }
 }
 

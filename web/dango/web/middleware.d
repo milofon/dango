@@ -22,6 +22,8 @@ private
 {
     import vibe.http.server : HTTPServerRequestHandler;
 
+    import poodinis : Registration;
+
     import dango.system.container;
 }
 
@@ -128,17 +130,18 @@ abstract class WebMiddlewareFactory : MiddlewareComponentFactory
 /**
  * Регистрация компонента Middleware
  */
-void registerMiddleware(M : WebMiddleware, F : MiddlewareComponentFactory, string N)(
+Registration registerMiddleware(M : WebMiddleware, F : WebMiddlewareFactory, string N)(
         ApplicationContainer container)
 {
-    container.registerNamedComponent!(M, N, F);
+    auto factory = new F();
+    return container.registerNamedComponent!(M, N)(factory);
 }
 
 
 /**
  * Регистрация компонента Middleware
  */
-void registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer container)
+Registration registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer container)
 {
     class DefaultWebMiddlewareFactory : WebMiddlewareFactory
     {
@@ -148,7 +151,7 @@ void registerMiddleware(M : WebMiddleware, string N)(ApplicationContainer contai
         }
     }
     auto factory = new DefaultWebMiddlewareFactory();
-    container.registerNamedComponentInstance!(M, N)(factory);
+    return container.registerNamedComponent!(M, N)(factory);
 }
 
 

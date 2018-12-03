@@ -16,7 +16,7 @@ public
 
 private
 {
-    import dango.system.container : registerNamedComponentInstance, resolveNamedComponent,
+    import dango.system.container : registerComponent, resolveFactory,
             registerContext;
 
     import dango.web.server;
@@ -77,8 +77,7 @@ protected:
         super.doInitializeDependencies(config);
 
         auto serverFactory = new URLRouterApplicationServerFactory();
-        container.registerNamedComponentInstance!(HTTPApplicationServer, "HTTP")(
-                serverFactory);
+        container.registerComponent!HTTPApplicationServer(serverFactory);
 
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
@@ -106,8 +105,8 @@ protected:
         {
             if (webConf.getOrElse("enabled", false))
             {
-                auto server = container.resolveNamedComponent!(WebApplicationServer,
-                        Config, ApplicationContainer)("HTTP", webConf, container);
+                auto server = container.resolveFactory!WebApplicationServer
+                    .createInstance(webConf, container);
                 server.listen();
                 _servers ~= server;
             }

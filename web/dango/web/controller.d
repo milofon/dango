@@ -22,6 +22,8 @@ public
 
 private
 {
+    import poodinis : Registration;
+
     import vibe.http.router : URLRouter;
     alias isValidHandler = URLRouter.isValidHandler;
     alias handlerDelegate = URLRouter.handlerDelegate;
@@ -159,17 +161,18 @@ abstract class WebControllerFactory : ControllerComponentFactory
 /**
  * Регистрация компонента Middleware
  */
-void registerController(C : WebController, F : ControllerComponentFactory, string N)(
+Registration registerController(C : WebController, F : WebControllerFactory, string N)(
         ApplicationContainer container)
 {
-    container.registerNamedComponent!(C, N, F);
+    auto factory = new F();
+    return container.registerNamedComponent!(C, N)(factory);
 }
 
 
 /**
  * Регистрация компонента Middleware
  */
-void registerController(C : WebController, string N)(ApplicationContainer container)
+Registration registerController(C : WebController, string N)(ApplicationContainer container)
 {
     class DefaultWebControllerFactory : WebControllerFactory
     {
@@ -179,7 +182,7 @@ void registerController(C : WebController, string N)(ApplicationContainer contai
         }
     }
     auto factory = new DefaultWebControllerFactory();
-    container.registerNamedComponentInstance!(C, N)(factory);
+    return container.registerNamedComponent!(C, N)(factory);
 }
 
 

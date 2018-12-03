@@ -21,7 +21,7 @@ private
     import uniconf.core.exception : enforceConfig;
 
     import dango.system.properties : getNameOrEnforce;
-    import dango.system.container : resolveFactory;
+    // import dango.system.container : resolveFactory;
 
     import dango.service.serialization;
     import dango.service.protocol;
@@ -136,33 +136,33 @@ private:
 
         // Т.к. протокол может быть только один, то конфиги сериализатора
         // вынес на верхний уровень
-        auto serFactory = container.resolveFactory!(Serializer, Config)(serializerName);
-        enforceConfig(serFactory !is null,
-                fmt!"Serializer '%s' not register"(serializerName));
-        logInfo("Use serializer '%s'", serializerName);
-        Serializer serializer = serFactory.create(serConf);
+        // auto serFactory = container.resolveFactory!(Serializer, Config)(serializerName);
+        // enforceConfig(serFactory !is null,
+        //         fmt!"Serializer '%s' not register"(serializerName));
+        // logInfo("Use serializer '%s'", serializerName);
+        // Serializer serializer = serFactory.create(serConf);
 
-        auto protoFactory = container.resolveFactory!(ServerProtocol, Config,
-                ApplicationContainer, Serializer)(protoName);
-        enforceConfig(protoFactory !is null,
-                fmt!"Protocol '%s' not register"(protoName));
-        logInfo("Use protocol '%s'", protoName);
-        ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
+        // auto protoFactory = container.resolveFactory!(ServerProtocol, Config,
+        //         ApplicationContainer, Serializer)(protoName);
+        // enforceConfig(protoFactory !is null,
+        //         fmt!"Protocol '%s' not register"(protoName));
+        // logInfo("Use protocol '%s'", protoName);
+        // ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
 
-        foreach (Config trConf; servConf.getArray("transport"))
-        {
-            string transportName = getNameOrEnforce(trConf,
-                    "Not defined transport name for service '" ~ serviceName ~ "'");
+        // foreach (Config trConf; servConf.getArray("transport"))
+        // {
+        //     string transportName = getNameOrEnforce(trConf,
+        //             "Not defined transport name for service '" ~ serviceName ~ "'");
 
-            auto trFactory = container.resolveFactory!(ServerTransport, Config,
-                    ApplicationContainer, ServerProtocol)(transportName);
-            enforceConfig(trFactory !is null,
-                    fmt!"Transport '%s' not register"(transportName));
-            logInfo("Use transport '%s'", transportName);
+        //     auto trFactory = container.resolveFactory!(ServerTransport, Config,
+        //             ApplicationContainer, ServerProtocol)(transportName);
+        //     enforceConfig(trFactory !is null,
+        //             fmt!"Transport '%s' not register"(transportName));
+        //     logInfo("Use transport '%s'", transportName);
 
-            ServerTransport transport = trFactory.create(trConf, container, protocol);
-            cb(transport);
-        }
+        //     ServerTransport transport = trFactory.create(trConf, container, protocol);
+        //     cb(transport);
+        // }
     }
 }
 

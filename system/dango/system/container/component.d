@@ -420,7 +420,7 @@ private final class ComponentFactoryInitWrapper(C, A...)
  * Params:
  * C = Класс компонента
  */
-private final class ComponentFactoryArgsWrapper(C)
+final class ComponentFactoryWrapper(C)
 {
     private
     {
@@ -543,7 +543,7 @@ private final class ComponentFactoryArgsWrapper(C)
 @system unittest
 {
     auto factory = new ServerFactory();
-    auto wrp = new ComponentFactoryArgsWrapper!(Server)(&factory.createComponent);
+    auto wrp = new ComponentFactoryWrapper!(Server)(&factory.createComponent);
     assert (!wrp.initialized);
 
     auto server = wrp.createInstance!(string, ushort)("127.0.0.1", 44);
@@ -565,7 +565,7 @@ private final class ComponentFactoryArgsWrapper(C)
 @system unittest
 {
     auto factory = new EmptyServerFactory();
-    auto wrp = new ComponentFactoryArgsWrapper!Server(&factory.createComponent);
+    auto wrp = new ComponentFactoryWrapper!Server(&factory.createComponent);
     auto server = wrp.createInstance();
     assert (server.host == "");
     assert (server.port == 0);
@@ -640,6 +640,12 @@ class ComponentFactoryCtor(C, CT : C, A...) : ComponentFactory!(C, A)
 }
 
 
+private template ComponentFactoryArgs(F : ComponentFactory!(C, A), C, A...)
+{
+    alias ComponentFactoryArgs = A;
+}
+
+
 /**
  * Создает обертку над фабрикой.
  *
@@ -648,18 +654,13 @@ class ComponentFactoryCtor(C, CT : C, A...) : ComponentFactory!(C, A)
  * C = Тип компонента
  * A = Аргументы
  */
-private ComponentFactoryArgsWrapper!C createFactoryWrapper(F : ComponentFactory!(C), C, A...)(
-        shared(DependencyContainer) container, F factory, A args)
+private ComponentFactoryWrapper!C createFactoryWrapper(F : ComponentFactory!(C), C, CR, A...)(
+        shared(DependencyContainer) container, CR componentResolver, A args)
 {
-    enum IsComponentFactory(CF) = __traits(isSame, TemplateOf!CF, ComponentFactory);
-    alias PARENTS = Filter!(IsComponentFactory, TransitiveBaseTypeTuple!F);
-    static assert (PARENTS.length, "Factory not ComponentFactory");
-    alias AR = TemplateArgsOf!(PARENTS[0])[1..$];
+    alias AR = ComponentFactoryArgs!F;
+    static assert (is (CR == ComponentResolver!(C, AR)));
 
-    auto argsWrapper = new ComponentFactoryArgsWrapper!C((AR a) {
-            container.autowire!F(factory);
-            return factory.createComponent(a);
-        });
+    auto argsWrapper = new ComponentFactoryWrapper!C(componentResolver);
 
     static if (A.length > 0)
         argsWrapper.preInitialize(args);
@@ -681,11 +682,16 @@ private Registration factoryExistingInstance(F : ComponentFactory!(C, A), C, A..
             Registration registration, F factory, A args)
 {
     auto createSingleton = registration.instanceFactory.factoryParameters.createsSingleton;
-    auto argsWrapper = createFactoryWrapper!(F, C, A)(registration.originatingContainer,
-                        factory, args);
 
-    registration.originatingContainer.register!(ComponentFactoryArgsWrapper!C)
-        .existingInstance(argsWrapper);
+    C resolver(A a)
+    {
+        registration.originatingContainer.autowire!F(factory);
+        return factory.createComponent(a);
+    }
+
+    auto argsWrapper = createFactoryWrapper!(F, C, ComponentResolver!(C, A), A)(
+            registration.originatingContainer,
+            &resolver, args);
 
     InstanceFactoryMethod method = ()
     {
@@ -787,11 +793,20 @@ Registration factoryInstance(F : ComponentFactory!(C, A), C, A...)(
  * factory   = Экземпляр фабрики
  * args      = Аргументы
  */
-Registration registerFactory(F : ComponentFactory!(C), C, A...)(
-        shared(DependencyContainer) container, F factory, A args)
+Registration registerComponent(CT, F : ComponentFactory!(C), C, A...)(
+        shared(DependencyContainer) container, F factory, A args) if (is(CT : C))
 {
-    auto argsWrapper = createFactoryWrapper!(F, C, A)(container, factory, args);
-    return container.register!(ComponentFactoryArgsWrapper!C)
+    alias AR = ComponentFactoryArgs!F;
+    C resolver(AR a)
+    {
+        container.autowire!F(factory);
+        CT ret = cast(CT)factory.createComponent(a);
+        container.autowire!CT(ret);
+        return ret;
+    }
+    auto argsWrapper = createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
+            container, &resolver, args);
+    return container.register!(ComponentFactoryWrapper!C)
         .existingInstance(argsWrapper);
 }
 
@@ -803,10 +818,10 @@ Registration registerFactory(F : ComponentFactory!(C), C, A...)(
  * container = Контейнер DI
  * resolveOpt = Опции резолвинга
  */
-ComponentFactoryArgsWrapper!C resolveFactory(C)(shared(DependencyContainer) container,
+ComponentFactoryWrapper!C resolveFactory(C)(shared(DependencyContainer) container,
         ResolveOption resolveOpt = ResolveOption.none)
 {
-    return container.resolve!(ComponentFactoryArgsWrapper!(C))(resolveOpt);
+    return container.resolve!(ComponentFactoryWrapper!(C))(resolveOpt);
 }
 
 
@@ -817,14 +832,14 @@ ComponentFactoryArgsWrapper!C resolveFactory(C)(shared(DependencyContainer) cont
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerFactory(factory);
+    auto reg = cnt.registerComponent!HTTPServer(factory);
     assert (reg);
     auto wrp = cnt.resolveFactory!Server();
     assert (!wrp.initialized);
 
     auto server = wrp.createInstance("192.168.0.1", cast(ushort)5050);
     assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
+    assert (server.isAutowiredValue);
     assert (server.isFactoryAutowired);
     assert (server.host == "192.168.0.1");
     assert (server.port == 5050);
@@ -839,14 +854,14 @@ ComponentFactoryArgsWrapper!C resolveFactory(C)(shared(DependencyContainer) cont
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerFactory(factory, "10.88.3.6", cast(ushort)4040);
+    auto reg = cnt.registerComponent!HTTPServer(factory, "10.88.3.6", cast(ushort)4040);
     assert (reg);
     auto wrp = cnt.resolveFactory!Server();
     assert (wrp.initialized);
 
     auto server = wrp.createInstance();
     assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
+    assert (server.isAutowiredValue);
     assert (server.isFactoryAutowired);
     assert (server.host == "10.88.3.6");
     assert (server.port == 4040);
@@ -862,25 +877,6 @@ ComponentFactoryArgsWrapper!C resolveFactory(C)(shared(DependencyContainer) cont
     auto reg = cnt.register!(Server, HTTPServer)
         .factoryInstance!ServerFactory("1", 2);
     assert(reg);
-
-    auto factory = cnt.resolveFactory!(Server);
-    assert (factory);
-
-    auto server = factory.createInstance!(string, ushort)("2", 4);
-    assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
-    assert (server.isFactoryAutowired);
-    assert (server.host == "2");
-    assert (server.port == 4);
-
-
-    server = factory.createInstance();
-    assert (server);
-    assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
-    assert (server.isFactoryAutowired);
-    assert (server.host == "1");
-    assert (server.port == 2);
 }
 
 
@@ -891,10 +887,10 @@ ComponentFactoryArgsWrapper!C resolveFactory(C)(shared(DependencyContainer) cont
  * container  = Контейнер DI
  * resolveOpt = Опции резолвинга
  */
-ComponentFactoryArgsWrapper!C[] resolveAllFactory(C)(shared(DependencyContainer) container,
+ComponentFactoryWrapper!C[] resolveAllFactory(C)(shared(DependencyContainer) container,
         ResolveOption resolveOpt = ResolveOption.none)
 {
-    return container.resolveAll!(ComponentFactoryArgsWrapper!C)(resolveOpt);
+    return container.resolveAll!(ComponentFactoryWrapper!C)(resolveOpt);
 }
 
 
@@ -906,11 +902,21 @@ ComponentFactoryArgsWrapper!C[] resolveAllFactory(C)(shared(DependencyContainer)
  * factory   = Экземпляр фабрики
  * args      = Аргументы
  */
-Registration registerNamedFactory(string N, F : ComponentFactory!(C), C, A...)(
+Registration registerNamedComponent(CT, string N, F : ComponentFactory!(C), C, A...)(
         shared(DependencyContainer) container, F factory, A args)
 {
-    auto argsWrapper = createFactoryWrapper!(F, C, A)(container, factory, args);
-    return container.registerNamed!(ComponentFactoryArgsWrapper!C, N)
+    alias AR = ComponentFactoryArgs!F;
+    C resolver(AR a)
+    {
+        container.autowire!F(factory);
+        CT ret = cast(CT)factory.createComponent(a);
+        container.autowire!CT(ret);
+        return ret;
+    }
+    auto argsWrapper = createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
+            container, &resolver, args);
+
+    return container.registerNamed!(ComponentFactoryWrapper!C, N)
         .existingInstance(argsWrapper);
 }
 
@@ -923,9 +929,9 @@ Registration registerNamedFactory(string N, F : ComponentFactory!(C), C, A...)(
  * name      = Имя фабрики
  * resolveOpt = Опции резолвинга
  */
-ComponentFactoryArgsWrapper!C resolveNamedFactory(C)(shared(DependencyContainer) container, string name, ResolveOption resolveOpt = ResolveOption.none)
+ComponentFactoryWrapper!C resolveNamedFactory(C)(shared(DependencyContainer) container, string name, ResolveOption resolveOpt = ResolveOption.none)
 {
-    return container.resolveNamed!(ComponentFactoryArgsWrapper!C)(name, resolveOpt);
+    return container.resolveNamed!(ComponentFactoryWrapper!C)(name, resolveOpt);
 }
 
 
@@ -937,14 +943,15 @@ ComponentFactoryArgsWrapper!C resolveNamedFactory(C)(shared(DependencyContainer)
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerNamedFactory!"S"(factory, "10.88.3.6", cast(ushort)4040);
+    auto reg = cnt.registerNamedComponent!(HTTPServer, "S")(
+            factory, "10.88.3.6", cast(ushort)4040);
     assert (reg);
     auto wrp = cnt.resolveNamedFactory!Server("s");
     assert (wrp.initialized);
 
     auto server = wrp.createInstance();
     assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
+    assert (server.isAutowiredValue);
     assert (server.isFactoryAutowired);
     assert (server.host == "10.88.3.6");
     assert (server.port == 4040);
@@ -959,7 +966,7 @@ ComponentFactoryArgsWrapper!C resolveNamedFactory(C)(shared(DependencyContainer)
     cnt.register!(Store, MemoryStore);
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerNamedFactory!("front")(factory);
+    auto reg = cnt.registerNamedComponent!(HTTPServer, "front")(factory);
     assert(reg);
 
     auto wrp = cnt.resolveNamedFactory!(Server)("FRONT");
@@ -967,7 +974,7 @@ ComponentFactoryArgsWrapper!C resolveNamedFactory(C)(shared(DependencyContainer)
 
     auto server = wrp.createInstance("163.99.88.77", cast(ushort)44);
     assert (server.isCreateOverFactory);
-    assert (!server.isAutowiredValue);
+    assert (server.isAutowiredValue);
     assert (server.isFactoryAutowired);
     assert (server.host == "163.99.88.77");
     assert (server.port == 44);

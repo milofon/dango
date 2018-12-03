@@ -12,7 +12,6 @@ module dango.web.controllers.generic;
 public
 {
     import vibe.internal.meta.funcattr;
-    // import vibe.internal.meta.traits : RecursiveFunctionAttributes;
     import dango.web.controller;
 }
 

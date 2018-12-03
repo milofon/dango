@@ -17,7 +17,6 @@ private
     import dango.system.container;
 
     import dango.service.transport.web : WebTransportContext;
-    import dango.service.transport.websocket;
     import dango.service.transport.zeromq;
 }
 
@@ -35,12 +34,6 @@ class TransportContext : ApplicationContext
                 ZeroMQServerTransport, "ZEROMQ");
         container.registerNamedFactory!(ZeroMQClientTransportFactory,
                 ZeroMQClientTransport, "ZEROMQ");
-
-        container.registerNamedFactory!(WebSocketServerFactory,
-                WebSocketServer, "WS");
-
-        container.registerNamedFactory!(WebSocketServerTransportFactory,
-                WebSocketServerTransport, "WS");
     }
 }
 
