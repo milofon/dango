@@ -47,7 +47,6 @@ interface Job
 alias JobFactory = ComponentFactory!(Job, Config);
 
 
-
 /**
  * Интерфейс планировщика задач
  */
@@ -120,7 +119,6 @@ private:
         return _cron.getNext(now) - now;
     }
 }
-
 
 
 /**
@@ -213,7 +211,7 @@ Registration registerJob(J : Job, string Name)(ApplicationContainer container,
         JobFactory factory)
 {
     auto jobSchFactory = new JobSchedulerFactory!J(factory, Name);
-    return registerNamedComponentInstance!(TimerJobScheduler, Name)(container, jobSchFactory);
+    return container.registerNamedFactory!Name(jobSchFactory);
 }
 
 
@@ -246,7 +244,7 @@ Registration registerSystemJob(J : Job)(ApplicationContainer container,
         JobFactory factory, string cronExp)
 {
     auto jobSchFactory = new SystemJobSchedulerFactory!J(factory, J.stringof);
-    return registerComponentInstance!(TimerJobScheduler)(container, jobSchFactory, container, cronExp);
+    return registerFactory(container, jobSchFactory, container, cronExp);
 }
 
 
@@ -276,10 +274,10 @@ JobScheduler[] resolveSystemSchedulers(ApplicationContainer container)
 {
     auto ret = appender!(JobScheduler[]);
 
-    foreach (factory; container.resolveAll!(ComponentFactoryAdapter!JobScheduler)(
+    foreach (factory; container.resolveAllFactory!(JobScheduler)(
                 ResolveOption.noResolveException))
     {
-        ret.put(factory.create());
+        ret.put(factory.createInstance());
     }
 
     return ret.data;
@@ -296,9 +294,9 @@ JobScheduler[] resolveSystemSchedulers(ApplicationContainer container)
 JobScheduler resolveScheduler(ApplicationContainer container, Config config)
 {
     string jobName = getNameOrEnforce(config, "Не определено имя задачи");
-    auto jobFactory = container.resolveNamed!(ComponentFactoryAdapter!JobScheduler)(
+    auto jobFactory = container.resolveNamedFactory!(JobScheduler)(
             jobName, ResolveOption.noResolveException);
     enforceConfig(jobFactory !is null, fmt!"Job '%s' not register"(jobName));
-    return jobFactory.create(container, config);
+    return jobFactory.createInstance(container, config);
 }
 

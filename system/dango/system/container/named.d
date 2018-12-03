@@ -112,8 +112,13 @@ QualifierType resolveNamed(RegistrationType, QualifierType : RegistrationType)(
     auto objects = container.resolveAll!(Named!RegistrationType)(resolveOptions);
     auto findResult = objects.find!((o) => o.name == uName);
     if (!findResult.length)
-        throw new ResolveException(fmt!"Type not registered or name '%s' found."(uName),
-                resolveType);
+    {
+        if (resolveOptions | ResolveOption.noResolveException)
+            return null;
+        else
+            throw new ResolveException(fmt!"Type not registered or name '%s' found."(uName),
+                    resolveType);
+    }
 
     return findResult[0].value();
 }

@@ -60,9 +60,9 @@ version(unittest)
     {
         void registerDependencies(shared(DependencyContainer) container, Config config)
         {
-            container.register!(IItem, Item).factoryInstance!IItemFactory(
-                config.get!string("key").get,
-                config.get!double("val").get);
+            container.register!(Server, HTTPServer).factoryInstance!ServerFactory(
+                config.get!string("host").get,
+                config.get!ushort("port").get);
         }
     }
 }
@@ -72,10 +72,12 @@ version(unittest)
 @system unittest
 {
     auto cnt = createContainer();
-    Config config = Config(["key": Config("ITEM"), "val": Config(1.1)]);
+    cnt.register!(Store, FileStore);
+    Config config = Config(["host": Config("192.168.0.1"), "port": Config(80)]);
 
     cnt.registerConfigurableContext!TestContext(config);
-    auto item = cnt.resolve!IItem;
-    assert (item.verify("ITEM", 1.1, 1));
+    auto server = cnt.resolve!Server;
+    assert (server.host == "192.168.0.1");
+    assert (server.port == 80);
 }
 
