@@ -133,8 +133,7 @@ abstract class WebMiddlewareFactory : MiddlewareComponentFactory
 Registration registerMiddleware(M : WebMiddleware, F : WebMiddlewareFactory, string N)(
         ApplicationContainer container)
 {
-    auto factory = new F();
-    return container.registerNamedComponent!(M, N)(factory);
+    return container.registerNamedFactory!(M, N, F);
 }
 
 
@@ -151,7 +150,7 @@ Registration registerMiddleware(M : WebMiddleware, string N)(ApplicationContaine
         }
     }
     auto factory = new DefaultWebMiddlewareFactory();
-    return container.registerNamedComponent!(M, N)(factory);
+    return container.registerNamedExistingFactory!(M, N)(factory);
 }
 
 

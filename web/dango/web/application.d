@@ -16,7 +16,7 @@ public
 
 private
 {
-    import dango.system.container : registerComponent, resolveFactory,
+    import dango.system.container : registerFactory, resolveFactory,
             registerContext;
 
     import dango.web.server;
@@ -76,8 +76,8 @@ protected:
     {
         super.doInitializeDependencies(config);
 
-        auto serverFactory = new URLRouterApplicationServerFactory();
-        container.registerComponent!HTTPApplicationServer(serverFactory);
+        container.registerFactory!(HTTPApplicationServer,
+                URLRouterApplicationServerFactory);
 
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;

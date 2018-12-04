@@ -164,8 +164,7 @@ abstract class WebControllerFactory : ControllerComponentFactory
 Registration registerController(C : WebController, F : WebControllerFactory, string N)(
         ApplicationContainer container)
 {
-    auto factory = new F();
-    return container.registerNamedComponent!(C, N)(factory);
+    return container.registerNamedFactory!(C, N, F);
 }
 
 
@@ -182,7 +181,7 @@ Registration registerController(C : WebController, string N)(ApplicationContaine
         }
     }
     auto factory = new DefaultWebControllerFactory();
-    return container.registerNamedComponent!(C, N)(factory);
+    return container.registerNamedExistingFactory!(C, N)(factory);
 }
 
 

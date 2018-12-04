@@ -211,7 +211,8 @@ Registration registerJob(J : Job, string Name)(ApplicationContainer container,
         JobFactory factory)
 {
     auto jobSchFactory = new JobSchedulerFactory!J(factory, Name);
-    return container.registerNamedFactory!Name(jobSchFactory);
+    return container.registerNamedExistingFactory!(TimerJobScheduler, Name)(
+            jobSchFactory);
 }
 
 
@@ -244,7 +245,8 @@ Registration registerSystemJob(J : Job)(ApplicationContainer container,
         JobFactory factory, string cronExp)
 {
     auto jobSchFactory = new SystemJobSchedulerFactory!J(factory, J.stringof);
-    return registerFactory(container, jobSchFactory, container, cronExp);
+    return registerExistingFactory!TimerJobScheduler(container,
+            jobSchFactory, container, cronExp);
 }
 
 

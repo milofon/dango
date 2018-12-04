@@ -793,7 +793,7 @@ Registration factoryInstance(F : ComponentFactory!(C, A), C, A...)(
  * factory   = Экземпляр фабрики
  * args      = Аргументы
  */
-Registration registerComponent(CT, F : ComponentFactory!(C), C, A...)(
+Registration registerExistingFactory(CT, F : ComponentFactory!(C), C, A...)(
         shared(DependencyContainer) container, F factory, A args) if (is(CT : C))
 {
     alias AR = ComponentFactoryArgs!F;
@@ -808,6 +808,20 @@ Registration registerComponent(CT, F : ComponentFactory!(C), C, A...)(
             container, &resolver, args);
     return container.register!(ComponentFactoryWrapper!C)
         .existingInstance(argsWrapper);
+}
+
+
+/**
+ * Регистрация фабрики компонента в контейнер DI
+ *
+ * Params:
+ * container = Контейнер DI
+ * args      = Аргументы
+ */
+Registration registerFactory(CT, F : ComponentFactory!(C), C, A...)(
+        shared(DependencyContainer) container, A args) if (is(CT : C))
+{
+    return registerExistingFactory!(CT, F, C, A)(container, new F(), args);
 }
 
 
@@ -832,7 +846,7 @@ ComponentFactoryWrapper!C resolveFactory(C)(shared(DependencyContainer) containe
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerComponent!HTTPServer(factory);
+    auto reg = cnt.registerExistingFactory!HTTPServer(factory);
     assert (reg);
     auto wrp = cnt.resolveFactory!Server();
     assert (!wrp.initialized);
@@ -854,7 +868,7 @@ ComponentFactoryWrapper!C resolveFactory(C)(shared(DependencyContainer) containe
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerComponent!HTTPServer(factory, "10.88.3.6", cast(ushort)4040);
+    auto reg = cnt.registerExistingFactory!HTTPServer(factory, "10.88.3.6", cast(ushort)4040);
     assert (reg);
     auto wrp = cnt.resolveFactory!Server();
     assert (wrp.initialized);
@@ -902,7 +916,7 @@ ComponentFactoryWrapper!C[] resolveAllFactory(C)(shared(DependencyContainer) con
  * factory   = Экземпляр фабрики
  * args      = Аргументы
  */
-Registration registerNamedComponent(CT, string N, F : ComponentFactory!(C), C, A...)(
+Registration registerNamedExistingFactory(CT, string N, F : ComponentFactory!(C), C, A...)(
         shared(DependencyContainer) container, F factory, A args)
 {
     alias AR = ComponentFactoryArgs!F;
@@ -918,6 +932,20 @@ Registration registerNamedComponent(CT, string N, F : ComponentFactory!(C), C, A
 
     return container.registerNamed!(ComponentFactoryWrapper!C, N)
         .existingInstance(argsWrapper);
+}
+
+
+/**
+ * Регистрация именованной фабрики компонента в контейнер DI
+ *
+ * Params:
+ * container = Контейнер DI
+ * args      = Аргументы
+ */
+Registration registerNamedFactory(CT, string N, F : ComponentFactory!(C), C, A...)(
+        shared(DependencyContainer) container, A args)
+{
+    return registerNamedExistingFactory!(CT, N, F, C, A)(container, new F(), args);
 }
 
 
@@ -943,7 +971,7 @@ ComponentFactoryWrapper!C resolveNamedFactory(C)(shared(DependencyContainer) con
 
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerNamedComponent!(HTTPServer, "S")(
+    auto reg = cnt.registerNamedExistingFactory!(HTTPServer, "S")(
             factory, "10.88.3.6", cast(ushort)4040);
     assert (reg);
     auto wrp = cnt.resolveNamedFactory!Server("s");
@@ -966,7 +994,7 @@ ComponentFactoryWrapper!C resolveNamedFactory(C)(shared(DependencyContainer) con
     cnt.register!(Store, MemoryStore);
     auto factory = new ServerFactory();
 
-    auto reg = cnt.registerNamedComponent!(HTTPServer, "front")(factory);
+    auto reg = cnt.registerNamedExistingFactory!(HTTPServer, "front")(factory);
     assert(reg);
 
     auto wrp = cnt.resolveNamedFactory!(Server)("FRONT");
