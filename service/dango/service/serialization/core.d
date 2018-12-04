@@ -11,16 +11,15 @@ module dango.service.serialization.core;
 
 public
 {
-    import uniconf.core : Config;
+    import uninode.core : UniNode;
+    import dango.service.types : Bytes;
 }
 
 private
 {
-    import uninode.core : UniNode;
     import uninode.serialization;
 
     import dango.system.container;
-    import dango.service.types;
 }
 
 

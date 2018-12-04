@@ -32,8 +32,10 @@ class SerializerContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerFactory!(JsonSerializerFactory, JsonSerializer);
-        container.registerFactory!(MsgPackSerializerFactory, MsgPackSerializer);
+        container.registerNamedFactory!(JsonSerializer, JsonSerializer.NAME,
+                JsonSerializerFactory);
+        container.registerNamedFactory!(MsgPackSerializer, MsgPackSerializer.NAME,
+                MsgPackSerializerFactory);
     }
 }
 

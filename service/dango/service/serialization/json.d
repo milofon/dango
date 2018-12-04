@@ -14,9 +14,9 @@ private
     import std.algorithm.searching : startsWith;
     import std.base64 : Base64;
 
-    import vibe.data.json;
+    import vibe.data.json : Json, parseJson;
 
-    import uninode.core : UniNode;
+    import uniconf.core : Config;
 
     import dango.system.container;
     import dango.service.types;
@@ -24,7 +24,9 @@ private
 }
 
 
-
+/**
+ * Сериализатор JSON
+ */
 class JsonSerializer : Serializer
 {
     mixin NamedComponentMixin!"JSON";
@@ -46,7 +48,9 @@ class JsonSerializer : Serializer
 }
 
 
-
+/**
+ * Фабрика сериализатора JSON
+ */
 class JsonSerializerFactory : ComponentFactory!(Serializer, Config)
 {
     Serializer createComponent(Config config)

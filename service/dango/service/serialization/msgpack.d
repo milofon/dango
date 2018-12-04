@@ -11,11 +11,9 @@ module dango.service.serialization.msgpack;
 
 private
 {
-    import std.algorithm.searching : startsWith;
-
     import msgpack;
 
-    import uninode.core : UniNode;
+    import uniconf.core : Config;
 
     import dango.system.container;
     import dango.service.types;
@@ -23,7 +21,9 @@ private
 }
 
 
-
+/**
+ * Сериализатор MsgPack
+ */
 class MsgPackSerializer : Serializer
 {
     mixin NamedComponentMixin!"MSGPACK";
@@ -61,14 +61,15 @@ class MsgPackSerializer : Serializer
 }
 
 
-
+/**
+ * Фабрика сериализатора MsgPack
+ */
 class MsgPackSerializerFactory : ComponentFactory!(Serializer, Config)
 {
     Serializer createComponent(Config config)
     {
         auto withFieldName = config.getOrElse!bool("withFieldName", false);
-        MsgPackSerializer ret = new MsgPackSerializer(withFieldName);
-        return ret;
+        return new MsgPackSerializer(withFieldName);
     }
 }
 
