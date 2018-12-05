@@ -75,12 +75,18 @@ protected:
     override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
-
-        container.registerFactory!(HTTPApplicationServer,
-                URLRouterApplicationServerFactory);
-
+        doRegisterServerDependency(config);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
+    }
+
+    /**
+     * Шаблонный метод для переопределения сервера
+     */
+    void doRegisterServerDependency(Config config)
+    {
+        container.registerFactory!(HTTPApplicationServer,
+                URLRouterApplicationServerFactory);
     }
 
     /**
