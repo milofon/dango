@@ -11,12 +11,15 @@ private
 {
     import dango.system.container;
 
-    import dango.web.server : RouterWebApplicationServerFactory,
-           RouterWebApplicationServer;
-    import dango.web.middlewares;
-    import dango.web.controllers;
+    import dango.web.server : URLRouterApplicationServerFactory,
+           HTTPApplicationServer;
+    import dango.web.middlewares : WebMiddlewaresContext;
+    import dango.web.controllers : WebControllersContext;
+    import dango.web.controller : registerController;
 
     import dango.service.transport.web.transport;
+    import dango.service.transport.web.controllers.rpc;
+    import dango.service.transport.web.controllers.websocket;
 }
 
 
@@ -27,15 +30,20 @@ class WebTransportContext(string N) : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerNamedFactory!(RouterWebApplicationServerFactory,
-                RouterWebApplicationServer, "ROUTER");
+        container.registerNamedFactory!(HTTPApplicationServer, "ROUTER",
+                URLRouterApplicationServerFactory);
         container.registerContext!WebMiddlewaresContext;
         container.registerContext!WebControllersContext;
 
-        container.registerNamedFactory!(WebServerTransportFactory,
-                WebServerTransport, N);
-        container.registerNamedFactory!(WebClientTransportFactory,
-                WebClientTransport, N);
+        container.registerController!(RpcWebController,
+                RpcWebControllerFactory, "RPC");
+        container.registerController!(WebSocketController,
+                WebSocketControllerFactory, "WS");
+
+        container.registerNamedFactory!(WebServerTransport, N,
+                WebServerTransportFactory);
+        container.registerNamedFactory!(WebClientTransport, N,
+                WebClientTransportFactory);
     }
 }
 

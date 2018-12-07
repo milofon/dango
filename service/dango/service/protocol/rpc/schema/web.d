@@ -50,29 +50,8 @@ class RpcDocumentationWebController : BaseWebController
     }
 
 
-    void registerChains(ChainRegisterCallback dg)
+    void registerChains(RegisterChainCallback dg)
     {
-        dg(new RpcDocChain(_path, _entrypoint,
-                    _application.name, _application.release.to!string));
-    }
-}
-
-
-/**
- * Цепочка запроса документации
- */
-class RpcDocChain : BaseChain
-{
-    private
-    {
-        string _path;
-    }
-
-
-    this(string path, string entrypoint, string title, string release)
-    {
-        this._path = path;
-
         struct Dist
         {
             string appJs;
@@ -102,27 +81,16 @@ class RpcDocChain : BaseChain
             }
         }
 
-        registerChainHandler((scope HTTPServerRequest req, scope HTTPServerResponse res){
-                res.render!("documentation.dt", req, entrypoint, dist, title, release);
-            });
-    }
+        string title = _application.name;
+        string release = _application.release.to!string;
+        string entrypoint = _entrypoint;
 
+        void handler (scope HTTPServerRequest req, HTTPServerResponse res) @safe
+        {
+            res.render!("documentation.dt", req, entrypoint, dist, title, release);
+        }
 
-    HTTPMethod method() @property
-    {
-        return HTTPMethod.GET;
-    }
-
-
-    string path() @property
-    {
-        return _path;
-    }
-
-
-    void attachMiddleware(WebMiddleware mdw)
-    {
-        pushMiddleware(mdw);
+        dg(HTTPMethod.GET, _path, new Chain(&handler));
     }
 }
 
@@ -130,7 +98,7 @@ class RpcDocChain : BaseChain
 /**
  * Класс фабрика контроллера позволяющий отобразить документацию
  */
-class RpcDocumentationWebControllerFactory : BaseWebControllerFactory
+class RpcDocumentationWebControllerFactory : WebControllerFactory
 {
     override RpcDocumentationWebController createController(Config config)
     {

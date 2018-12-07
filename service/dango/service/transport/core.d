@@ -9,20 +9,16 @@
 
 module dango.service.transport.core;
 
-
 public
 {
-    import uniconf.core : Config;
     import vibe.core.concurrency : Future;
-
-    import dango.system.container : ApplicationContainer;
-    import dango.service.protocol : ServerProtocol;
+    import dango.service.types : Bytes;
 }
 
 private
 {
+    import uniconf.core : Config;
     import dango.system.container;
-    import dango.service.types;
 }
 
 
@@ -48,8 +44,8 @@ interface ServerTransport
 /**
  * Фабрика серверного транспортного уровня
  */
-alias BaseServerTransportFactory = ComponentFactory!(ServerTransport, Config,
-        ApplicationContainer, ServerProtocol);
+alias ServerTransportFactory = ComponentFactory!(ServerTransport, Config,
+        ApplicationContainer);
 
 
 /**
@@ -70,5 +66,5 @@ interface ClientTransport
 /**
  * Фабрика клиентского транспортного уровня
  */
-alias BaseClientTransportFactory = ComponentFactory!(ClientTransport, Config);
+alias ClientTransportFactory = ComponentFactory!(ClientTransport, Config);
 

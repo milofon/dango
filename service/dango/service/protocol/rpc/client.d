@@ -9,6 +9,7 @@
 
 module dango.service.protocol.rpc.client;
 
+/+
 private
 {
     import std.traits;
@@ -202,4 +203,5 @@ string generateModuleImports(I)()
     auto modules = getRequiredImports!I();
     return join(map!(a => "static import " ~ a ~ ";")(modules), "\n");
 }
++/
 

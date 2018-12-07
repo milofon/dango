@@ -804,10 +804,18 @@ Registration registerExistingFactory(CT, F : ComponentFactory!(C), C, A...)(
         container.autowire!CT(ret);
         return ret;
     }
-    auto argsWrapper = createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
-            container, &resolver, args);
-    return container.register!(ComponentFactoryWrapper!C)
-        .existingInstance(argsWrapper);
+
+    InstanceFactoryMethod method = ()
+    {
+        return createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
+                    container, &resolver, args);
+    };
+
+    auto reg = container.register!(ComponentFactoryWrapper!C).newInstance;
+    reg.instanceFactory.factoryParameters = InstanceFactoryParameters(
+            reg.instanceType, CreatesSingleton.no, null, method);
+
+    return reg;
 }
 
 
@@ -927,11 +935,18 @@ Registration registerNamedExistingFactory(CT, string N, F : ComponentFactory!(C)
         container.autowire!CT(ret);
         return ret;
     }
-    auto argsWrapper = createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
-            container, &resolver, args);
 
-    return container.registerNamed!(ComponentFactoryWrapper!C, N)
-        .existingInstance(argsWrapper);
+    InstanceFactoryMethod method = ()
+    {
+        return createFactoryWrapper!(F, C, ComponentResolver!(C, AR),  A)(
+                    container, &resolver, args);
+    };
+
+    auto reg = container.registerNamed!(ComponentFactoryWrapper!C, N).newInstance;
+    reg.instanceFactory.factoryParameters = InstanceFactoryParameters(
+            reg.instanceType, CreatesSingleton.no, null, method);
+
+    return reg;
 }
 
 

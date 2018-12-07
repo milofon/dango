@@ -7,7 +7,7 @@
  * Date: 2018-07-31
  */
 
-module dango.service.protocol.rpc.schema.controller;
+module dango.service.protocol.rpc.schema.docapi;
 
 private
 {

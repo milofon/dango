@@ -12,8 +12,9 @@ module dango.service.protocol.rpc.core;
 public
 {
     import dango.service.serialization : Serializer;
-    import dango.service.transport.core : ClientTransport;
-    import dango.service.protocol.rpc.error : RpcException, ErrorCode;
+    // import dango.service.transport.core : ClientTransport;
+    import dango.service.protocol.rpc.error : RpcException, ErrorCode, enforceRpc,
+           enforceRpcData;
 }
 
 private
@@ -23,11 +24,12 @@ private
 
     import vibe.core.log;
 
+    import uninode.core : UniNode;
+    import uniconf.core : Config;
+    import uniconf.core.exception : enforceConfig;
+
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce;
-
-    import uninode.core : UniNode;
-    import uniconf.core.exception : enforceConfig;
 
     import dango.service.protocol.core;
     import dango.service.serialization;
@@ -36,15 +38,14 @@ private
     import dango.service.protocol.rpc.controller : RpcController;
 
     import dango.service.protocol.rpc.schema.recorder;
-    import dango.service.protocol.rpc.schema.controller;
+    import dango.service.protocol.rpc.schema.docapi;
 }
 
 
 /**
  * Функция обработки запроса
  */
-alias Handler = UniNode delegate(UniNode params);
-
+alias MethodHandler = UniNode delegate(UniNode params);
 
 
 /**
@@ -58,24 +59,31 @@ interface RpcServerProtocol
      * cmd = RPC команда
      * hdl = Обработчик
      */
-    void registerHandler(string cmd, Handler hdl);
+    void registerMethod(string cmd, MethodHandler hdl);
 }
 
 
 /**
  * Базовый протокол RPC
  */
-abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
+abstract class BaseRpcServerProtocol(string N) : BaseServerProtocol!N, RpcServerProtocol
 {
     private
     {
-        Handler[string] _handlers;
+        MethodHandler[string] _handlers;
     }
 
 
     this(Serializer serializer)
     {
         super(serializer);
+    }
+
+
+    void registerMethod(string cmd, MethodHandler hdl)
+    {
+        _handlers[cmd] = hdl;
+        logInfo("  Register method (%s)", cmd);
     }
 
 
@@ -89,6 +97,7 @@ abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
             logWarn("Error deserialize: (%s)", e.msg);
             return serializer.serialize(createErrorBody(null, ErrorCode.PARSE_ERROR, e.msg));
         }
+
 
         logDebugV("Request: %s", uniReq);
 
@@ -109,13 +118,6 @@ abstract class BaseRpcServerProtocol : BaseServerProtocol, RpcServerProtocol
         else
             throw new RpcException(ErrorCode.METHOD_NOT_FOUND,
                     getErrorMessageByCode(ErrorCode.METHOD_NOT_FOUND));
-    }
-
-
-    void registerHandler(string cmd, Handler hdl)
-    {
-        _handlers[cmd] = hdl;
-        logInfo("  Register method (%s)", cmd);
     }
 
 
@@ -233,11 +235,16 @@ private:
 /**
  * Фабрика протокола RPC
  */
-class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFactory
+class RpcServerProtocolFactory(CType : RpcServerProtocol) : ServerProtocolFactory
 {
-    ServerProtocol createComponent(Config config, ApplicationContainer container,
-            Serializer serializer)
+    ServerProtocol createComponent(Config config, ApplicationContainer container)
     {
+        string protoName = config.getNameOrEnforce("Not defined name");
+
+        Config serConf = config.getOrEnforce!Config("serializer",
+                "Not defined serializer config for protocol '" ~ protoName ~ "'");
+        auto serializer = createSerializer(protoName, serConf, container);
+
         auto ret = new CType(serializer);
         auto schemaRec = new SchemaRecorder();
 
@@ -246,18 +253,17 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFa
             string ctrName = getNameOrEnforce(ctrConf,
                     "Not defined controller name");
 
-            auto ctrlFactory = container.resolveFactory!(RpcController, Config)(ctrName);
+            auto ctrlFactory = container.resolveNamedFactory!(RpcController)(ctrName,
+                    ResolveOption.noResolveException);
             enforceConfig(ctrlFactory !is null,
                     fmt!"RPC controller '%s' not register"(ctrName));
 
-            RpcController ctrl = ctrlFactory.create(ctrConf);
-            enforceConfig(ctrl !is null,
-                    fmt!"RPC controller factory '%s' return null"(ctrName));
+            RpcController ctrl = ctrlFactory.createInstance(ctrConf);
 
             if (ctrl.enabled)
             {
                 logInfo("Register controller '%s' from '%s'", ctrName, ctrl);
-                ctrl.registerHandlers(&ret.registerHandler);
+                ctrl.registerHandlers(&ret.registerMethod);
                 ctrl.registerSchema(schemaRec);
             }
         }
@@ -266,13 +272,35 @@ class RpcServerProtocolFactory(CType : RpcServerProtocol) : BaseServerProtocolFa
         if (config.getOrElse("schemaInclude", false))
             docCtrl.registerSchema(schemaRec);
         logInfo("Register controller '%s' from '%s'", "rpcdoc", docCtrl);
-        docCtrl.registerHandlers(&ret.registerHandler);
+        docCtrl.registerHandlers(&ret.registerMethod);
 
         return ret;
+    }
+
+
+private:
+
+
+    Serializer createSerializer(string protoName, Config config, ApplicationContainer container)
+    {
+        string serializerName = getNameOrEnforce(config,
+                "Not defined serializer name for protocol '" ~ protoName ~ "'");
+
+        auto serFactory = container.resolveNamedFactory!Serializer(serializerName,
+                ResolveOption.noResolveException);
+
+        enforceConfig(serFactory !is null,
+                fmt!"Serializer '%s' not register"(serializerName));
+
+        logInfo("Use serializer '%s'", serializerName);
+
+        return serFactory.createInstance(config);
     }
 }
 
 
+
+/+
 /**
  * Клиент-протокол RPC
  */
@@ -344,4 +372,4 @@ class RpcClientProtocolFactory(T : RpcClientProtocol) : ComponentFactory!(
         return new T(transport, serializer);
     }
 }
-
++/

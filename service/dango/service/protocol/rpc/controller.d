@@ -11,23 +11,24 @@ module dango.service.protocol.rpc.controller;
 
 public
 {
-    import uniconf.core : Config;
+    import dango.service.protocol.rpc.error : enforceRpc, enforceRpcData;
 }
 
 private
 {
-    import std.traits;
     import std.meta : Alias, AliasSeq;
-    import std.format : fmt = format;
     import std.functional : toDelegate;
     import std.typecons : Tuple;
+    import std.traits;
 
-    import vibe.core.log : logInfo;
+    import uniconf.core : Config;
+    import uninode.core : UniNode;
+    import poodinis : Registration;
 
     import dango.system.container;
     import dango.system.traits;
 
-    import dango.service.protocol.rpc.core : Handler;
+    import dango.service.protocol.rpc.core;
     import dango.service.protocol.rpc.error;
     import dango.service.protocol.rpc.schema.recorder;
     import dango.service.serialization;
@@ -53,11 +54,133 @@ struct Method
 
 
 /**
+ * Функция регистрации обработчика запроса
+ */
+alias RegisterHandlerCallback = void delegate(string, MethodHandler);
+
+
+/**
+ * Интерфейс контроллера
+ */
+interface RpcController : ActivatedComponent
+{
+    /**
+     * Регистрация обработчиков в диспетчер
+     * На каждый обработчик формируется вызов dg
+     * Params:
+     * dg = Функция регистрации цепочки
+     */
+    void registerHandlers(RegisterHandlerCallback hdl);
+
+    /**
+     * Регистрация документации метода
+     * Params:
+     * dg = Функция обработки документации
+     */
+    void registerSchema(SchemaRecorder recorder);
+}
+
+
+
+
+/**
+ * Базовый класс rpc контроллера
+ * Params:
+ * CType = Объект с определенными в нем обработчиками
+ */
+abstract class GenericRpcController(IType) : RpcController, IType
+{
+    mixin ActivatedComponentMixin!();
+    static assert(is(IType == interface),
+            IType.stringof ~ " is not interface");
+
+    static assert(hasUDA!(IType, Controller),
+            IType.stringof ~ " is not marked with a Controller");
+
+
+    void registerHandlers(RegisterHandlerCallback hdl)
+    {
+        alias Handlers = GetRpcControllerMethods!IType;
+        static assert(Handlers.length, "The controller must contain handlers");
+        foreach(Member; Handlers)
+        {
+            enum udas = getUDAs!(Member, Method);
+            enum fName = __traits(identifier, Member);
+            auto HDL = GenerateHandlerFromMethod!(
+                    __traits(getMember, this, fName))(
+                    &__traits(getMember, this, fName));
+            hdl(FullMethodName!(IType, udas[0].method), HDL);
+        }
+    }
+
+
+    void registerSchema(SchemaRecorder recorder)
+    {
+        alias Handlers = GetRpcControllerMethods!IType;
+        static assert(Handlers.length, "The controller must contain handlers");
+        foreach(Member; Handlers)
+        {
+            enum udas = getUDAs!(Member, Method);
+            enum name = FullMethodName!(IType, udas[0].method);
+            recorder.registerSchema!(IType, name, Member)();
+        }
+    }
+}
+
+
+/**
+ * Базовая фабрика для RPC контроллеров
+ * Params:
+ * CType = Тип контроллера
+ */
+abstract class RpcControllerFactory : ComponentFactory!(RpcController, Config)
+{
+    RpcController createController(Config config);
+
+
+    RpcController createComponent(Config config)
+    {
+        auto ret = createController(config);
+        ret.enabled = config.getOrElse!bool("enabled", false);
+        return ret;
+    }
+}
+
+
+/**
+ * Регистрация компонента RPC контроллер
+ */
+Registration registerController(C : RpcController, F : RpcControllerFactory, string N)(
+        ApplicationContainer container)
+{
+    return container.registerNamedFactory!(C, N, F);
+}
+
+
+/**
+ * Регистрация компонента RPC контроллер
+ */
+Registration registerController(C : RpcController, string N)(ApplicationContainer container)
+{
+    class RpcControllerCtorFactory : RpcControllerFactory
+    {
+        override RpcController createController(Config config)
+        {
+            return new C(config);
+        }
+    }
+
+    auto factory = new RpcControllerCtorFactory();
+    return container.registerNamedExistingFactory!(C, N)(factory);
+}
+
+
+/**
  * Возвращает список обработчиков контроллера
  * Params:
  * C = Проверяемый тип
  */
-template GetRpcControllerMethods(C)
+private template GetRpcControllerMethods(C)
 {
     private template Get(NList...)
     {
@@ -87,156 +210,9 @@ template GetRpcControllerMethods(C)
 
 
 /**
- * Интерфейс контроллера
- */
-interface RpcController : ActivatedComponent
-{
-    /**
-     * Регистрация обработчиков в диспетчер
-     * На каждый обработчик формируется вызов dg
-     * Params:
-     * dg = Функция регистрации цепочки
-     */
-    void registerHandlers(RegisterHandlerCallback hdl);
-
-    /**
-     * Регистрация документации метода
-     * Params:
-     * dg = Функция обработки документации
-     */
-    void registerSchema(SchemaRecorder recorder);
-}
-
-
-/**
- * Базовый класс RPC контроллера
- * Params:
- * CType = Объект с определенными в нем обработчиками
- */
-abstract class BaseRpcController : RpcController
-{
-    mixin ActivatedComponentMixin!();
-}
-
-
-/**
- * Базовый класс rpc контроллера
- * Params:
- * CType = Объект с определенными в нем обработчиками
- */
-abstract class GenericRpcController(IType) : BaseRpcController, IType
-{
-    static assert(is(IType == interface),
-            IType.stringof ~ " is not interface");
-
-    static assert(hasUDA!(IType, Controller),
-            IType.stringof ~ " is not marked with a Controller");
-
-    alias Handlers = GetRpcControllerMethods!IType;
-
-    static assert(Handlers.length, "The controller must contain handlers");
-
-
-    void registerHandlers(RegisterHandlerCallback hdl)
-    {
-        foreach(Member; Handlers)
-        {
-            enum udas = getUDAs!(Member, Method);
-            enum fName = __traits(identifier, Member);
-            auto HDL = GenerateHandlerFromMethod!(
-                    __traits(getMember, this, fName))(
-                    &__traits(getMember, this, fName));
-            hdl(FullMethodName!(IType, udas[0].method), HDL);
-        }
-    }
-
-
-    void registerSchema(SchemaRecorder recorder)
-    {
-        foreach(Member; Handlers)
-        {
-            enum udas = getUDAs!(Member, Method);
-            enum name = FullMethodName!(IType, udas[0].method);
-            recorder.registerSchema!(IType, name, Member)();
-        }
-    }
-
-
-    void enforceRpc(V)(V value, int code, string message,
-            string file = __FILE__, size_t line = __LINE__)
-    {
-        if (!!value)
-            return;
-
-        throw new RpcException(code, message, file, line);
-    }
-
-
-    void enforceRpcData(V, T)(V value, int code, string message, T data,
-            string file = __FILE__, size_t line = __LINE__)
-    {
-        if (!!value)
-            return;
-
-        throw new RpcException(code, message, serializeToUniNode!T(data), file, line);
-    }
-}
-
-
-/**
- * Базовая фабрика для RPC контроллеров
- * Params:
- * CType = Тип контроллера
- */
-abstract class BaseRpcControllerFactory : ComponentFactory!(RpcController, Config)
-{
-    RpcController createController(Config config);
-
-
-    RpcController createComponent(Config config)
-    {
-        auto ret = createController(config);
-        ret.enabled = config.getOrElse!bool("enabled", false);
-        return ret;
-    }
-}
-
-
-/**
- * Урощенная фабрика контроллера
- */
-class SimpleRpcControllerFactory(C : RpcController) : BaseRpcControllerFactory
-{
-    override RpcController createController(Config config)
-    {
-        return createSimpleComponent!C(config);
-    }
-}
-
-
-/**
- * Регистрация компонента RPC контроллер
- */
-void registerController(F : ComponentFactory!(RpcController, Config),
-        C : RpcController, string N)(ApplicationContainer container)
-{
-    container.registerNamedFactory!(F, C, N);
-}
-
-
-/**
- * Регистрация компонента RPC контроллер
- */
-void registerController(C : RpcController, string N)(ApplicationContainer container)
-{
-    container.registerController!(SimpleRpcControllerFactory!C, C, N);
-}
-
-
-/**
  * Возвращает полное наименование команды
  */
-template FullMethodName(I, string method)
+private template FullMethodName(I, string method)
 {
     enum udas = getUDAs!(I, Controller);
     static if (udas.length > 0)
@@ -252,19 +228,10 @@ template FullMethodName(I, string method)
 }
 
 
-private:
-
-
-/**
- * Функция регистрации обработчика запроса
- */
-alias RegisterHandlerCallback = void delegate(string, Handler);
-
-
 /**
  * Генерация обработчика на основе функции
  */
-template GenerateHandlerFromMethod(alias F)
+private template GenerateHandlerFromMethod(alias F)
 {
     alias ParameterIdents = ParameterIdentifierTuple!F;
     alias ParameterTypes = ParameterTypeTuple!F;
@@ -273,7 +240,7 @@ template GenerateHandlerFromMethod(alias F)
     alias RT = ReturnType!F;
     alias PT = Tuple!ParameterTypes;
 
-    Handler GenerateHandlerFromMethod(Type hdl)
+    MethodHandler GenerateHandlerFromMethod(Type hdl)
     {
         bool[string] requires; // обязательные поля
 
@@ -372,7 +339,6 @@ template GenerateHandlerFromMethod(alias F)
                     UniNode[string] errObj;
                     foreach (k, errs; paramErrors)
                     {
-                        logInfo("%s -> %s", k, errs);
                         UniNode[] errArr;
                         foreach (v; errs)
                             errArr ~= UniNode(v);

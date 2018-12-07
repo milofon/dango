@@ -10,7 +10,8 @@ module dango.system.container;
 public
 {
     import poodinis : ApplicationContext, Autowire, autowire, CreatesSingleton,
-            registerContext, ResolveException, ResolveOption;
+            registerContext, ResolveException, ResolveOption,
+            newInstance;
 
     import dango.system.container.named : registerNamed, resolveNamed;
     import dango.system.container.component;

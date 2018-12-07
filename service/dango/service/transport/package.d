@@ -17,7 +17,6 @@ private
     import dango.system.container;
 
     import dango.service.transport.web : WebTransportContext;
-    import dango.service.transport.zeromq;
 }
 
 
@@ -29,11 +28,6 @@ class TransportContext : ApplicationContext
     override void registerDependencies(ApplicationContainer container)
     {
         container.registerContext!(WebTransportContext!"WEB");
-
-        container.registerNamedFactory!(ZeroMQServerTransportFactory,
-                ZeroMQServerTransport, "ZEROMQ");
-        container.registerNamedFactory!(ZeroMQClientTransportFactory,
-                ZeroMQClientTransport, "ZEROMQ");
     }
 }
 

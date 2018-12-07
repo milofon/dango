@@ -11,15 +11,16 @@ module dango.service.protocol.core;
 
 public
 {
-    import uniconf.core : Config;
     import dango.system.container : ApplicationContainer;
 
-    import dango.service.types;
+    import dango.service.types : Bytes;
     import dango.service.serialization : Serializer;
 }
 
 private
 {
+    import std.typecons : Tuple;
+    import uniconf.core : Config;
     import dango.system.container;
 }
 
@@ -27,7 +28,7 @@ private
 /**
  * Интерфейс серверного протокола взаимодействия
  */
-interface ServerProtocol
+interface ServerProtocol : NamedComponent
 {
     /**
      * Метод-обработик входящейго запроса
@@ -44,10 +45,13 @@ interface ServerProtocol
 }
 
 
-
-abstract class BaseServerProtocol : ServerProtocol
+/**
+ * Базовый класс серверного протокола взаимодействия
+ */
+abstract class BaseServerProtocol(string N) : ServerProtocol
 {
-    private Serializer _serializer;
+    mixin NamedComponentMixin!N;
+    protected Serializer _serializer;
 
 
     this(Serializer serializer)
@@ -64,6 +68,39 @@ abstract class BaseServerProtocol : ServerProtocol
 
 
 
-alias BaseServerProtocolFactory = ComponentFactory!(ServerProtocol, Config,
-        ApplicationContainer, Serializer);
+alias ServerProtocolFactory = ComponentFactory!(ServerProtocol, Config,
+        ApplicationContainer);
+
+
+/**
+ * Контейнер для фабрик протоколов
+ */
+class ServerProtocolContainer
+{
+    alias Factory = ComponentFactoryWrapper!ServerProtocol;
+    alias PreInitPactory = Tuple!(Factory, Config, ApplicationContainer);
+    private PreInitPactory[string] _data;
+
+    /**
+     * Регистрация фабрики протокола
+     */
+    void registerProtocolFactory(string key, Factory factory, Config config,
+            ApplicationContainer container)
+    {
+        _data[key] = PreInitPactory(factory, config, container);
+    }
+
+    /**
+     * Создает новый протокол
+     */
+    ServerProtocol createProtocol(string key)
+    {
+        if (auto fPtr = key in _data)
+        {
+            auto pf = *fPtr;
+            return pf[0].createInstance(pf[1], pf[2]);
+        }
+        return null;
+    }
+}
 

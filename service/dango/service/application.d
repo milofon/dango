@@ -16,16 +16,19 @@ public
 
 private
 {
-    // import std.format : fmt = format;
+    import std.algorithm.iteration : map;
+    import std.format : fmt = format;
 
-    // import uniconf.core.exception : enforceConfig;
+    import uniconf.core.exception : enforceConfig;
 
-    // import dango.system.properties : getNameOrEnforce;
-    import dango.system.container : registerContext;
+    import dango.system.properties : getNameOrEnforce;
+    import dango.system.container : registerContext, resolveNamedFactory,
+            ResolveOption;
 
+    import dango.service.protocol.core : ServerProtocolContainer;
     import dango.service.serialization;
-    // import dango.service.protocol;
-    // import dango.service.transport;
+    import dango.service.protocol;
+    import dango.service.transport;
 }
 
 
@@ -55,7 +58,7 @@ interface ServiceApplication
  */
 abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplication
 {
-    // private ServerTransport[] _transports;
+    private ServerTransport[] _transports;
 
 
     this(string name, string release)
@@ -69,14 +72,17 @@ abstract class BaseServiceApplication : BaseDaemonApplication, ServiceApplicatio
         super(name, release);
     }
 
+
 protected:
+
 
     override void doInitializeDependencies(Config config)
     {
         super.doInitializeDependencies(config);
+        container.register!ServerProtocolContainer;
         container.registerContext!SerializerContext;
-        // container.registerContext!ProtocolContext;
-        // container.registerContext!TransportContext;
+        container.registerContext!ProtocolContext;
+        container.registerContext!TransportContext;
     }
 
 
@@ -84,26 +90,26 @@ protected:
     {
         initializeServiceApplication(config);
 
-        // auto sConfgs = config.getOrEnforce!Config("service",
-        //         "Not found service configurations");
+        auto servConfigs = config.getOrEnforce!Config("service",
+                "Not found service configurations");
 
-        // foreach (Config servConf; sConfgs.getArray())
-        // {
-        //     if (servConf.getOrElse("enabled", false))
-        //     {
-        //         createServiceTransports(container, servConf, (tr) {
-        //             tr.listen();
-        //             _transports ~= tr;
-        //         });
-        //     }
-        // }
+        foreach (Config servConf; servConfigs.getArray())
+        {
+            if (servConf.getOrElse("enabled", false))
+            {
+                createServiceTransports(container, servConf, (tr) {
+                    tr.listen();
+                    _transports ~= tr;
+                });
+            }
+        }
     }
 
 
     final override int finalizeDaemon(int exitCode)
     {
-        // foreach (ServerTransport tr; _transports)
-        //     tr.shutdown();
+        foreach (ServerTransport tr; _transports)
+            tr.shutdown();
         return finalizeServiceApplication(exitCode);
     }
 
@@ -121,51 +127,52 @@ protected:
 private:
 
 
-    // void createServiceTransports(ApplicationContainer container, Config servConf,
-    //         void delegate(ServerTransport tr) cb)
-    // {
-        // string serviceName = servConf.getOrElse!string("name", "Undefined");
-        // logInfo("Configuring service '%s'", serviceName);
+    void createServiceTransports(ApplicationContainer container, Config servConf,
+            void delegate(ServerTransport tr) cb)
+    {
+        string serviceName = servConf.getOrElse!string("name", "Undefined");
+        logInfo("Configuring service '%s'", serviceName);
 
-        // Config serConf = servConf.getOrEnforce!Config("serializer",
-        //         "Not defined serializer config for service '" ~ serviceName ~ "'");
-        // Config protoConf = servConf.getOrEnforce!Config("protocol",
-        //         "Not defined protocol config for service '" ~ serviceName ~ "'");
+        auto protoConfs = servConf.getArray("protocol");
+        enforceConfig(protoConfs.length > 0,
+                "Not defined protocols config for service '" ~ serviceName ~ "'");
 
-        // string serializerName = getNameOrEnforce(serConf,
-        //         "Not defined serializer name for service '" ~ serviceName ~ "'");
-        // string protoName = getNameOrEnforce(protoConf,
-        //         "Not defined protocol name for service '" ~ serviceName ~ "'");
+        auto protoContainer = container.resolve!ServerProtocolContainer;
+        foreach (Config protoConf; protoConfs)
+        {
+            string protoName = protoConf.getNameOrEnforce(
+                    "Not defined protocol name for service '" ~ serviceName ~ "'");
+            string protoType = protoConf.getOrEnforce!string("type",
+                    "Not defined protocol type for protocol '" ~ protoName ~ "'");
 
-        // Т.к. протокол может быть только один, то конфиги сериализатора
-        // вынес на верхний уровень
-        // auto serFactory = container.resolveFactory!(Serializer, Config)(serializerName);
-        // enforceConfig(serFactory !is null,
-        //         fmt!"Serializer '%s' not register"(serializerName));
-        // logInfo("Use serializer '%s'", serializerName);
-        // Serializer serializer = serFactory.create(serConf);
+            auto protoFactory = container.resolveNamedFactory!ServerProtocol(protoType,
+                    ResolveOption.noResolveException);
+            enforceConfig(protoFactory !is null,
+                    fmt!"Protocol '%s' not register"(protoType));
 
-        // auto protoFactory = container.resolveFactory!(ServerProtocol, Config,
-        //         ApplicationContainer, Serializer)(protoName);
-        // enforceConfig(protoFactory !is null,
-        //         fmt!"Protocol '%s' not register"(protoName));
-        // logInfo("Use protocol '%s'", protoName);
-        // ServerProtocol protocol = protoFactory.create(protoConf, container, serializer);
+            logInfo("Register protocol %s(%s)", protoName, protoType);
 
-        // foreach (Config trConf; servConf.getArray("transport"))
-        // {
-        //     string transportName = getNameOrEnforce(trConf,
-        //             "Not defined transport name for service '" ~ serviceName ~ "'");
+            protoContainer.registerProtocolFactory(protoName, protoFactory,
+                    protoConf, container);
+        }
 
-        //     auto trFactory = container.resolveFactory!(ServerTransport, Config,
-        //             ApplicationContainer, ServerProtocol)(transportName);
-        //     enforceConfig(trFactory !is null,
-        //             fmt!"Transport '%s' not register"(transportName));
-        //     logInfo("Use transport '%s'", transportName);
 
-        //     ServerTransport transport = trFactory.create(trConf, container, protocol);
-        //     cb(transport);
-        // }
-    // }
+        foreach (Config trConf; servConf.getArray("transport"))
+        {
+            string transportName = getNameOrEnforce(trConf,
+                    "Not defined transport name for service '" ~ serviceName ~ "'");
+
+            auto trFactory = container.resolveNamedFactory!ServerTransport(
+                    transportName, ResolveOption.noResolveException);
+
+            enforceConfig(trFactory !is null,
+                    fmt!"Transport '%s' not register"(transportName));
+
+            logInfo("Use transport '%s'", transportName);
+
+            ServerTransport transport = trFactory.createInstance(trConf, container);
+            cb(transport);
+        }
+    }
 }
 

@@ -16,11 +16,10 @@ private
 {
     import dango.system.container;
 
-    import dango.service.protocol.graphql;
-
     import dango.service.protocol.rpc.plain;
     import dango.service.protocol.rpc.jsonrpc;
 
+    import dango.web.controller : registerController;
     import dango.service.protocol.rpc.schema.web;
 }
 
@@ -32,21 +31,18 @@ class ProtocolContext : ApplicationContext
 {
     override void registerDependencies(ApplicationContainer container)
     {
-        container.registerNamedFactory!(GraphQLServerProtocolFactory,
-                GraphQLServerProtocol, "GRAPHQL");
+        container.registerNamedFactory!(PlainRpcServerProtocol, PlainRpcServerProtocol.NAME,
+                PlainRpcServerProtocolFactory);
+        container.registerNamedFactory!(JsonRpcServerProtocol, JsonRpcServerProtocol.NAME,
+                JsonRpcServerProtocolFactory);
 
-        container.registerNamedFactory!(PlainRpcServerProtocolFactory,
-                PlainRpcServerProtocol, "PLAIN");
-        container.registerNamedFactory!(JsonRpcServerProtocolFactory,
-                JsonRpcServerProtocol, "JSONRPC");
+        container.registerController!(RpcDocumentationWebController,
+                RpcDocumentationWebControllerFactory, "RPCDOC");
 
-        container.registerNamedFactory!(RpcDocumentationWebControllerFactory,
-                RpcDocumentationWebController, "RPCDOC");
-
-        container.registerNamedFactory!(PlainRpcClientProtocolFactory,
-                PlainRpcClientProtocol, "PLAIN");
-        container.registerNamedFactory!(JsonRpcClientProtocolFactory,
-                JsonRpcClientProtocol, "JSONRPC");
+        // container.registerNamedFactory!(PlainRpcClientProtocolFactory,
+        //         PlainRpcClientProtocol, "PLAIN");
+        // container.registerNamedFactory!(JsonRpcClientProtocolFactory,
+        //         JsonRpcClientProtocol, "JSONRPC");
     }
 }
 

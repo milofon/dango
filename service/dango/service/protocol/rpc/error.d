@@ -115,7 +115,31 @@ class RpcException : Exception
 }
 
 
+
+void enforceRpc(V)(V value, int code, string message, string file = __FILE__,
+        size_t line = __LINE__)
+{
+    if (!!value)
+        return;
+
+    throw new RpcException(code, message, file, line);
+}
+
+
+
+void enforceRpcData(V, T)(V value, int code, string message, T data,
+        string file = __FILE__, size_t line = __LINE__)
+{
+    if (!!value)
+        return;
+
+    throw new RpcException(code, message, serializeToUniNode!T(data), file, line);
+}
+
+
+
 private:
+
 
 
 template GenerateErrorSwitch(M...)
