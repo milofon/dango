@@ -9,10 +9,13 @@
 
 module dango.system.container.context;
 
-private
+public
 {
     import uniconf.core : Config;
+}
 
+private
+{
     import poodinis : ApplicationContext, DependencyContainer,
            registerContextComponents, autowire, existingInstance;
 }

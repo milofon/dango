@@ -48,7 +48,7 @@ void parseDocumentationContent(ref MethodSchema md, string comment)
                 foreach(name, _; md.params)
                 {
                     if (name in params)
-                        md.params[name].note = params[name];
+                        md.params[name].note = params[name].idup;
                     else
                         logWarn("Doc: Missing description for parameter `%s` in `%s`", name, md.name);
                 }
@@ -56,7 +56,7 @@ void parseDocumentationContent(ref MethodSchema md, string comment)
 
             case tok!"Returns:":
                 lexer.popFront();
-                md.retType.note = lexer.parseTextBlock();
+                md.retType.note = lexer.parseTextBlock().idup;
                 break;
 
             case tok!"whitespace":

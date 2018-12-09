@@ -11,6 +11,8 @@ module dango.service.protocol.rpc.controller;
 
 public
 {
+    import uniconf.core : Config;
+
     import dango.service.protocol.rpc.error : enforceRpc, enforceRpcData;
 }
 
@@ -21,7 +23,6 @@ private
     import std.typecons : Tuple;
     import std.traits;
 
-    import uniconf.core : Config;
     import uninode.core : UniNode;
     import poodinis : Registration;
 
