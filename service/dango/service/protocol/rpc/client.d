@@ -9,7 +9,6 @@
 
 module dango.service.protocol.rpc.client;
 
-/+
 private
 {
     import std.traits;
@@ -18,16 +17,22 @@ private
     import std.typecons : Tuple;
     import std.conv : to;
 
+    import uninode.core : UniNode;
+    import uniconf.core : Config;
+    import poodinis : Registration;
     import vibe.internal.meta.codegen;
     import vibe.core.log;
 
-    import dango.system.traits;
+    import dango.system.traits : IsPublicMember;
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce;
+    import uniconf.core.exception : enforceConfig;
 
-    import dango.service.serialization;
     import dango.service.protocol.rpc.core;
     import dango.service.protocol.rpc.controller;
+
+    import dango.service.serialization;
+    import dango.service.transport;
 }
 
 
@@ -36,6 +41,12 @@ private
  */
 class InterfaceClient(I) : I
 {
+    static assert(is(I == interface),
+            I.stringof ~ " is not interface");
+
+    static assert(hasUDA!(I, Controller),
+            I.stringof ~ " is not marked with a Controller");
+
     private RpcClientProtocol _protocol;
 
 
@@ -44,19 +55,29 @@ class InterfaceClient(I) : I
         this._protocol = protocol;
     }
 
-
     static foreach(Member; GetRpcControllerMethods!I)
         mixin GenerateFunctionFromMember!(I, Member);
-
-
-    mixin(generateModuleImports!I());
 }
 
 
-
-class ClientFactory(I) : ComponentFactory!(I, Config, ApplicationContainer)
+/**
+ * Регистрация клиента
+ */
+Registration registerClient(I, string NAME)(ApplicationContainer container, Config config)
 {
-    InterfaceClient!I createComponent(Config config, ApplicationContainer container)
+    alias Client = InterfaceClient!(I);
+    alias Factory = ClientFactory!(I, Client);
+    return container.registerNamed!(I, Client, NAME)
+        .factoryInstance!Factory(config, container);
+}
+
+
+/**
+ * Фабрика для клиента
+ */
+class ClientFactory(I, C) : ComponentFactory!(I, Config, ApplicationContainer)
+{
+    C createComponent(Config config, ApplicationContainer container)
     {
         Config trConf = config.getOrEnforce!Config("transport",
                 "Not defined client transport config");
@@ -65,48 +86,35 @@ class ClientFactory(I) : ComponentFactory!(I, Config, ApplicationContainer)
         Config protoConf = config.getOrEnforce!Config("protocol",
                 "Not defined client protocol config");
 
-        string serializerName = getNameOrEnforce(serConf,
+        string serializerName = serConf.getNameOrEnforce(
                 "Not defined client serializer name");
-        string protoName = getNameOrEnforce(protoConf,
+        string protoName = protoConf.getNameOrEnforce(
                 "Not defined client protocol name");
-        string transportName = getNameOrEnforce(trConf,
+        string transportName = trConf.getNameOrEnforce(
                 "Not defined clien transport name");
 
-        auto serFactory = container.resolveFactory!(Serializer,
-                Config)(serializerName);
-        configEnforce(serFactory !is null,
+        auto serFactory = container.resolveNamedFactory!Serializer(serializerName,
+                ResolveOption.noResolveException);
+        enforceConfig(serFactory !is null,
                 fmt!"Serializer '%s' not register"(serializerName));
-        Serializer serializer = serFactory.create(serConf);
-        logInfo("Use serializer '%s'", serializerName);
 
-        auto trFactory = container.resolveFactory!(ClientTransport,
-                Config)(transportName);
-        configEnforce(trFactory !is null,
+        auto trFactory = container.resolveNamedFactory!ClientTransport(
+                transportName, ResolveOption.noResolveException);
+        enforceConfig(trFactory !is null,
                 fmt!"Transport '%s' not register"(transportName));
-        ClientTransport transport = trFactory.create(trConf);
-        logInfo("Use transport '%s'", transportName);
 
-        auto protoFactory = container.resolveFactory!(
-                RpcClientProtocol, Config, ClientTransport, Serializer)(protoName);
-        configEnforce(protoFactory !is null,
+        auto protoFactory = container.resolveNamedFactory!RpcClientProtocol(
+                protoName, ResolveOption.noResolveException);
+        enforceConfig(protoFactory !is null,
                 fmt!"Protocol '%s' not register"(protoName));
-        RpcClientProtocol protocol = protoFactory.create(protoConf, transport, serializer);
-        logInfo("Use protocol '%s'", protoName);
 
-        return new InterfaceClient!I(protocol);
+        Serializer serializer = serFactory.createInstance(serConf);
+        ClientTransport transport = trFactory.createInstance(trConf);
+        RpcClientProtocol protocol = protoFactory.createInstance(protoConf,
+                transport, serializer);
+
+        return new C(protocol);
     }
-}
-
-
-/**
- * Регистрация клиента
- */
-void registerClient(TYPE, string NAME)(ApplicationContainer container, Config config)
-{
-    alias Client = InterfaceClient!(TYPE);
-    alias Factory = ClientFactory!(TYPE);
-    container.registerNamed!(TYPE, Client, NAME)
-        .factoryInstance!(Factory, TYPE)(CreatesSingleton.yes, config, container);
 }
 
 
@@ -169,7 +177,7 @@ template GenerateHandlerFromMethod(alias F, string cmd)
         alias PT = %2$s
 
         static if (ParameterIdents.length == 0)
-            auto params = UniNode();
+            auto parameters = UniNode();
         else
         {
             PT args;
@@ -179,10 +187,10 @@ template GenerateHandlerFromMethod(alias F, string cmd)
                     args[i] = def;
             }
             %3$s
-            auto params = serializeToUniNode!PT(args);
+            auto parameters = serializeToUniNode!PT(args);
         }
 
-        auto result = _protocol.request("%4$s", params);
+        auto result = _protocol.request("%4$s", parameters);
 
         static if (!is(RT == void))
             return deserializeUniNode!(RT)(result);
@@ -191,7 +199,7 @@ template GenerateHandlerFromMethod(alias F, string cmd)
 
 
 
-string generateModuleImports(I)()
+string GenerateModuleImports(I)()
 {
     if (!__ctfe)
         assert (false);
@@ -203,5 +211,4 @@ string generateModuleImports(I)()
     auto modules = getRequiredImports!I();
     return join(map!(a => "static import " ~ a ~ ";")(modules), "\n");
 }
-+/
 

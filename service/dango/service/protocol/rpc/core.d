@@ -12,7 +12,7 @@ module dango.service.protocol.rpc.core;
 public
 {
     import dango.service.serialization : Serializer;
-    // import dango.service.transport.core : ClientTransport;
+    import dango.service.transport : ClientTransport;
     import dango.service.protocol.rpc.error : RpcException, ErrorCode, enforceRpc,
            enforceRpcData;
 }
@@ -299,8 +299,6 @@ private:
 }
 
 
-
-/+
 /**
  * Клиент-протокол RPC
  */
@@ -313,8 +311,9 @@ interface RpcClientProtocol
 /**
  * Клиент-протокол RPC
  */
-abstract class BaseRpcClientProtocol : RpcClientProtocol
+abstract class BaseRpcClientProtocol(string N) : RpcClientProtocol, NamedComponent
 {
+    mixin NamedComponentMixin!(N);
     protected
     {
         ClientTransport _transport;
@@ -372,4 +371,4 @@ class RpcClientProtocolFactory(T : RpcClientProtocol) : ComponentFactory!(
         return new T(transport, serializer);
     }
 }
-+/
+

@@ -58,9 +58,10 @@ class PlainRpcServerProtocol : BaseRpcServerProtocol!"PLAIN"
 alias PlainRpcServerProtocolFactory = RpcServerProtocolFactory!(PlainRpcServerProtocol);
 
 
-
-/+
-class PlainRpcClientProtocol : BaseRpcClientProtocol
+/**
+ * Клиентский протокол Plain
+ */
+class PlainRpcClientProtocol : BaseRpcClientProtocol!"PLAIN"
 {
     private ulong counterId;
 
@@ -114,5 +115,4 @@ class PlainRpcClientProtocol : BaseRpcClientProtocol
 
 
 alias PlainRpcClientProtocolFactory = RpcClientProtocolFactory!(PlainRpcClientProtocol);
-+/
 

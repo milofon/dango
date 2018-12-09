@@ -9,7 +9,7 @@ module dango.service.transport;
 
 public
 {
-    import dango.service.transport.core : ServerTransport;
+    import dango.service.transport.core : ServerTransport, ClientTransport;
 }
 
 private

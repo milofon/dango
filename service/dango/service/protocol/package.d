@@ -39,10 +39,10 @@ class ProtocolContext : ApplicationContext
         container.registerController!(RpcDocumentationWebController,
                 RpcDocumentationWebControllerFactory, "RPCDOC");
 
-        // container.registerNamedFactory!(PlainRpcClientProtocolFactory,
-        //         PlainRpcClientProtocol, "PLAIN");
-        // container.registerNamedFactory!(JsonRpcClientProtocolFactory,
-        //         JsonRpcClientProtocol, "JSONRPC");
+        container.registerNamedFactory!(PlainRpcClientProtocol, PlainRpcClientProtocol.NAME,
+                PlainRpcClientProtocolFactory);
+        container.registerNamedFactory!(JsonRpcClientProtocol, JsonRpcServerProtocol.NAME,
+                JsonRpcClientProtocolFactory);
     }
 }
 

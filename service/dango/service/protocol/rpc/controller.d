@@ -81,8 +81,6 @@ interface RpcController : ActivatedComponent
 }
 
 
-
-
 /**
  * Базовый класс rpc контроллера
  * Params:
@@ -180,7 +178,7 @@ Registration registerController(C : RpcController, string N)(ApplicationContaine
  * Params:
  * C = Проверяемый тип
  */
-private template GetRpcControllerMethods(C)
+package template GetRpcControllerMethods(C)
 {
     private template Get(NList...)
     {
@@ -212,7 +210,7 @@ private template GetRpcControllerMethods(C)
 /**
  * Возвращает полное наименование команды
  */
-private template FullMethodName(I, string method)
+package template FullMethodName(I, string method)
 {
     enum udas = getUDAs!(I, Controller);
     static if (udas.length > 0)

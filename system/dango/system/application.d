@@ -16,6 +16,7 @@ public
     import dango.system.commandline : CommandLineProcessor;
     import dango.system.container : ApplicationContainer;
     import dango.system.logging;
+    import dango.system.properties : getNameOrEnforce;
 }
 
 private

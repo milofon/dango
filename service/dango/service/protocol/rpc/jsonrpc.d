@@ -62,9 +62,10 @@ class JsonRpcServerProtocol : BaseRpcServerProtocol!"JSONRPC"
 alias JsonRpcServerProtocolFactory = RpcServerProtocolFactory!(JsonRpcServerProtocol);
 
 
-
-/+
-class JsonRpcClientProtocol : BaseRpcClientProtocol
+/**
+ * Клиентский протокол JSON
+ */
+class JsonRpcClientProtocol : BaseRpcClientProtocol!"JSONRPC"
 {
     private ulong counterId;
 
@@ -119,5 +120,4 @@ class JsonRpcClientProtocol : BaseRpcClientProtocol
 
 
 alias JsonRpcClientProtocolFactory = RpcClientProtocolFactory!(JsonRpcClientProtocol);
-+/
 
