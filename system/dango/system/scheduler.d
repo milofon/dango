@@ -24,6 +24,7 @@ private
     import uniconf.core.exception : ConfigException;
     import cronexp : CronExpr, CronException;
 
+    import dango.system.rx;
     import dango.system.container;
     import dango.system.properties : getNameOrEnforce, enforceConfig;
 }
@@ -50,7 +51,7 @@ alias JobFactory = ComponentFactory!(Job, Config);
 /**
  * Интерфейс планировщика задач
  */
-interface JobScheduler : NamedComponent
+interface JobScheduler : NamedComponent, Observable!Job
 {
     /**
      * Запуск задачи
@@ -75,11 +76,13 @@ class TimerJobScheduler : JobScheduler
         Job _job;
         CronExpr _cron;
         Timer _timer;
+        SubjectObject!Job _subject;
     }
 
 
     this(Job job, CronExpr exp, string name)
     {
+        this._subject = new SubjectObject!Job;
         this._name = name;
         this._cron = exp;
         this._job = job;
@@ -92,6 +95,7 @@ class TimerJobScheduler : JobScheduler
         {
             _job.execute();
             _timer = setTimer(getNextDuration(), &execute);
+            _subject.put(_job);
         }
 
         _timer = setTimer(getNextDuration(), &execute);
@@ -101,6 +105,13 @@ class TimerJobScheduler : JobScheduler
     void stop()
     {
         _timer.stop();
+        _subject.completed();
+    }
+
+
+    Disposable subscribe(Observer!Job observer)
+    {
+        return _subject.doSubscribe(observer);
     }
 
 

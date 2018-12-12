@@ -23,6 +23,7 @@ private
 {
     import std.algorithm.iteration : filter, map;
     import std.array : empty, array;
+    import std.uni : toUpper;
 
     import poodinis : existingInstance, ResolveException;
     import vibe.core.core : runEventLoop, lowerPrivileges;
@@ -316,6 +317,14 @@ interface DaemonApplication
      * exitStatus = Код завершения приложения
      */
     int finalizeDaemon(int exitStatus);
+
+    /**
+     * Возвращает зарегистированный в приложении планировщик
+     *
+     * Params:
+     * jobName  = Имя задачи
+     */
+    JobScheduler getJobScheduler(string jobName);
 }
 
 
@@ -325,7 +334,7 @@ interface DaemonApplication
  */
 abstract class BaseDaemonApplication : BaseSystemApplication, DaemonApplication
 {
-    private JobScheduler[] _schedulers;
+    private JobScheduler[string] _schedulers;
 
 
     this(string name, string _version)
@@ -346,6 +355,14 @@ abstract class BaseDaemonApplication : BaseSystemApplication, DaemonApplication
     }
 
 
+    JobScheduler getJobScheduler(string jobName)
+    {
+        if (auto scheduler = jobName.toUpper in _schedulers)
+            return *scheduler;
+        return null;
+    }
+
+
 protected:
 
     // Реализация методов по умолчанию
@@ -353,6 +370,14 @@ protected:
     int finalizeDaemon(int exitStatus)
     {
         return exitStatus;
+    }
+
+
+    override void doInitializeDependencies(Config config)
+    {
+        super.doInitializeDependencies(config);
+        container.register!(DaemonApplication, typeof(this))
+            .existingInstance(this);
     }
 
 
@@ -371,10 +396,15 @@ private:
 
         lowerPrivileges();
 
-        _schedulers = resolveSystemSchedulers(container);
+        foreach (JobScheduler sh; resolveSystemSchedulers(container))
+            _schedulers[sh.name.toUpper] = sh;
+
         foreach (Config jobConf; config.getArray("job").filter!(
                     c => c.getOrElse!bool("enabled", false)))
-            _schedulers ~= resolveScheduler(container, jobConf);
+        {
+            auto sh = resolveScheduler(container, jobConf);
+            _schedulers[sh.name.toUpper] = sh;
+        }
 
         initializeDaemon(config);
 
