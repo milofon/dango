@@ -24,7 +24,7 @@ private
 
 
 /**
- * Контекст DI транспортных уровней
+ * Контекст DI транспортного уровня WEB
  */
 class WebTransportContext(string N) : ApplicationContext
 {

@@ -9,12 +9,20 @@ dependency "uninode:serialization" version="~>0.0.1"
 dependency "msgpack-d" version="~>1.0.0-beta.7"
 dependency "libdparse" version="~>0.9.1"
 
-/* dependency "zmqd" version="~>1.1.0" */
-/* dependency "msgpack-d" version="~>1.0.0-beta.6" */
-
 stringImportPaths "./views"
 targetType "library"
 targetPath "../out"
 sourcePaths "."
 importPaths "."
+
+
+configuration "library" {
+  excludedSourceFiles "dango/service/transport/zeromq/*"
+}
+
+
+configuration "zeromq" {
+  dependency "zmqd" version="~>1.1.0"
+  versions "Dango_Service_ZeroMQ"
+}
 

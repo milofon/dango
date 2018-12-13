@@ -23,6 +23,7 @@ private
 {
     import std.algorithm.iteration : filter, map;
     import std.array : empty, array;
+    import std.typecons : NullableRef;
     import std.uni : toUpper;
 
     import poodinis : existingInstance, ResolveException;
@@ -324,7 +325,7 @@ interface DaemonApplication
      * Params:
      * jobName  = Имя задачи
      */
-    JobScheduler getJobScheduler(string jobName);
+    NullableRef!JobScheduler getJobScheduler(string jobName);
 }
 
 
@@ -355,11 +356,11 @@ abstract class BaseDaemonApplication : BaseSystemApplication, DaemonApplication
     }
 
 
-    JobScheduler getJobScheduler(string jobName)
+    NullableRef!JobScheduler getJobScheduler(string jobName)
     {
         if (auto scheduler = jobName.toUpper in _schedulers)
-            return *scheduler;
-        return null;
+            return NullableRef!JobScheduler(scheduler);
+        return NullableRef!JobScheduler.init;
     }
 
 

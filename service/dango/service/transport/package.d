@@ -17,6 +17,8 @@ private
     import dango.system.container;
 
     import dango.service.transport.web : WebTransportContext;
+    version (Dango_Service_ZeroMQ)
+    import dango.service.transport.zeromq : ZeroMQTransportContext;
 }
 
 
@@ -28,6 +30,8 @@ class TransportContext : ApplicationContext
     override void registerDependencies(ApplicationContainer container)
     {
         container.registerContext!(WebTransportContext!"WEB");
+        version (Dango_Service_ZeroMQ)
+        container.registerContext!(ZeroMQTransportContext!"ZMQ");
     }
 }
 
