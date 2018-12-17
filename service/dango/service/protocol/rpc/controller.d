@@ -20,7 +20,6 @@ private
 {
     import std.meta : Alias, AliasSeq;
     import std.functional : toDelegate;
-    import std.typecons : Tuple;
     import std.traits;
 
     import uninode.core : UniNode;
@@ -29,7 +28,7 @@ private
     import dango.system.container;
     import dango.system.traits;
 
-    import dango.service.protocol.rpc.core;
+    import dango.service.protocol.rpc.core : MethodHandler;
     import dango.service.protocol.rpc.error;
     import dango.service.protocol.rpc.schema.recorder;
     import dango.service.serialization;
@@ -237,7 +236,6 @@ private template GenerateHandlerFromMethod(alias F)
     alias ParameterDefs = ParameterDefaults!F;
     alias Type = typeof(toDelegate(&F));
     alias RT = ReturnType!F;
-    alias PT = Tuple!ParameterTypes;
 
     MethodHandler GenerateHandlerFromMethod(Type hdl)
     {
@@ -271,7 +269,7 @@ private template GenerateHandlerFromMethod(alias F)
                 string[][string] paramErrors;
 
                 // инициализируем обязательные поля
-                PT args;
+                ParameterTypes args;
                 foreach (i, def; ParameterDefs)
                 {
                     string key = ParameterIdents[i];
@@ -349,12 +347,12 @@ private template GenerateHandlerFromMethod(alias F)
 
                 static if (is(RT == void))
                 {
-                    hdl(args.expand);
+                    hdl(args);
                     return UniNode();
                 }
                 else
                 {
-                    RT ret = hdl(args.expand);
+                    RT ret = hdl(args);
                     static if (is(RT == UniNode))
                         return ret;
                     else

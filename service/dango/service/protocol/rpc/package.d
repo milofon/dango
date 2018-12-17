@@ -12,7 +12,8 @@ module dango.service.protocol.rpc;
 public
 {
     import dango.service.protocol.rpc.controller : Method, Controller,
-            GenericRpcController, registerController;
+            GenericRpcController, registerController, RpcControllerFactory,
+            RpcController;
 
     import dango.service.protocol.rpc.error : enforceRpc, enforceRpcData;
     import dango.service.protocol.rpc.schema;

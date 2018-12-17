@@ -28,7 +28,7 @@ private
     import dango.system.properties : getNameOrEnforce;
     import uniconf.core.exception : enforceConfig;
 
-    import dango.service.protocol.rpc.core;
+    import dango.service.protocol.rpc.core : RpcClientProtocol;
     import dango.service.protocol.rpc.controller;
 
     import dango.service.serialization;
