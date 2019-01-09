@@ -28,7 +28,7 @@ private
     import uniconf.core : Config;
     import uniconf.core.exception : enforceConfig;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.system.properties : getNameOrEnforce;
 
     import dango.service.protocol.core;

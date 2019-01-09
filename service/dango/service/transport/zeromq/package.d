@@ -9,7 +9,7 @@ module dango.service.transport.zeromq;
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.service.transport.zeromq.server;
     import dango.service.transport.zeromq.client;

@@ -22,7 +22,7 @@ private
     import uniconf.core.exception : enforceConfig;
 
     import dango.system.properties : getNameOrEnforce;
-    import dango.system.container : registerContext, resolveNamedFactory,
+    import dango.system.inject : registerContext, resolveNamedFactory,
             ResolveOption;
 
     import dango.service.protocol.core : ServerProtocolContainer;

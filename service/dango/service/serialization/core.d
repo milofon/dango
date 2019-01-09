@@ -19,7 +19,7 @@ private
 {
     import uninode.serialization;
 
-    import dango.system.container;
+    import dango.system.inject;
 }
 
 

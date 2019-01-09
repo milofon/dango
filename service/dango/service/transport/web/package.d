@@ -9,7 +9,7 @@ module dango.service.transport.web;
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.web.server : URLRouterApplicationServerFactory,
            HTTPApplicationServer;

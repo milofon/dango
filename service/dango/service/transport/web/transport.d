@@ -18,7 +18,7 @@ private
 
     import uniconf.core : Config;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.service.transport.core;
     import dango.web.server : WebApplicationServer;
 }

@@ -14,7 +14,7 @@ public
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
     import dango.web.middleware : registerMiddleware;
 
     import dango.web.middlewares.tokenauth;

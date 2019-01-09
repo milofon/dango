@@ -15,7 +15,7 @@ private
 
     import uniconf.core : Config;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.service.types;
     import dango.service.serialization.core;
 }

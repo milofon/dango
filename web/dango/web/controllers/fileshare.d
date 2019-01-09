@@ -17,7 +17,7 @@ private
 
     import vibe.http.fileserver;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.system.properties;
     import dango.web.controller;
 }

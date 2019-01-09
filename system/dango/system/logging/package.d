@@ -13,7 +13,7 @@ public
 
 private
 {
-    import dango.system.container : ApplicationContainer, ApplicationContext,
+    import dango.system.inject : ApplicationContainer, ApplicationContext,
             registerNamed;
     import dango.system.logging.loggers.console;
     import dango.system.logging.loggers.file;

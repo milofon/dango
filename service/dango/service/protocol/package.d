@@ -14,7 +14,7 @@ public
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.service.protocol.rpc.plain;
     import dango.service.protocol.rpc.jsonrpc;

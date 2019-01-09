@@ -18,7 +18,7 @@ public
 private
 {
     import uniconf.core : Config;
-    import dango.system.container;
+    import dango.system.inject;
 }
 
 

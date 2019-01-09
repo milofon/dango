@@ -23,7 +23,7 @@ private
     import deimos.zmq.zmq;
     import zmqd;
 
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.service.transport.core;
     import dango.service.protocol : ServerProtocol;

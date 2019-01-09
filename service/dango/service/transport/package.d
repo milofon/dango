@@ -14,7 +14,7 @@ public
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.service.transport.web : WebTransportContext;
     version (Dango_Service_ZeroMQ)

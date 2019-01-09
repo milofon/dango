@@ -28,7 +28,7 @@ private
     alias isValidHandler = URLRouter.isValidHandler;
     alias handlerDelegate = URLRouter.handlerDelegate;
 
-    import dango.system.container;
+    import dango.system.inject;
 }
 
 

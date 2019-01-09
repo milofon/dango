@@ -16,7 +16,7 @@ private
     import vibe.http.websockets;
     import uniconf.core.exception : enforceConfig;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.web.controller;
 
     import dango.service.protocol;

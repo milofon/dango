@@ -25,7 +25,7 @@ private
     import uninode.core : UniNode;
     import poodinis : Registration;
 
-    import dango.system.container;
+    import dango.system.inject;
     import dango.system.traits;
 
     import dango.service.protocol.rpc.core : MethodHandler;

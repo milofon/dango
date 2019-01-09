@@ -24,7 +24,7 @@ private
     import vibe.core.log;
 
     import dango.system.traits : IsPublicMember;
-    import dango.system.container;
+    import dango.system.inject;
     import dango.system.properties : getNameOrEnforce;
     import uniconf.core.exception : enforceConfig;
 

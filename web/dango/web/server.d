@@ -27,7 +27,7 @@ private
     import vibe.stream.tls : createTLSContext, TLSContext, TLSContextKind;
 
     import dango.system.properties : getNameOrEnforce, ConfigException;
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.web.controller;
     import dango.system.logging;

@@ -18,7 +18,7 @@ public
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
 
     import dango.service.serialization.json;
     import dango.service.serialization.msgpack;

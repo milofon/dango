@@ -16,7 +16,7 @@ public
 
 private
 {
-    import dango.system.container : registerFactory, resolveFactory,
+    import dango.system.inject : registerFactory, resolveFactory,
             registerContext;
 
     import dango.web.server;

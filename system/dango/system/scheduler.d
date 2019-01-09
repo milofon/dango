@@ -25,7 +25,7 @@ private
     import cronexp : CronExpr, CronException;
 
     import dango.system.rx;
-    import dango.system.container;
+    import dango.system.inject;
     import dango.system.properties : getNameOrEnforce, enforceConfig;
 }
 

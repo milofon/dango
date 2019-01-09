@@ -21,7 +21,7 @@ private
     import vibe.inet.mimetypes : getMimeTypeForFile;
 
     import dango.system.properties : getOrEnforce;
-    import dango.system.container;
+    import dango.system.inject;
     import dango.web.controller;
 }
 

@@ -5,7 +5,7 @@
  * Date: 2018-05-30
  */
 
-module dango.system.container;
+module dango.system.inject;
 
 public
 {
@@ -13,11 +13,11 @@ public
             registerContext, ResolveException, ResolveOption,
             newInstance;
 
-    import dango.system.container.named : registerNamed, resolveNamed;
-    import dango.system.container.component;
-    import dango.system.container.context : registerConfigurableContext,
+    import dango.system.inject.named : registerNamed, resolveNamed;
+    import dango.system.inject.component;
+    import dango.system.inject.context : registerConfigurableContext,
             ConfigurableContext;
-    import dango.system.container.exception;
+    import dango.system.inject.exception;
 }
 
 private

@@ -18,7 +18,7 @@ public
 private
 {
     import std.functional : toDelegate;
-    import std.traits : hasUDA, getUDAs, isCallable, TemplateArgsOf;
+    import std.traits : hasUDA, getUDAs, isCallable, TemplateArgsOf, Parameters;
     import std.meta;
 
     import dango.system.traits;
@@ -94,12 +94,11 @@ struct Middleware(MTypes...) {}
  * Params:
  * CType = Объект с определенными в нем обработчиками
  */
-abstract class GenericWebController(IType) : BaseWebController, IType
+abstract class GenericWebController(IType, alias CH = createHandler) : BaseWebController, IType
     if (is(IType == interface))
 {
     static assert(hasUDA!(IType, Controller),
             IType.stringof ~ " is not marked with a Controller");
-
 
     void registerChains(RegisterChainCallback dg)
     {
@@ -112,7 +111,16 @@ abstract class GenericWebController(IType) : BaseWebController, IType
             enum fName = __traits(identifier, Member);
             auto HDL = &__traits(getMember, this, fName);
             alias MemberType = typeof(toDelegate(&Member));
-            auto hdl = createHandler!(IType, MemberType, Member)(this, HDL);
+
+            alias __CH = CH!(IType, MemberType, Member);
+            static assert(is(ReturnType!__CH == HTTPServerRequestDelegate),
+                "createHandler must return HTTPServerRequestDelegate");
+            alias __P = Parameters!__CH;
+            static assert(__P.length == 2, __errorMsg);
+            static assert(is(__P[0] : IType), __errorMsg);
+            static assert(is(__P[1] == MemberType), __errorMsg);
+
+            auto hdl = __CH(this, HDL);
             if (hdl !is null)
                 dg(hdlUDA.method, getFullPath(hdlUDA.path),
                         new GenericChain!(IType, Member)(hdl));
@@ -121,6 +129,8 @@ abstract class GenericWebController(IType) : BaseWebController, IType
 
 
 private:
+
+    enum __errorMsg = "The handler creation function must match '" ~ CH.stringof ~ "'";
 
 
     string getFullPath(string path)

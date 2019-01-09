@@ -7,7 +7,7 @@
  * Date: 2018-05-31
  */
 
-module dango.system.container.named;
+module dango.system.inject.named;
 
 private
 {
@@ -18,7 +18,7 @@ private
 
     import poodinis;
 
-    import dango.system.container.exception : DangoContainerException;
+    import dango.system.inject.exception : DangoContainerException;
 }
 
 

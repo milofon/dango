@@ -7,7 +7,7 @@
  * Date: 2018-11-20
  */
 
-module dango.system.container.exception;
+module dango.system.inject.exception;
 
 private
 {

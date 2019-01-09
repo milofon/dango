@@ -11,7 +11,7 @@ module dango.service.protocol.core;
 
 public
 {
-    import dango.system.container : ApplicationContainer;
+    import dango.system.inject : ApplicationContainer;
 
     import dango.service.types : Bytes;
     import dango.service.serialization : Serializer;
@@ -21,7 +21,7 @@ private
 {
     import std.typecons : Tuple;
     import uniconf.core : Config;
-    import dango.system.container;
+    import dango.system.inject;
 }
 
 

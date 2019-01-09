@@ -14,7 +14,7 @@ public
     import uniconf.core.config : Config;
 
     import dango.system.commandline : CommandLineProcessor;
-    import dango.system.container : ApplicationContainer;
+    import dango.system.inject : ApplicationContainer;
     import dango.system.logging;
     import dango.system.properties : getNameOrEnforce;
 }
@@ -35,7 +35,7 @@ private
 
     import dango.system.logging.core : configureLogging;
     import dango.system.logging : LoggingContext;
-    import dango.system.container : registerContext;
+    import dango.system.inject : registerContext;
     import dango.system.scheduler : JobScheduler, resolveScheduler,
             resolveSystemSchedulers;
 }

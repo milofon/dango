@@ -20,7 +20,7 @@ private
 
     import vibe.core.log : Logger, LogLevel, FileLogger, setLogLevel;
 
-    import dango.system.container : ComponentFactory, ApplicationContainer,
+    import dango.system.inject : ComponentFactory, ApplicationContainer,
             resolveNamed;
     import dango.system.properties : getNameOrEnforce;
 }

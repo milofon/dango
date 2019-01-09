@@ -18,7 +18,7 @@ private
     import vibe.http.server : render;
 
     import dango.system.application : Application;
-    import dango.system.container : Autowire;
+    import dango.system.inject : Autowire;
 
     import dango.web.controller;
 }

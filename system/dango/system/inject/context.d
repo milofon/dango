@@ -7,7 +7,7 @@
  * Date: 2018-07-11
  */
 
-module dango.system.container.context;
+module dango.system.inject.context;
 
 public
 {

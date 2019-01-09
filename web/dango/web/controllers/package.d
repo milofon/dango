@@ -14,7 +14,7 @@ public
 
 private
 {
-    import dango.system.container;
+    import dango.system.inject;
     import dango.web.controller : registerController;
 
     import dango.web.controllers.fileshare;

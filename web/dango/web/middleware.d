@@ -24,7 +24,7 @@ private
 
     import poodinis : Registration;
 
-    import dango.system.container;
+    import dango.system.inject;
 }
 
 

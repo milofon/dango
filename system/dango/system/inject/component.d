@@ -7,7 +7,7 @@
  * Date: 2018-06-26
  */
 
-module dango.system.container.component;
+module dango.system.inject.component;
 
 private
 {
@@ -19,8 +19,8 @@ private
     import bolts : isFunctionOver;
     import poodinis;
 
-    import dango.system.container.exception;
-    import dango.system.container.named : registerNamed, resolveNamed;
+    import dango.system.inject.exception;
+    import dango.system.inject.named : registerNamed, resolveNamed;
 }
 
 
