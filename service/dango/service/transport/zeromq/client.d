@@ -123,9 +123,6 @@ class ZeroMQConnection
         GC.disable();
         scope(exit) GC.enable();
 
-        import std.stdio: wl = writeln;
-        wl(_timeout);
-
         _socket.send(bytes);
 
         return async({

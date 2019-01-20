@@ -57,7 +57,7 @@ if (is(Context : ConfigurableContext))
 
 version(unittest)
 {
-    import dango.system.container.component;
+    import dango.system.inject.component;
 
     class TestContext : ApplicationContext, ConfigurableContext
     {
