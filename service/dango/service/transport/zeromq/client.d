@@ -123,6 +123,9 @@ class ZeroMQConnection
         GC.disable();
         scope(exit) GC.enable();
 
+        if (!connected())
+            connect();
+
         _socket.send(bytes);
 
         return async({
