@@ -65,55 +65,60 @@ class InterfaceClient(I) : I
  */
 Registration registerClient(I, string NAME)(ApplicationContainer container, Config config)
 {
-    alias Client = InterfaceClient!(I);
-    alias Factory = ClientFactory!(I, Client);
-    return container.registerNamed!(I, Client, NAME)
+    alias Factory = ClientFactory!(I);
+    return container.registerNamed!(I, InterfaceClient!I, NAME)
         .factoryInstance!Factory(config, container);
+}
+
+
+InterfaceClient!I createRpcClient(I)(Config config, ApplicationContainer container)
+{
+    Config trConf = config.getOrEnforce!Config("transport",
+            "Not defined client transport config");
+    Config serConf = config.getOrEnforce!Config("serializer",
+            "Not defined client serializer config");
+    Config protoConf = config.getOrEnforce!Config("protocol",
+            "Not defined client protocol config");
+
+    string serializerName = serConf.getNameOrEnforce(
+            "Not defined client serializer name");
+    string protoName = protoConf.getNameOrEnforce(
+            "Not defined client protocol name");
+    string transportName = trConf.getNameOrEnforce(
+            "Not defined clien transport name");
+
+    auto serFactory = container.resolveNamedFactory!Serializer(serializerName,
+            ResolveOption.noResolveException);
+    enforceConfig(serFactory !is null,
+            fmt!"Serializer '%s' not register"(serializerName));
+
+    auto trFactory = container.resolveNamedFactory!ClientTransport(
+            transportName, ResolveOption.noResolveException);
+    enforceConfig(trFactory !is null,
+            fmt!"Transport '%s' not register"(transportName));
+
+    auto protoFactory = container.resolveNamedFactory!RpcClientProtocol(
+            protoName, ResolveOption.noResolveException);
+    enforceConfig(protoFactory !is null,
+            fmt!"Protocol '%s' not register"(protoName));
+
+    Serializer serializer = serFactory.createInstance(serConf);
+    ClientTransport transport = trFactory.createInstance(trConf);
+    RpcClientProtocol protocol = protoFactory.createInstance(protoConf,
+            transport, serializer);
+
+    return new InterfaceClient!I(protocol);
 }
 
 
 /**
  * Фабрика для клиента
  */
-class ClientFactory(I, C) : ComponentFactory!(I, Config, ApplicationContainer)
+class ClientFactory(I) : ComponentFactory!(I, Config, ApplicationContainer)
 {
-    C createComponent(Config config, ApplicationContainer container)
+    I createComponent(Config config, ApplicationContainer container)
     {
-        Config trConf = config.getOrEnforce!Config("transport",
-                "Not defined client transport config");
-        Config serConf = config.getOrEnforce!Config("serializer",
-                "Not defined client serializer config");
-        Config protoConf = config.getOrEnforce!Config("protocol",
-                "Not defined client protocol config");
-
-        string serializerName = serConf.getNameOrEnforce(
-                "Not defined client serializer name");
-        string protoName = protoConf.getNameOrEnforce(
-                "Not defined client protocol name");
-        string transportName = trConf.getNameOrEnforce(
-                "Not defined clien transport name");
-
-        auto serFactory = container.resolveNamedFactory!Serializer(serializerName,
-                ResolveOption.noResolveException);
-        enforceConfig(serFactory !is null,
-                fmt!"Serializer '%s' not register"(serializerName));
-
-        auto trFactory = container.resolveNamedFactory!ClientTransport(
-                transportName, ResolveOption.noResolveException);
-        enforceConfig(trFactory !is null,
-                fmt!"Transport '%s' not register"(transportName));
-
-        auto protoFactory = container.resolveNamedFactory!RpcClientProtocol(
-                protoName, ResolveOption.noResolveException);
-        enforceConfig(protoFactory !is null,
-                fmt!"Protocol '%s' not register"(protoName));
-
-        Serializer serializer = serFactory.createInstance(serConf);
-        ClientTransport transport = trFactory.createInstance(trConf);
-        RpcClientProtocol protocol = protoFactory.createInstance(protoConf,
-                transport, serializer);
-
-        return new C(protocol);
+        return createRpcClient!I(config, container);
     }
 }
 
