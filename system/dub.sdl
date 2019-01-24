@@ -5,7 +5,7 @@ authors "Maksim Galanin"
 license "BSD"
 
 
-dependency "uniconf:sdlang" version="~>0.0.1"
+dependency "uniconf:sdlang" version=">=0.0.2-beta.1"
 dependency "brightproof" version="~>2.4.0"
 dependency "poodinis" version="8.0.3+commit.2.g3c621a1"
 dependency "vibe-core" version=">=1.4.0-alpha.1 <2.0.0-0"
