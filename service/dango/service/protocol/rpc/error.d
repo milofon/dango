@@ -14,6 +14,7 @@ private
     import std.meta;
 
     import uninode.core : UniNode;
+    import uninode.serialization : serializeToUniNode;
 }
 
 
@@ -134,6 +135,14 @@ void enforceRpcData(V, T)(V value, int code, string message, T data,
         return;
 
     throw new RpcException(code, message, serializeToUniNode!T(data), file, line);
+}
+
+
+
+@system unittest
+{
+    import std.exception;
+    assertThrown!RpcException(enforceRpcData(false, 100, "no", "no"));
 }
 
 
