@@ -17,7 +17,7 @@ private
     import std.format : fmt = format;
     import std.array : appender;
 
-    import vibe.core.core : Timer, setTimer;
+    import vibe.core.core : Timer, setTimer, runWorkerTaskH, Task;
     import poodinis : Registration, ResolveOption, autowire;
 
     import uniconf.core : Config;
@@ -38,7 +38,7 @@ interface Job
     /**
      * Запуск задачи
      */
-    void execute();
+    void execute() shared;
 }
 
 
@@ -72,11 +72,11 @@ class TimerJobScheduler : JobScheduler
 {
     private
     {
-        string _name;
-        Job _job;
-        CronExpr _cron;
-        Timer _timer;
+        const CronExpr _cron;
+        const string _name;
+        const Job _job;
         SubjectObject!Job _subject;
+        Task _task;
     }
 
 
@@ -91,20 +91,14 @@ class TimerJobScheduler : JobScheduler
 
     void start()
     {
-        void execute()
-        {
-            _job.execute();
-            _timer = setTimer(getNextDuration(), &execute);
-            _subject.put(_job);
-        }
-
-        _timer = setTimer(getNextDuration(), &execute);
+        _task = runWorkerTaskH!(TimerJobScheduler.run)(cast(shared)this,
+                cast(shared)_job);
     }
 
 
     void stop()
     {
-        _timer.stop();
+        _task.interrupt();
         _subject.completed();
     }
 
@@ -121,13 +115,28 @@ class TimerJobScheduler : JobScheduler
     }
 
 
+    void run(shared(Job) job) shared
+    {
+        Timer timer;
+
+        void execute()
+        {
+            job.execute();
+            timer.rearm(getNextDuration());
+            (cast(SubjectObject!Job)_subject).put(cast(Job)job);
+        }
+
+        timer = setTimer(getNextDuration(), &execute);
+    }
+
+
 private:
 
 
-    Duration getNextDuration()
+    Duration getNextDuration() shared
     {
         auto now = cast(DateTime)Clock.currTime();
-        return _cron.getNext(now) - now;
+        return (cast(CronExpr)_cron).getNext(now) - now;
     }
 }
 
