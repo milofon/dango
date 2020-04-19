@@ -1,0 +1,16 @@
+name "dango"
+description "The library for constructing applications."
+copyright "Copyright (c) 2015-2020, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD 3-clause"
+
+targetPath "out"
+targetName "dango"
+
+subPackage "system"
+dependency ":system" version="*"
+
+configuration "library" {
+	targetType "library"
+}
+
