@@ -16,9 +16,36 @@ private
 
 
 /**
+ * Base dango exception
+ */
+class DangoException : Exception
+{
+    mixin basicExceptionCtors;
+}
+
+
+/**
  * Base application exception
  */
-class DangoApplicationException : Exception
+class DangoApplicationException : DangoException
+{
+    mixin basicExceptionCtors;
+}
+
+
+/**
+ * Base plugin exception
+ */
+class DangoPluginException : DangoException
+{
+    mixin basicExceptionCtors;
+}
+
+
+/**
+ * Base configuration exception
+ */
+class DangoConfigException : DangoException
 {
     mixin basicExceptionCtors;
 }

@@ -9,8 +9,10 @@ module dango.inject;
 
 public
 {
-    import dango.inject.container : DependencyContainer, ComponentFactory;
+    import dango.inject.container : DependencyContainer;
+    import dango.inject.factory : ComponentFactory, ComponentFactoryCtor, WrapDependencyFactory;
     import dango.inject.provider : Provider, singleInstance, newInstance, existingInstance;
     import dango.inject.context : DependencyContext, registerContext;
+    import dango.inject.injection : inject, Inject, Named;
 }
 

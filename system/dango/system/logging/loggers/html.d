@@ -15,7 +15,6 @@ private
     import vibe.core.concurrency : lock;
 
     import dango.system.logging.core;
-    import dango.system.properties;
 }
 
 
@@ -26,8 +25,8 @@ class HTMLLoggerFactory : LoggerFactory
 {
     shared(Logger) createComponent(UniConf config) @trusted
     {
-        string fileName = config.opt!string("file").frontOr("dango.html");
-        LogLevel level = matchLogLevel(config.opt!string("level").frontOr("info"));
+        string fileName = config.getOrElse("file", "dango.html");
+        LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
 
         auto result = cast(shared)new HTMLLogger(fileName);
         {

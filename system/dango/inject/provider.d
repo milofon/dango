@@ -16,7 +16,8 @@ private
     import std.meta : anySatisfy, AliasSeq, Filter;
     import std.traits;
 
-    import dango.inject.container: DependencyContainer, ComponentFactory;
+    import dango.inject.container: DependencyContainer;
+    import dango.inject.factory : ComponentFactory;
     import dango.inject.exception : InjectDangoException;
     import dango.inject.injection : Inject, Named, inject;
 }
@@ -91,10 +92,7 @@ class Registration
         T result;
         _provider.withProvided(injectInstance, (val) @trusted {
                 static if (is(T == interface) || is(T == class))
-                {
-                    Object o = *(cast(Object*)val);
-                    result = cast(T)o;
-                }
+                    result = cast(T)(*(cast(Object*)val));
                 else
                     result = *(cast(T*)val);
             });
@@ -727,6 +725,73 @@ Registration singleInstance(Registration registration) nothrow @safe
 
 
 /**
+ * A Provider that uses another provider to existing instance
+ */
+class ExistingInstanceProvider(I) : Provider
+    if (is(I == class))
+{
+    private
+    {
+        Provider _original;
+        I _instance;
+    }
+
+    /**
+     * Common constructor
+     */
+    this(I instance, Provider original) pure nothrow @safe
+    {
+        this._original = original;
+        this._instance = instance;
+    }
+
+    /**
+     * Return a `TypeInfo` describing the type provided.
+     */
+    TypeInfo providedType() const pure nothrow @safe
+    {
+        return _original.providedType();
+    }
+
+    /**
+     * Return a `TypeInfo` describing the type registered.
+     */
+    TypeInfo registeredType() const pure nothrow @safe
+    {
+        return _original.registeredType();
+    }
+
+    /**
+     * Produce the value.
+     * A pointer to the value is passed to a delegate.
+     *
+     * Notes: The pointer may no longer be valid after `dg` returns, so the value
+     * pointed to should be copied to persist it.
+     */
+    void withProvided(bool injectInstance, void delegate(void*) @safe dg) @safe
+    {
+        dg(&_instance);
+    }
+
+    /**
+     * Return maybe singleton provider
+     */
+    bool canSingleton() const pure nothrow @safe
+    {
+        return false;
+    }
+
+    /**
+     * Return original provider
+     */
+    Provider originalProvider() pure nothrow @safe
+    {
+        return _original;
+    }
+}
+
+
+/**
  * Scopes registrations to return a new instance every time the given registration is resolved.
  */
 Registration newInstance(Registration registration) nothrow @safe
@@ -765,14 +830,7 @@ Registration existingInstance(T)(Registration registration, T instance) @trusted
         throw new InjectDangoException(fmt!"Type '%s' not support singleton"(
                     registration.providedType));
 
-    registration.singleInstance();
-
-    auto singleProvider = cast(SingletonProvider)registration._provider;
-    if (singleProvider)
-    {
-        Object obj = cast(Object)instance;
-        singleProvider._instance = cast(void*)&obj;
-    }
+    registration._provider = new ExistingInstanceProvider!T(instance, registration._provider);
     return registration;
 }
 

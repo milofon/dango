@@ -27,7 +27,7 @@ private
     import commandr : Option, Command;
     import uniconf.core : loadConfig;
 
-    import dango.inject : DependencyContainer, existingInstance, registerContext;
+    import dango.inject : DependencyContainer, existingInstance, registerContext, Inject;
     import dango.system.logging.core : configureLogging;
     import dango.system.plugin;
 }
@@ -38,6 +38,16 @@ private
  */
 interface Application
 {
+    /**
+     * Свойство возвращает наименование приложения
+     */
+    string name() const pure @safe nothrow;
+
+    /**
+     * Свойство возвращает версию приложения
+     */
+    SemVer release() const pure @safe nothrow;
+
     /**
      * Функция загружает свойства из файла при помощи локального загрузчика
      * Params:
@@ -51,13 +61,29 @@ interface Application
     /**
      * Возвращает глобальный объект настроек приложения
      */
-    UniConf getConfig() pure nothrow @safe;
+    const(UniConf) getConfig() const pure nothrow @safe;
 
     /**
      * Возвращает глобальный контейнер зависимостей
      */
-    DependencyContainer getContainer() pure nothrow @safe;
+    DependencyContainer getContainer() @safe nothrow;
 }
+
+
+/**
+ * Делегат инициализации зависимостей
+ */
+alias DependencyBootstrap = void delegate(DependencyContainer cont, UniConf config) @safe;
+
+/**
+ * Делегат инициализации плагинов
+ */
+alias PluginBootstrap = void delegate(PluginManager manager) @safe;
+
+/**
+ * Делегат инициализации приложения
+ */
+alias ApplicationBootstrap = void delegate(DependencyContainer cont, UniConf config) @safe;
 
 
 /**
@@ -76,13 +102,16 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
         ConsolePlugin[] _plugins;
 
         DependencyContainer _container;
-        PluginManager _manager;
+        PluginManager _pluginManager;
+        DependencyBootstrap[] _dependencyBootstraps;
+        ApplicationBootstrap[] _applicationBootstraps;
+        PluginBootstrap[] _pluginBootstraps;
     }
 
     /**
      * Main application constructor
      */
-    this()(string name, string _version, string summary) @safe
+    this(string name, string _version, string summary) @safe
     {
         this(name, SemVer(_version), summary);
     }
@@ -90,28 +119,27 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     /**
      * Main application constructor
      */
-    this()(string name, SemVer _version, string summary) @safe
+    this(string name, SemVer _version, string summary) @safe
     {
         this._applicationVersion = _version;
         this._applicationSummary = summary;
         this._applicationName = name;
-        initializationConfigSystem();
         this._container = new DependencyContainer();
-        this._manager = new PluginManager(_container);
+        this._pluginManager = new PluginManager(_container);
     }
 
     /**
      * Свойство возвращает наименование приложения
      */
-    string summary() pure nothrow @safe
+    string name() const pure nothrow @safe
     {
-        return _applicationSummary;
+        return _applicationName;
     }
 
     /**
      * Свойство возвращает версию приложения
      */
-    SemVer release() pure nothrow @safe
+    SemVer release() const pure nothrow @safe
     {
         return _applicationVersion;
     }
@@ -136,7 +164,7 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     /**
      * Возвращает глобальный объект настроек приложения
      */
-    UniConf getConfig() pure nothrow @safe
+    const(UniConf) getConfig() const pure nothrow @safe
     {
         return _applicationConfig;
     }
@@ -144,7 +172,7 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     /**
      * Возвращает глобальный контейнер зависимостей
      */
-    DependencyContainer getContainer() pure nothrow @safe
+    DependencyContainer getContainer() @safe nothrow
     {
         return _container;
     }
@@ -171,11 +199,27 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     }
 
     /**
-     * Возвращает менеджер плагинов
+     * Добавить инициализатор зависимостей
      */
-    PluginManager getManager() @safe nothrow
+    void addDependencyBootstrap(DependencyBootstrap bst) @safe nothrow
     {
-        return _manager;
+        _dependencyBootstraps ~= bst;
+    }
+
+    /**
+     * Добавить инициализатор плагинов
+     */
+    void addPluginBootstrap(PluginBootstrap bst) @safe nothrow
+    {
+        _pluginBootstraps ~= bst;
+    }
+
+    /**
+     * Добавить инициализатор приложения
+     */
+    void addApplicationBootstrap(ApplicationBootstrap bst) @safe nothrow
+    {
+        _applicationBootstraps ~= bst;
     }
 
     /**
@@ -186,23 +230,33 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
      *
      * Returns: Код завершения работы приложения
      */
-    int run(string[] args) @trusted
+    int run()(string[] args) @trusted
     {
         import commandr : parse;
+
+        initializationApplicationConfig(args);
+        initializeDependencies(_container, _applicationConfig);
+
+        configureLogging(_container, _applicationConfig, &registerLogger);
+
+        logInfo("Start application %s (%s)", _applicationName, _applicationVersion);
+
+        _pluginManager.registerPluginContainer(this);
+        foreach (bootstrap; _pluginBootstraps)
+            bootstrap(_pluginManager);
+        _pluginManager.initializePlugins();
 
         auto prog = new Program(_applicationName)
                 .version_(_applicationVersion.toString)
                 .summary(_applicationSummary);
-
-        prog.add(new Option("c", "config", "Application config file"));
 
         foreach (ConsolePlugin plug; _plugins)
             plug.registerCommand(prog);
 
         auto progArgs = prog.parse(args);
 
-        if (auto ret = runApplication(progArgs))
-            return ret;
+        foreach (bootstrap; _applicationBootstraps)
+            bootstrap(_container, _applicationConfig);
 
         foreach (ConsolePlugin plug; _plugins)
         {
@@ -216,12 +270,28 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
 
 private:
 
-    /**
-     * Run commnad
-     */
-    int runApplication(ProgramArgs prog) @trusted
+
+    void initializeDependencies(DependencyContainer container, UniConf config) @safe
     {
-        auto configFiles = prog.options("config");
+        container.register!(Application, typeof(this)).existingInstance(this);
+        container.registerContext!LoggingContext();
+        foreach (bootstrap; _dependencyBootstraps)
+            bootstrap(container, config);
+    }
+
+
+    void initializationApplicationConfig()(ref string[] args) @trusted
+    {
+        import std.getopt : getopt, arraySep, gconfig = config;
+
+        initializationConfigSystem();
+
+        arraySep = ",";
+        string[] configFiles;
+        auto helpInformation = getopt(args,
+                gconfig.passThrough,
+                "c|config", &configFiles);
+
         if (!configFiles.length)
             configFiles = _defaultConfigs;
 
@@ -230,18 +300,6 @@ private:
             auto config = loadConfigFile(cFile);
             _applicationConfig = _applicationConfig ~ config;
         }
-
-        initializeDependencies(_applicationConfig);
-        configureLogging(_container, _applicationConfig, &registerLogger);
-
-        return 0;
-    }
-
-
-    void initializeDependencies(UniConf config)
-    {
-        _container.register!(Application, typeof(this)).existingInstance(this);
-        _container.registerContext!LoggingContext();
     }
 
 
@@ -273,35 +331,26 @@ private:
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-enum DAEMON_VERSION = "0.0.2";
-
-
 /**
  * Реализация плагина для запуска приложения в фоне
  */
-class DaemonApplication : PluginContainer!DaemonPlugin, ConsolePlugin
+class DaemonApplicationPlugin : PluginContainer!DaemonPlugin, ConsolePlugin
 {
     private @safe
     {
-        SemVer _release = SemVer(DAEMON_VERSION);
         DaemonPlugin[] _plugins;
     }
 
     /**
-     * Свойство возвращает наименование приложения
+     * Свойство возвращает наименование плагина
+     */
+    string name() pure @safe nothrow
+    {
+        return "Daemon";
+    }
+
+    /**
+     * Свойство возвращает описание плагина
      */
     string summary() pure nothrow @safe
     {
@@ -309,11 +358,11 @@ class DaemonApplication : PluginContainer!DaemonPlugin, ConsolePlugin
     }
 
     /**
-     * Свойство возвращает версию приложения
+     * Свойство возвращает версию плагина
      */
     SemVer release() pure nothrow @safe
     {
-        return _release;
+        return SemVer(0, 0, 1);
     }
 
     /**
@@ -342,85 +391,40 @@ class DaemonApplication : PluginContainer!DaemonPlugin, ConsolePlugin
      */
     int runCommand(ProgramArgs args) @trusted
     {
+        import vibe.core.core : Timer, setTimer;
+        import core.time : seconds;
+
         auto cmd = args.command();
         int ret = 0;
         if (cmd is null || cmd.name != "start")
             return ret;
 
-    //         foreach (DaemonPlugin dp; _plugins)
-    //         {
-    //             ret = dp.startDaemon();
-    //             if (ret)
-    //                 return ret;
-    //         }
+        foreach (DaemonPlugin dp; _plugins)
+        {
+            ret = dp.startDaemon();
+            if (ret)
+                return ret;
+        }
 
         string uid = cmd.option("user");
         string gid = cmd.option("group");
         lowerPrivileges(uid, gid);
 
-        import std.stdio: wl = writeln;
-        wl("daemon start");
+        void emptyTimer() {}
+        auto timer = setTimer(1.seconds, &emptyTimer, true);
+
         logDiagnostic("Running event loop...");
-    //         ret = runEventLoop();
+        ret = runEventLoop(); 
         logDiagnostic("Event loop exited with status %d.", ret);
 
-    //         foreach (DaemonPlugin dp; _plugins)
-    //         {
-    //             ret = dp.stopDaemon(ret);
-    //             if (ret)
-    //                 return ret;
-    //         }
+        foreach (DaemonPlugin dp; _plugins)
+        {
+            ret = dp.stopDaemon(ret);
+            if (ret)
+                return ret;
+        }
 
         return ret;
     }
-
-    PluginManager getManager() @safe nothrow
-    {
-        return null;
-    }
 }
-
-
-/+
-    /**
-     * Запуск основного цикла обработки событий
-     * Params:
-     *
-     * config = Конфигурация приложения
-     */
-    int runLoop(Config config)
-    {
-        logInfo("Запуск приложения %s (%s)", name, release);
-
-        lowerPrivileges();
-
-        foreach (JobScheduler sh; resolveSystemSchedulers(container))
-            _schedulers[sh.name.toUpper] = sh;
-
-        foreach (Config jobConf; config.getArray("job").filter!(
-                    c => c.getOrElse!bool("enabled", false)))
-        {
-            auto sh = resolveScheduler(container, jobConf);
-            _schedulers[sh.name.toUpper] = sh;
-        }
-
-        initializeDaemon(config);
-
-        foreach (JobScheduler job; _schedulers)
-        {
-            logInfo("Start job %s", job.name);
-            job.start();
-        }
-
-        logDiagnostic("Запуск цикла обработки событий...");
-        int status = runEventLoop();
-        logDiagnostic("Цикл событий зaвершен со статуcом %d.", status);
-
-        foreach (JobScheduler job; _schedulers)
-            job.stop();
-
-        return finalizeDaemon(status);
-    }
-}
-+/
 

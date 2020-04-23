@@ -16,6 +16,7 @@ public
 
 private
 {
+    import dango.inject.injection : inject;
 }
 
 
@@ -24,16 +25,17 @@ private
  */
 interface DependencyContext(A...)
 {
-    void registerDependencies(DependencyContainer container, A args);
+    void registerDependencies(DependencyContainer container, A args) @safe;
 }
 
 
 /**
 * Register dependencies through an dependency context.
 */
-void registerContext(Context : DependencyContext!(A), A...)(DependencyContainer container)
+void registerContext(Context : DependencyContext!(A), A...)(DependencyContainer container) @safe
 {
     auto context = new Context();
     context.registerDependencies(container);
+    inject!Context(container, context);
 }
 

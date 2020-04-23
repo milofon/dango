@@ -126,10 +126,10 @@ void configureLogging(DependencyContainer container, UniConf config,
     foreach (UniConf loggerConf; logConfig.getSequence())
     {
         auto appender = loggerConf.opt!UniConf("appender");
-        if (appender.empty)
+        if (appender.isNull)
             throw new Exception(fmt!"В конфигурации логера не указан тип ('%s')"(loggerConf));
 
-        string appenderName = appender.front.getNameOrEnforce(
+        string appenderName = appender.get.getNameOrEnforce(
                 "Не указано наименование логгера").toUpper;
 
         auto factory = container.resolve!LoggerFactory(appenderName);

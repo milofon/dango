@@ -19,25 +19,9 @@ private
     import std.array : join, array;
 
     import dango.inject.injection : Inject, Named, inject;
+    import dango.inject.factory : ComponentFactory;
     import dango.inject.provider;
     import dango.inject.exception;
-}
-
-
-/**
- * Интерфейс фабрики для создания компонентов системы
- * Params:
- * I - Конструируемый тип
- * A - Типы аргументов
- */
-interface ComponentFactory(C, A...)
-{
-    alias ComponentType = C;
-
-    /**
-     * Создает компонент на основе конфигов
-     */
-    C createComponent(A args) @safe;
 }
 
 
@@ -133,11 +117,12 @@ class DependencyContainer
         Provider provider = new ClassProvider!(SuperType, ConcreteType)(this);
         TypeInfo registeredType = provider.registeredType;
         TypeInfo providedType = provider.providedType;
+        string uName = assumeWontThrow(name.toUpper);
 
         if (auto existingCandidates = registeredType in _registrations)
         {
             auto existingRegistration = assumeWontThrow(find!((r) @safe {
-                        return r.isNamed && r.name == name;
+                        return r.isNamed && r.name == uName;
                     })(*existingCandidates));
             if (existingRegistration.length)
                 return existingRegistration[0];
@@ -180,7 +165,7 @@ class DependencyContainer
      */
     Registration provider(string name, Provider provider) nothrow @safe
     {
-        auto newRegistration = new Registration(provider, name);
+        auto newRegistration = new Registration(provider, assumeWontThrow(name.toUpper));
         return addRegistration(provider.registeredType, newRegistration);
     }
 
@@ -241,13 +226,14 @@ class DependencyContainer
     ResolveType resolve(ResolveType)(string name) @safe
     {
         TypeInfo resolveType = typeid(ResolveType);
+        string uName = name.toUpper;
 
         auto candidates = resolveType in _registrations;
         if (!candidates)
             throw new ResolveDangoException("Type not registered.", resolveType);
 
         auto namedCandidates = filter!((r) {
-                return r.isNamed && r.name == name;
+                return r.isNamed && r.name == uName;
             })(*candidates).array;
 
         if (namedCandidates.length > 1)
@@ -258,7 +244,7 @@ class DependencyContainer
         }
         else if (namedCandidates.length == 0)
             throw new ResolveDangoException(
-                    fmt!"Type not registered with name '%s'."(name), resolveType);
+                    fmt!"Type not registered with name '%s'."(uName), resolveType);
 
         Registration registration = namedCandidates[0];
         return resolveInjectdInstance!ResolveType(registration);
@@ -270,16 +256,17 @@ class DependencyContainer
      * Returns:
      * An array of autowired instances is returned. The order is undetermined.
      */
-    ResolveType[] resolveAll(ResolveType)(string name)
+    ResolveType[] resolveAll(ResolveType)(string name) @safe
     {
         TypeInfo resolveType = typeid(ResolveType);
+        string uName = name.toUpper;
 
         auto candidates = resolveType in _registrations;
         if (!candidates)
             throw new ResolveDangoException("Type not registered.", resolveType);
 
         auto namedCandidates = filter!((r) {
-                return r.isNamed && r.name == name;
+                return r.isNamed && r.name == uName;
             })(*candidates);
 
         ResolveType[] result;
@@ -389,10 +376,10 @@ private:
 
     reg = cont.value("two", 2);
     assert (reg.isNamed);
-    assert (reg.name == "two");
+    assert (reg.name == "TWO");
 
     assert (cont._registrations[typeid(int)].length == 2);
-    assert (cont.resolve!int("two") == 2);
+    assert (cont.resolve!int("tWo") == 2);
 
     cont.value("hello");
     assert (cont.resolve!string() == "hello");    

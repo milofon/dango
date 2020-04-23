@@ -1,5 +1,5 @@
 /**
- * Модуль консольного логера, основанного на vibe.core.log и consoled
+ * Модуль консольного логера, основанного на vibe.core.log и termcolor
  *
  * Copyright: (c) 2015-2020, Milofon Project.
  * License: Subject to the terms of the BSD 3-Clause License, as written in the included LICENSE.md file.
@@ -19,7 +19,6 @@ private
     import termcolor : AnsiColor = C, fg, bg, resetColor;
 
     import dango.system.logging.core;
-    import dango.system.properties;
 }
 
 
@@ -30,8 +29,8 @@ class ConsoleLoggerFactory : LoggerFactory
 {
     shared(Logger) createComponent(UniConf config) @trusted
     {
-        LogLevel level = matchLogLevel(config.opt!string("level").frontOr("info"));
-        bool isSync = config.opt!bool("sync").frontOr(false);
+        LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
+        bool isSync = config.getOrElse("sync", false);
         return cast(shared)new ConsoleLogger(level, isSync);
     }
 }
