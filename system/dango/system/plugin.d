@@ -17,34 +17,11 @@ public
 
 private
 {
-    import dango.inject.container;
-}
+    import std.traits;
 
-
-class PluginManager
-{
-@safe:
-    private DependencyContainer _container;
-
-    /**
-     * Main constructor
-     */
-    this(DependencyContainer container)
-    {
-        this._container = container;
-    }
-
-    /**
-     * Инициализация плагина
-     *
-     * Params:
-     * plugin = Плагин для инициализации
-     */
-    void initializePlugin(P : Plugin)(P plugin)
-    {
-        // TODO: autoware plugin
-        pragma (msg, "manager defined plugin -> ", P);
-    }
+    import dango.system.logging : logInfo;
+    import dango.inject : DependencyContainer, inject;
+    import dango.system.exception;
 }
 
 
@@ -54,9 +31,9 @@ class PluginManager
 interface Plugin
 {
     /**
-     * Свойство возвращает наименование приложения
+     * Свойство возвращает наименование плагина
      */
-    string summary() pure @safe nothrow;
+    string name() pure @safe nothrow;
 
     /**
      * Свойство возвращает версию приложения
@@ -71,31 +48,31 @@ interface Plugin
 interface PluginContainer(P : Plugin)
 {
     /**
-     * Возвращает менеджер плагинов
-     */
-    PluginManager getManager() @safe;
-
-    /**
-     * Регистрация плагина в контейнер
-     *
-     * Params:
-     * plugin = Плагин для регистрации
-     */
-    final void registerPlugin(PP : P)(PP plug) @safe
-    {
-        auto manager = getManager();
-        if (manager)
-            manager.initializePlugin!(PP)(plug);
-        collectPlugin(plug);
-    }
-
-    /**
      * Обработка контейнером нового плагина
      *
      * Params:
      * plugin = Плагин для добавления
      */
-    void collectPlugin(P plugin) @safe nothrow;
+    void collectPlugin(P plugin) @safe;
+}
+
+
+/**
+ * Plugin context
+ */
+interface PluginContext(P : Plugin, A...)
+{
+    void registerPlugins(P plugin, A args) @safe;
+}
+
+
+/**
+ * Register plugin context
+ */
+void registerContext(Context : PluginContext!(P, A), P : Plugin, A...)(P plugin, A args) @safe
+{
+    auto ctx = new Context();
+    ctx.registerPlugins(plugin, args);
 }
 
 
@@ -104,6 +81,11 @@ interface PluginContainer(P : Plugin)
  */
 interface ConsolePlugin : Plugin
 {
+    /**
+     * Свойство возвращает описание плагина
+     */
+    string summary() pure @safe nothrow;
+
     /**
      * Регистрация обработцика команды
      *
@@ -139,5 +121,95 @@ interface DaemonPlugin : Plugin
      * exitStatus = Код завершения приложения
      */
     int stopDaemon(int exitStatus);
+}
+
+
+/**
+ * Менеджер плагинов
+ */
+class PluginManager
+{
+    private 
+    {
+        alias PluginCollect = void delegate(Plugin) @safe;
+
+        struct PluginInfo
+        {
+            TypeInfo info;
+            Plugin plugin;
+        }
+
+        DependencyContainer _dcontainer;
+        PluginCollect[][TypeInfo] _containers;
+        PluginInfo[] _registrations;
+    }
+
+
+    /**
+     * Main constructor
+     */
+    this(DependencyContainer container) @safe nothrow
+    {
+        this._dcontainer = container;
+    }
+
+    /**
+     * Регистрация плагина
+     */
+    P registerPlugin(P : Plugin)() @safe
+        if (!is(P == Plugin))
+    {
+        P plugin = new P();
+        inject!P(_dcontainer, plugin);
+        return registerPlugin!P(plugin);
+    }
+
+    /**
+     * Регистрация плагина
+     */
+    P registerPlugin(P : Plugin)(P plugin) @safe
+        if (!is(P == Plugin))
+    {
+        static foreach (PI; InterfacesTuple!P)
+        {
+            static if (is(PI : PluginContainer!I, I : Plugin))
+                registerPluginContainer!PI(plugin);
+            static if (is(PI : Plugin) && !is(PI == Plugin))
+                _registrations ~= PluginInfo(typeid(PI), plugin);
+        }
+        return plugin;
+    }
+
+    /**
+     * Регистрация контейнера плагинов
+     */
+    void registerPluginContainer(C : PluginContainer!P, P)(C containerPlugin) @safe
+    {
+        _containers[typeid(P)] ~= delegate void(Plugin p) {
+                containerPlugin.collectPlugin(cast(P)p);
+            };
+    }
+
+    /**
+     * Инициализация плагинов
+     */
+    void initializePlugins() @trusted
+    {
+        foreach (reg; _registrations)
+        {
+            if (reg.plugin is null || reg.info is null)
+                throw new DangoPluginException("Error registration plugin");
+
+            if (auto collectors = reg.info in _containers)
+            {
+                logInfo("Use plugin %s (%s) as %s", reg.plugin.name, reg.plugin.release, reg.info);
+                foreach (collector; *collectors)
+                    collector(reg.plugin);
+            }
+            else
+                throw new DangoPluginException("Error initialize plugin. "
+                        ~ "Not found container for plugin " ~ reg.info.toString);
+        }
+    }
 }
 

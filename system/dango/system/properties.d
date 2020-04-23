@@ -9,11 +9,6 @@
 
 module dango.system.properties;
 
-public
-{
-    import optional.or : frontOr;
-}
-
 private
 {
     import uniconf.core : UniConf, UniConfException;
@@ -29,7 +24,7 @@ private
  *
  * Returns: name
  */
-string getOrEnforce(T)(UniConf config, string key, string msg) @safe
+T getOrEnforce(T)(UniConf config, string key, string msg) @safe
 {
     auto val = config.opt!T(key);
     if (val.empty)
@@ -37,6 +32,15 @@ string getOrEnforce(T)(UniConf config, string key, string msg) @safe
     return val.front;
 }
 
+@("Should work getOrEnforce method")
+@safe unittest
+{
+    import std.exception : assertThrown;
+    auto conf = UniConf(["__name": UniConf("method")]);
+    assert (conf.getOrEnforce!string("__name", "not found") == "method");
+    conf = UniConf(1);
+    assertThrown!UniConfException(conf.getOrEnforce!int("name", "not found"));
+}
 
 /**
  * Извление имени из объекта конфигурации
@@ -58,5 +62,41 @@ string getNameOrEnforce(UniConf config, string msg) @safe
             throw new UniConfException(msg);
         return val.front;
     }
+}
+
+@("Should work getNameOrEnforce method")
+@safe unittest
+{
+    import std.exception : assertThrown;
+    UniConf conf = UniConf("method"); 
+    assert (conf.getNameOrEnforce("not found") == "method");
+    conf = UniConf(["__name": UniConf("method")]);
+    assert (conf.getNameOrEnforce("not found") == "method");
+    conf = UniConf(1);
+    assertThrown!UniConfException(conf.getNameOrEnforce("not found"));
+}
+
+
+/**
+ * Преобразует UniConf в массив
+ * 
+ * Params:
+ * config = Объект конфигурации
+ */
+UniConf[] toSequence(UniConf config) @safe
+{
+    if (config.canSequence)
+        return config.getSequence();
+    else
+        return [config];
+}
+
+@("Should work toSequence method")
+@safe unittest
+{
+    UniConf conf = UniConf(1); 
+    assert (conf.toSequence == [UniConf(1)]); 
+    conf = UniConf([UniConf(1), UniConf(2)]);
+    assert (conf.toSequence == [UniConf(1), UniConf(2)]); 
 }
 
