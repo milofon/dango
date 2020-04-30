@@ -1,0 +1,25 @@
+name "web"
+description "The library for constructing service"
+copyright "Copyright (c) 2015-2020, Milofon Project. All rights reserved."
+authors "Maksim Galanin"
+license "BSD 3-clause"
+
+dependency "dango:system" version="*"
+dependency "vibe-d:http" version="~>0.8.6"
+
+targetType "library"
+targetPath "../out"
+sourcePaths "."
+importPaths "."
+
+configuration "library" {
+	targetType "library"
+}
+
+configuration "unittest" {
+	dependency "silly" version="~>1.0.1"
+	targetType "library"
+	sourcePaths "../tests/web" 
+	importPaths "../tests/web"
+}
+

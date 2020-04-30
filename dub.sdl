@@ -4,11 +4,13 @@ copyright "Copyright (c) 2015-2020, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD 3-clause"
 
-targetPath "out"
-targetName "dango"
-
 subPackage "system"
 dependency ":system" version="*"
+subPackage "web"
+dependency ":web" version="*"
+
+targetPath "out"
+targetName "dango"
 
 configuration "library" {
 	targetType "library"
