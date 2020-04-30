@@ -100,3 +100,27 @@ UniConf[] toSequence(UniConf config) @safe
     assert (conf.toSequence == [UniConf(1), UniConf(2)]); 
 }
 
+
+/**
+ * Преобразует UniConf в массив
+ * 
+ * Params:
+ * config = Объект конфигурации
+ */
+UniConf[] toSequence(UniConf config, string key) @safe
+{
+    auto val = config.opt!UniConf(key);
+    if (val.isNull)
+        return [];
+    return val.get.toSequence();
+}
+
+@("Should work toSequence method with key")
+@safe unittest
+{
+    UniConf conf = UniConf(["one": UniConf(1)]);
+    assert (conf.toSequence("one") == [UniConf(1)]);
+    conf = UniConf(["one": UniConf([UniConf(1), UniConf(2)])]);
+    assert (conf.toSequence("one") == [UniConf(1), UniConf(2)]);
+}
+

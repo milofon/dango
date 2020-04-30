@@ -11,7 +11,7 @@ module dango.system.exception;
 
 private
 {
-    import std.exception : basicExceptionCtors;
+    import std.exception : basicExceptionCtors, enforce;
 }
 
 
@@ -49,4 +49,7 @@ class DangoConfigException : DangoException
 {
     mixin basicExceptionCtors;
 }
+
+/// enforce DangoConfigException
+alias enforceConfig = enforce!DangoConfigException;
 
