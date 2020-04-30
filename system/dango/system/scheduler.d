@@ -9,6 +9,11 @@
 
 module dango.system.scheduler;
 
+public
+{
+    import uniconf.core : UniConf;
+}
+
 private
 {
     import core.time : Duration;
@@ -29,7 +34,7 @@ private
     import dango.inject;
 
     import dango.system.logging : logWarn, logInfo, logDebug;
-    import dango.system.application : Application, UniConf;
+    import dango.system.application : Application;
     import dango.system.exception : DangoConfigException;
     import dango.system.properties;
     import dango.system.plugin;
@@ -66,12 +71,22 @@ class SchedulerPlugin : DaemonPlugin
 {
     private @safe
     {
-        @Inject
-        Application _application;
+        DependencyContainer _container;
+        UniConf _config;
 
         SchedulerFactory[string] _schedulerFactorys;
         SysSchedulerFactory[] _sysSchedulerFactorys;
         JobScheduler[] _schedulers;
+    }
+
+    /**
+     * Main constructor
+     */
+    @Inject
+    this(Application application)
+    {
+        this._container = application.getContainer();
+        this._config = application.getConfig();
     }
 
     /**
@@ -95,13 +110,10 @@ class SchedulerPlugin : DaemonPlugin
      */
     int startDaemon()
     {
-        auto config = _application.getConfig;
-        auto container = _application.getContainer;
-
         foreach (sysFactory; _sysSchedulerFactorys)
-            _schedulers ~= sysFactory(container);
+            _schedulers ~= sysFactory(_container);
 
-        auto schedulerConf = config.opt!UniConf("scheduler");
+        auto schedulerConf = _config.opt!UniConf("scheduler");
         if (schedulerConf.isNull)
         {
             logWarn("Not found scheduler configuration");
@@ -120,7 +132,7 @@ class SchedulerPlugin : DaemonPlugin
         {
             string jobName = getNameOrEnforce(jobConf, "Not defined job name");
             if (auto factory = jobName.toUpper in _schedulerFactorys)
-                _schedulers ~= (*factory)(container, jobConf);
+                _schedulers ~= (*factory)(_container, jobConf);
             else
                 throw new DangoConfigException("Job '" ~ jobName ~ "' not register");
         }

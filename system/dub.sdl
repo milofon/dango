@@ -4,22 +4,18 @@ copyright "Copyright (c) 2015-2020, Milofon Project. All rights reserved."
 authors "Maksim Galanin"
 license "BSD 3-clause"
 
-targetPath "../out"
-sourcePaths "."
-importPaths "."
-
-dependency "uniconf:sdlang" version="~>0.2.2"
-
+dependency "uniconf:sdlang" version="~>0.2.1"
 dependency "brightproof" version="~>2.4.0"
 dependency "vibe-core" version="~>1.9.1"
 dependency "commandr" version="~>0.1.1"
 dependency "termcolor-d" version="~>0.0.1"
 dependency "cronexp" version="~>0.1.0-beta3"
 
+targetPath "../out"
+sourcePaths "."
+importPaths "."
+
 versions "VibeNoDefaultArgs"
-
-/* dependency "rx" version="~>0.9.0" */
-
 
 configuration "library" {
 	targetType "library"
