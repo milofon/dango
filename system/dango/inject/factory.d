@@ -18,6 +18,7 @@ private
     import bolts : isFunctionOver;
 
     import dango.inject.container : DependencyContainer;
+    import dango.inject.provider : ClassProvider;
     import dango.inject.injection : inject;
 }
 
@@ -29,6 +30,7 @@ private
  * A - Типы аргументов
  */
 interface ComponentFactory(C, A...)
+    if (is(C == class) || is(C == interface))
 {
     alias ComponentType = C;
 
@@ -46,6 +48,7 @@ interface ComponentFactory(C, A...)
  * args = Принимаемые аргументы
  */
 C createComponentByCtor(C, A...)(A args)
+    if (is(C == class) || is(C == interface))
 {
     enum hasValidCtor(alias ctor) = isFunctionOver!(ctor, args);
 
@@ -121,6 +124,7 @@ version (unittest)
  * Фабрика автосгенерирована на основе конструктора компонента
  */
 template ComponentFactoryCtor(C, CT : C, A...)
+    if (is(C == class) || is(C == interface))
 {
     class ComponentFactoryCtor : ComponentFactory!(C, DependencyContainer, A)
     {
@@ -167,8 +171,11 @@ template WrapDependencyFactory(F : ComponentFactory!(C, A), C, A...)
          */
         C createComponent(DependencyContainer container, AA args) @safe
         {
-            auto factory = new F();
-            inject!F(container, factory);            
+            auto provider = new ClassProvider!(F, F)(container);
+            F factory;
+            provider.withProvided(true, (val) @trusted {
+                    factory = cast(F)(*(cast(Object*)val));
+                });
             static if (A.length && is(A[0] == DependencyContainer))
                 return factory.createComponent(container, args);
             else

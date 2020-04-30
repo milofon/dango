@@ -21,6 +21,7 @@ private
 
     import dango.system.logging : logInfo;
     import dango.inject : DependencyContainer, inject;
+    import dango.inject.provider : ClassProvider;
     import dango.system.exception;
 }
 
@@ -159,8 +160,11 @@ class PluginManager
     P registerPlugin(P : Plugin)() @safe
         if (!is(P == Plugin))
     {
-        P plugin = new P();
-        inject!P(_dcontainer, plugin);
+        P plugin;
+        auto prov = new ClassProvider!(Plugin, P)(_dcontainer);
+        prov.withProvided(true, (val) @trusted {
+                plugin = cast(P)(*(cast(Object*)val));
+            });
         return registerPlugin!P(plugin);
     }
 
