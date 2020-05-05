@@ -11,6 +11,8 @@ module dango.system.properties;
 
 private
 {
+    import std.typecons : Nullable;
+
     import uniconf.core : UniConf, UniConfException;
 }
 
@@ -32,7 +34,7 @@ T getOrEnforce(T)(UniConf config, string key, string msg) @safe
     return val.get;
 }
 
-@("Should work getOrEnforce method")
+@("Should work getOrEnforce method with key")
 @safe unittest
 {
     import std.exception : assertThrown;
@@ -41,6 +43,35 @@ T getOrEnforce(T)(UniConf config, string key, string msg) @safe
     conf = UniConf(1);
     assertThrown!UniConfException(conf.getOrEnforce!int("name", "not found"));
 }
+
+
+/**
+ * Извление конфигурации
+ *
+ * Params:
+ * config = Объект содержащий необходимы ключ конфигурации
+ * msg = Сообщение об ошибке
+ *
+ * Returns: name
+ */
+T getOrEnforce(T)(UniConf config, string msg) @safe
+{
+    auto val = config.opt!T();
+    if (val.isNull)
+        throw new UniConfException(msg);
+    return val.get;
+}
+
+@("Should work getOrEnforce method")
+@safe unittest
+{
+    import std.exception : assertThrown;
+    auto conf = UniConf("method");
+    assert (conf.getOrEnforce!string("not found") == "method");
+    conf = UniConf(1);
+    assertThrown!UniConfException(conf.getOrEnforce!string("not found"));
+}
+
 
 /**
  * Извление имени из объекта конфигурации
@@ -122,5 +153,26 @@ UniConf[] toSequence(UniConf config, string key) @safe
     assert (conf.toSequence("one") == [UniConf(1)]);
     conf = UniConf(["one": UniConf([UniConf(1), UniConf(2)])]);
     assert (conf.toSequence("one") == [UniConf(1), UniConf(2)]);
+}
+
+
+/**
+ * Возвращает зачение из Nullable или альтернативное значение
+ */
+R getOrElse(R)(Nullable!R value, R alt) @safe nothrow
+{
+    if (value.isNull)
+        return alt;
+    return value.get;
+}
+
+@("Should work getOrElse method")
+@safe unittest
+{
+    UniConf conf = UniConf(["one": UniConf(1)]);
+    auto val = conf.opt!int("one");
+    assert (!val.isNull);
+    assert (val.getOrElse(2) == 1);
+    assert (conf.opt!int("two").getOrElse(2) == 2);
 }
 
