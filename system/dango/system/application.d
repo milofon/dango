@@ -19,6 +19,7 @@ public
 private
 {
     import std.format : fmt = format;
+    import std.functional : toDelegate;
 
     import vibe.core.log : logDiagnostic, registerLogger;
     import vibe.core.file : existsFile, readFileUTF8;
@@ -27,7 +28,8 @@ private
     import commandr : Option, Command;
     import uniconf.core : loadConfig;
 
-    import dango.inject : DependencyContainer, existingInstance, registerContext, Inject;
+    import dango.inject : DependencyContainer, existingInstance, Inject, 
+            registerDependencyContext;
     import dango.system.logging.core : configureLogging;
     import dango.system.plugin;
 }
@@ -74,16 +76,19 @@ interface Application
  * Делегат инициализации зависимостей
  */
 alias DependencyBootstrap = void delegate(DependencyContainer cont, UniConf config) @safe;
+alias DependencyBootstrapFn = void function(DependencyContainer cont, UniConf config) @safe;
 
 /**
  * Делегат инициализации плагинов
  */
 alias PluginBootstrap = void delegate(PluginManager manager) @safe;
+alias PluginBootstrapFn = void function(PluginManager manager) @safe;
 
 /**
  * Делегат инициализации приложения
  */
 alias ApplicationBootstrap = void delegate(DependencyContainer cont, UniConf config) @safe;
+alias ApplicationBootstrapFn = void function(DependencyContainer cont, UniConf config) @safe;
 
 
 /**
@@ -207,6 +212,14 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     }
 
     /**
+     * Добавить инициализатор зависимостей
+     */
+    void addDependencyBootstrap(DependencyBootstrapFn bst) nothrow
+    {
+        _dependencyBootstraps ~= toDelegate(bst);
+    }
+
+    /**
      * Добавить инициализатор плагинов
      */
     void addPluginBootstrap(PluginBootstrap bst) @safe nothrow
@@ -215,11 +228,27 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
     }
 
     /**
+     * Добавить инициализатор плагинов
+     */
+    void addPluginBootstrap(PluginBootstrapFn bst) nothrow
+    {
+        _pluginBootstraps ~= toDelegate(bst);
+    }
+
+    /**
      * Добавить инициализатор приложения
      */
     void addApplicationBootstrap(ApplicationBootstrap bst) @safe nothrow
     {
         _applicationBootstraps ~= bst;
+    }
+
+    /**
+     * Добавить инициализатор приложения
+     */
+    void addApplicationBootstrap(ApplicationBootstrapFn bst) nothrow
+    {
+        _applicationBootstraps ~= toDelegate(bst);
     }
 
     /**
@@ -274,7 +303,7 @@ private:
     void initializeDependencies(DependencyContainer container, UniConf config) @safe
     {
         container.register!(Application, typeof(this)).existingInstance(this);
-        container.registerContext!LoggingContext();
+        container.registerDependencyContext!LoggingContext();
         foreach (bootstrap; _dependencyBootstraps)
             bootstrap(container, config);
     }
