@@ -32,10 +32,11 @@ interface DependencyContext(A...)
 /**
 * Register dependencies through an dependency context.
 */
-void registerContext(Context : DependencyContext!(A), A...)(DependencyContainer container) @safe
+void registerDependencyContext(Context : DependencyContext!(A), A...)(
+        DependencyContainer container, A args) @safe
 {
     auto context = new Context();
-    context.registerDependencies(container);
+    context.registerDependencies(container, args);
     inject!Context(container, context);
 }
 
