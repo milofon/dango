@@ -114,28 +114,26 @@ class SchedulerPlugin : DaemonPlugin
             _schedulers ~= sysFactory(_container);
 
         auto schedulerConf = _config.opt!UniConf("scheduler");
-        if (schedulerConf.isNull)
+        if (!schedulerConf.isNull)
         {
-            logWarn("Not found scheduler configuration");
-            return 0;
-        }
-
-        auto jobsConfig = schedulerConf.get.opt!UniConf("job");
-        if (jobsConfig.isNull)
-        {
-            logWarn("Not found jobs configuration");
-            return 0;
-        }
-
-        foreach (UniConf jobConf; jobsConfig.get.toSequence.filter!(
-                    c => c.getOrElse!bool("enabled", false)))
-        {
-            string jobName = getNameOrEnforce(jobConf, "Not defined job name");
-            if (auto factory = jobName.toUpper in _schedulerFactorys)
-                _schedulers ~= (*factory)(_container, jobConf);
+            auto jobsConfig = schedulerConf.get.opt!UniConf("job");
+            if (!jobsConfig.isNull)
+            {
+                foreach (UniConf jobConf; jobsConfig.get.toSequence.filter!(
+                            c => c.getOrElse!bool("enabled", false)))
+                {
+                    string jobName = getNameOrEnforce(jobConf, "Not defined job name");
+                    if (auto factory = jobName.toUpper in _schedulerFactorys)
+                        _schedulers ~= (*factory)(_container, jobConf);
+                    else
+                        throw new DangoConfigException("Job '" ~ jobName ~ "' not register");
+                }
+            }
             else
-                throw new DangoConfigException("Job '" ~ jobName ~ "' not register");
+                logWarn("Not found jobs configuration");
         }
+        else
+            logWarn("Not found scheduler configuration");
 
         logInfo("Start scheduler");
 
