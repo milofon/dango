@@ -113,11 +113,11 @@ void configureLogging(DependencyContainer container, UniConf config,
 void configureLogging(DependencyContainer container, UniConf config,
         void delegate(shared(Logger)) nothrow dg) @safe
 {
-    if ("logger" !in config)
-        return;
-
     // отключаем логгер консоли по умолчанию
     setLogLevel(LogLevel.none);
+
+    if ("logger" !in config)
+        return;
 
     UniConf logConfig = config.get!UniConf("logger");
     if (logConfig.canMapping)
