@@ -321,6 +321,9 @@ private:
                 gconfig.passThrough,
                 "c|config", &configFiles);
 
+        if (helpInformation.helpWanted)
+            args ~= "-h";
+
         if (!configFiles.length)
             configFiles = _defaultConfigs;
 
