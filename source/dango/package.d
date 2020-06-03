@@ -3,10 +3,13 @@
  * License: Subject to the terms of the BSD license, as written in the included LICENSE.txt file.
  * Authors: Maksim Galanin
  */
-module dango.dango;
+module dango;
 
-private
+public
 {
-    // import dango.system.application;
+    import dango.inject;
+    import dango.system.application;
+    import dango.system.properties;
+    import dango.system.plugin;
 }
 

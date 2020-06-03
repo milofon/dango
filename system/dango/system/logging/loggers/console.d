@@ -12,7 +12,7 @@ module dango.system.logging.loggers.console;
 private
 {
     import std.typecons: Tuple;
-    import std.stdio: writeln, write, writef, stdout;
+    import std.stdio: stdout, stderr, File;
     import std.format : fmt = format;
 
     import vibe.core.log : Logger, LogLevel, LogLine;
@@ -31,7 +31,8 @@ class ConsoleLoggerFactory : LoggerFactory
     {
         LogLevel level = matchLogLevel(config.getOrElse("level", "info"));
         bool isSync = config.getOrElse("sync", false);
-        return cast(shared)new ConsoleLogger(level, isSync);
+        string outStreamName = config.getOrElse("outStream", "stdout");
+        return cast(shared)new ConsoleLogger(level, outStreamName, isSync);
     }
 }
 
@@ -41,12 +42,20 @@ class ConsoleLoggerFactory : LoggerFactory
  */
 class ConsoleLogger : Logger
 {
-    private immutable bool isSync;
+    private 
+    {
+        immutable bool isSync;
+        File outStream;
+    }
 
 
-    this(LogLevel level, bool isSync)
+    this(LogLevel level, string outStreamName, bool isSync) @trusted
     {
         this.isSync = isSync;
+        if (outStreamName == "stderr")
+            this.outStream = stderr;
+        else
+            this.outStream = stdout;
         minLevel = level;
     }
 
@@ -88,23 +97,23 @@ class ConsoleLogger : Logger
             auto msecs = tm.fracSecs.total!"msecs";
         else auto msecs = tm.fracSec.msecs;
 
-        writef("[%08X:%08X %d.%02d.%02d %02d:%02d:%02d.%03d ",
+        outStream.writef("[%08X:%08X %d.%02d.%02d %02d:%02d:%02d.%03d ",
                 msg.threadID, msg.fiberID,
                 tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, msecs);
-        write(theme[0].fg, theme[1].bg, pref, resetColor);
-        write("] ");
+        outStream.write(theme[0].fg, theme[1].bg, pref, resetColor);
+        outStream.write("] ");
     }
 
     override void put(scope const(char)[] text)
     {
-        write(text);
+        outStream.write(text);
     }
 
     override void endLine() @trusted
     {
-        writeln();
+        outStream.writeln();
         if (isSync)
-            stdout.flush();
+            outStream.flush();
     }
 }
 
