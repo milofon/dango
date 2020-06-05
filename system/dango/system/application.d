@@ -22,13 +22,14 @@ private
     import std.functional : toDelegate;
 
     import vibe.core.log : logDiagnostic, registerLogger;
-    import vibe.core.file : existsFile, readFileUTF8;
+    import vibe.core.path : NativePath;
+    import vibe.core.file : existsFile, readFileUTF8, writeFile;
     import vibe.core.core : lowerPrivileges, runEventLoop;
 
     import commandr : Option, Command;
     import uniconf.core : loadConfig;
 
-    import dango.inject : DependencyContainer, existingInstance, Inject, 
+    import dango.inject : DependencyContainer, existingInstance, Inject,
             registerDependencyContext;
     import dango.system.logging.core : configureLogging;
     import dango.system.plugin;
@@ -279,10 +280,25 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
                 .version_(_applicationVersion.toString)
                 .summary(_applicationSummary);
 
+        prog.add(new Command("saver", "Save application version to file")
+                .add(new Option("f", "file", "Output file").required()));
+
         foreach (ConsolePlugin plug; _plugins)
             plug.registerCommand(prog);
 
         auto progArgs = prog.parse(args);
+
+        auto command = progArgs.command;
+        if (command !is null && command.name == "saver")
+        {
+            auto versionFile = command.option("file");
+            if (versionFile !is null && versionFile.length)
+            {
+                writeFile(NativePath(versionFile), cast(ubyte[])release.toString);
+                return 0;
+            }
+            return 1;
+        }
 
         foreach (bootstrap; _applicationBootstraps)
             bootstrap(_container, _applicationConfig);
@@ -446,7 +462,7 @@ class DaemonApplicationPlugin : PluginContainer!DaemonPlugin, ConsolePlugin
         auto timer = setTimer(1.seconds, &emptyTimer, true);
 
         logDiagnostic("Running event loop...");
-        ret = runEventLoop(); 
+        ret = runEventLoop();
         logDiagnostic("Event loop exited with status %d.", ret);
 
         foreach (DaemonPlugin dp; _plugins)

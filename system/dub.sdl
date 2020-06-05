@@ -11,6 +11,9 @@ dependency "commandr" version="~>0.1.1"
 dependency "termcolor-d" version="~>0.0.1"
 dependency "cronexp" version="~>0.1.0-beta3"
 
+dependency "packageversion" version="~>0.0.19"
+subConfiguration "packageversion" "library"
+
 targetPath "../out"
 sourcePaths "."
 importPaths "."
