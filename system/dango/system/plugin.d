@@ -88,7 +88,7 @@ interface ConsolePlugin : Plugin
     string summary() pure @safe nothrow;
 
     /**
-     * Регистрация обработцика команды
+     * Регистрация обработчика команды
      *
      * Params:
      * prog = Объект программы

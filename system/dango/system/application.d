@@ -280,25 +280,14 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
                 .version_(_applicationVersion.toString)
                 .summary(_applicationSummary);
 
-        prog.add(new Command("saver", "Save application version to file")
-                .add(new Option("f", "file", "Output file").required()));
-
+        this.registerCommand(prog);
         foreach (ConsolePlugin plug; _plugins)
             plug.registerCommand(prog);
 
         auto progArgs = prog.parse(args);
 
-        auto command = progArgs.command;
-        if (command !is null && command.name == "saver")
-        {
-            auto versionFile = command.option("file");
-            if (versionFile !is null && versionFile.length)
-            {
-                writeFile(NativePath(versionFile), cast(ubyte[])release.toString);
-                return 0;
-            }
-            return 1;
-        }
+        if (this.runCommand(progArgs))
+            return 0;
 
         foreach (bootstrap; _applicationBootstraps)
             bootstrap(_container, _applicationConfig);
@@ -314,6 +303,33 @@ class DangoApplication : Application, PluginContainer!ConsolePlugin
 
 
 private:
+
+
+    /**
+     * Регистрация обработчика команды dango
+     */
+    void registerCommand(Program prog) @trusted
+    {
+        auto dangoCommand = new Command("dango", "Dango utilities");
+        dangoCommand.add(new Option(null, "saver", "Save application version to file").required());
+        prog.add(dangoCommand);
+        prog.defaultCommand(dangoCommand.name);
+    }
+
+    /**
+     * Получение параметров командной строки
+     */
+    int runCommand(ProgramArgs progArgs) @trusted
+    {
+        int ret = 0;
+        progArgs.on("dango", (cmdArgs) {
+                auto versionFile = cmdArgs.option("saver");
+                if (versionFile !is null && versionFile.length)
+                    writeFile(NativePath(versionFile), cast(ubyte[])release.toString);
+                ret = 1;
+            });
+        return ret;
+    }
 
 
     void initializeDependencies(DependencyContainer container, UniConf config) @safe
