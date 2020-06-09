@@ -130,7 +130,7 @@ interface DaemonPlugin : Plugin
  */
 class PluginManager
 {
-    private 
+    private
     {
         alias PluginCollect = void delegate(Plugin) @safe;
 

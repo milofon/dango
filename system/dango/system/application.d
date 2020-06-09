@@ -444,10 +444,9 @@ class DaemonApplicationPlugin : PluginContainer!DaemonPlugin, ConsolePlugin
      */
     void registerCommand(Program prog) @safe
     {
-        auto comm = new Command("start", summary, release.toString)
-                .add(new Option("uid", "user", "Sets the user name for privilege lowering."))
-                .add(new Option("gid", "group", "Sets the group name for privilege lowering."));
-        prog.add(comm);
+        auto cmd = prog.getCommandOrCreate("start", summary, release.toString);
+        cmd.add(new Option("uid", "user", "Sets the user name for privilege lowering."));
+        cmd.add(new Option("gid", "group", "Sets the group name for privilege lowering."));
     }
 
     /**
@@ -489,6 +488,22 @@ class DaemonApplicationPlugin : PluginContainer!DaemonPlugin, ConsolePlugin
         }
 
         return ret;
+    }
+}
+
+
+/**
+ * Возвращает команду или создает новую
+ */
+Command getCommandOrCreate(Command prog, string name, string summary, string ver) @safe
+{
+    if (auto cmd = name in prog.commands)
+        return *cmd;
+    else
+    {
+        auto cmd = new Command(name, summary, ver);
+        prog.add(cmd);
+        return cmd;
     }
 }
 
