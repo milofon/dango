@@ -5,7 +5,7 @@ authors "Maksim Galanin"
 license "BSD 3-clause"
 
 dependency "dango:system" version="*"
-dependency "vibe-d:http" version="~>0.8.6"
+dependency "vibe-d:http" version="~>0.9.0-beta.1"
 
 targetType "library"
 targetPath "../out"
@@ -19,7 +19,7 @@ configuration "library" {
 configuration "unittest" {
 	dependency "silly" version="~>1.0.1"
 	targetType "library"
-	sourcePaths "../tests/web" 
+	sourcePaths "../tests/web"
 	importPaths "../tests/web"
 }
 
