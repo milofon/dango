@@ -312,9 +312,10 @@ private:
                                 _container, mdwInfo.config);
                         ch.attachMiddleware(mdw);
                         mdw.registerHandlers(method, absPath, (mm, mp, mh) @safe {
-                                routes.match(mm, mp, mh); 
+                                routes.match(mm, mp, mh);
                             });
                     }
+                    logInfo("  %s: %s", method, absPath);
                     routes.match(method, absPath, ch);
                 });
         }
