@@ -232,7 +232,7 @@ class WebServerPlugin : WebPlugin
     /**
      * Регистрация контроллера с использованием существующей фабрики
      */
-    void registerController(CF : WebControllerFactory)(string name, 
+    void registerController(CF : WebControllerFactory)(string name,
             WebControllerFactory factory) @safe
     {
         string uName = name.toUpper;

@@ -128,10 +128,6 @@ void injectSingle(string name, Type, MemberTypes...)(DependencyContainer contain
     static if (namedUDAs.length)
         __traits(getMember, instance, name) = container.resolve!(MemberTypes)(namedUDAs[0].name);
     else
-    {
-        auto ins = container.resolve!(MemberTypes)();
-        assert (ins);
         __traits(getMember, instance, name) = container.resolve!(MemberTypes)();
-    }
 }
 

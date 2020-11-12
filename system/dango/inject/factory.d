@@ -79,7 +79,7 @@ version (unittest)
 
     class HTTPServer : Server
     {
-        private 
+        private
         {
             string _host;
             ushort _port;
