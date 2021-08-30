@@ -439,7 +439,7 @@ private:
     Duration getNextDuration() nothrow
     {
         auto now = cast(DateTime)Clock.currTime();
-        return assumeWontThrow(_expression.getNext(now)) - now;
+        return assumeWontThrow(_expression.getNext(now)).get - now;
     }
 }
 
